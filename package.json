@@ -1,0 +1,30 @@
+{
+  "name": "handoff-os",
+  "version": "1.0.1",
+  "description": "Agent operating rules for founders and micro-teams: an egress lock, an audit trail and a verification gate for Claude Code.",
+  "license": "Apache-2.0",
+  "private": true,
+  "homepage": "https://github.com/serio-ngo/handoff-os#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/serio-ngo/handoff-os.git"
+  },
+  "bugs": {
+    "url": "https://github.com/serio-ngo/handoff-os/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "contentHash": "b3a5e6cff28977b6",
+  "scripts": {
+    "test": "node --test",
+    "verify": "node --test",
+    "docs": "node scripts/docs-manifest.mjs",
+    "setup": "node scripts/setup.mjs",
+    "sync:settings": "node scripts/sync-settings.mjs",
+    "sync:plugin": "node scripts/plugin-sync.mjs",
+    "release": "node scripts/release.mjs",
+    "verify:install": "node scripts/verify-install.mjs"
+  }
+}

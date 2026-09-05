@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "serio-ngo",
+  "owner": {
+    "name": "Serio NGO",
+    "url": "https://serio.org.pl"
+  },
+  "description": "Open-source agent governance from a Polish nonprofit. Instructions and scripts only — no data, no telemetry, no dependencies.",
+  "plugins": [
+    {
+      "name": "handoff-os",
+      "source": "./plugins/handoff-os",
+      "description": "Agent operating rules for founders and micro-teams: an egress lock, an audit trail, a verification gate and budget caps. Nothing sends, pays, submits or publishes without human approval.",
+      "category": "workflow",
+      "keywords": ["governance", "guardrails", "human-in-the-loop", "audit", "solo-founder", "nonprofit"]
+    }
+  ]
+}

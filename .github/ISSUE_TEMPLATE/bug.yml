@@ -1,0 +1,47 @@
+name: Bug
+description: A hook, script or skill behaves differently from what the documentation says.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      description: The version field in plugins/handoff-os/.claude-plugin/plugin.json.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What the documentation says should happen
+      description: Quote the line and name the file.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: Paste the real output. Redact paths, tokens and account names.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: The command that reproduces it
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: suite
+    attributes:
+      label: Output of npm test
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options: [Claude Code CLI, Claude desktop app, Cowork, other]
+    validations:
+      required: true

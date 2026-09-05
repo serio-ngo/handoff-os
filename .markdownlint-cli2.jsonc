@@ -1,0 +1,9 @@
+{
+  "globs": ["**/*.md"],
+  "ignores": ["node_modules/**", "docs/MANIFEST.md"],
+  "config": {
+    "line-length": false,
+    "no-inline-html": false,
+    "no-duplicate-heading": { "siblings_only": true }
+  }
+}

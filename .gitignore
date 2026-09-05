@@ -1,0 +1,11 @@
+.claude/.verified-*
+.claude/.verify-gate-count-*
+.claude/.wave-*
+.claude/.reads-*
+audit/*.jsonl
+!audit/README.md
+plugins/handoff-os/org.json
+config/org.json
+node_modules/
+.DS_Store
+*.log

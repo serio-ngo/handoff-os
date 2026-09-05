@@ -1,0 +1,98 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-card.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Session card: planes, tiers, canon pointers"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/read-budget.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Read budget: checking for an unchanged re-read"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/egress-guard.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Egress lock: checking command and path"
+          }
+        ]
+      },
+      {
+        "matcher": "^mcp__",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/egress-guard.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Egress lock: checking connector action"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/subagent-cap.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Fan-out cap: counting this wave"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/audit-append.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Audit: appending file-write line"
+          }
+        ]
+      },
+      {
+          "matcher": "^mcp__(?!.*[_-](search|list|read|get|help|resolve)(_|-|$))",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/audit-append.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Audit: appending connector-write line"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/verify-gate.mjs\"",
+            "timeout": 15,
+            "statusMessage": "Verify gate: checking evidence for the done claim"
+          }
+        ]
+      }
+    ]
+  }
+}

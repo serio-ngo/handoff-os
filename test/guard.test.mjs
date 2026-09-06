@@ -70,6 +70,19 @@ describe('cowork mode (HANDOFF_ALLOW_GIT=1)', () => {
   });
 });
 
+describe('the HANDOFF_MCP_ALLOW escape hatch', () => {
+  const env = { ...process.env, HANDOFF_MCP_ALLOW: 'submission_status' };
+
+  it('admits a listed connector action the verb lock would trip on', () => {
+    assert.equal(fire(GUARD, connector('submission_status'), env).status, ALLOWED);
+  });
+
+  it('leaves every unlisted action under the lock', () => {
+    assert.equal(fire(GUARD, connector('send_message'), env).status, BLOCKED);
+    assert.equal(fire(GUARD, connector('submission_status')).status, BLOCKED);
+  });
+});
+
 allows('read-only and inward shell commands', [
   `${VCS} status`,
   `${VCS} diff`,

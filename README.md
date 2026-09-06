@@ -2,9 +2,9 @@
 
 Your agent does the work. You keep every outward action.
 
-A Claude Code plugin for one operator on one subscription. The agent drafts, checks and prepares.
-Sending, paying, submitting, publishing and pushing stay yours. No API key is ever configured, so the
-cost stays the flat subscription fee.
+Built for the solo founder or micro-startup running on one flat subscription. Deterministic
+hooks cut token waste, cap subagent spend, verify every done-claim, and refuse outward actions —
+so the bill never leaves the subscription fee and nothing ships unproven.
 
 [![verify](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml)
 [![license: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
@@ -21,7 +21,7 @@ npm run setup
 
 Restart Claude Code when done. `npm run doctor` re-checks any time.
 
-## What is enforced
+## What it enforces
 
 One hook runs before guarded tool calls and can refuse them. Nothing here is advice.
 
@@ -70,6 +70,9 @@ tier.
 
 Cowork installs from a git URL only: push your fork, run `npm run cowork`, then add it under
 Cowork → Customize → Add plugin.
+
+A connector tool the verb lock trips on? `HANDOFF_MCP_ALLOW=action_name` (comma-separated) admits
+the named actions and nothing else.
 
 ## Your org facts
 

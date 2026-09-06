@@ -212,6 +212,7 @@ else if (tool === 'Bash' || tool === 'PowerShell') {
   if (verdict) deny(verdict);
 } else if (tool.startsWith('mcp__')) {
   const action = tool.split('__').slice(2).join('__').toLowerCase();
+  if ((process.env.HANDOFF_MCP_ALLOW || '').split(',').map((s) => s.trim().toLowerCase()).includes(action)) process.exit(0);
   const dashed = action.replace(/_/g, '-');
   const strong = STRONG.some((verb) => action.includes(verb));
   const hit = DESTRUCTIVE.find((verb) => action.includes(verb))

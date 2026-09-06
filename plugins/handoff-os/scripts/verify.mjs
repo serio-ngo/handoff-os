@@ -3,9 +3,10 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { COUNTERS, load, rootOf, save, savings, savingsLine, sessionOf } from './ledger.mjs';
+import { COUNTERS, bank, lifetimeLine, load, rootOf, save, savings, sessionOf } from './ledger.mjs';
 
 const DONE_CLAIM = /\b(?:done|complete|completed|finished|works now|fixed|ready|shipped)\b/i;
+const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*YOU\b.*$/gm;
 const MARKER_MAX_AGE_MS = 30 * 60 * 1000;
 const MAX_BLOCKS = 2;
 const CITED = /[\w.-]+:\d+|https?:\/\/|\bUNVERIFIED\b/i;
@@ -38,7 +39,7 @@ function lastAssistantText(file) {
   return '';
 }
 
-export function uncited(message) {
+function uncited(message) {
   const text = String(message || '').trim();
   return text.length >= MIN_CLAIM_CHARS && !CITED.test(text);
 }
@@ -71,7 +72,8 @@ function report(payload) {
   state.saved.cache += sum;
   state.cursor = cursor;
   const total = savings(state);
-  if (!total) { save(root, session, state); return null; }
+  const line = total ? lifetimeLine(state) : '';
+  if (!line) { save(root, session, state); return null; }
   append(root, {
     actor: 'main',
     tier: 'GREEN',
@@ -79,9 +81,10 @@ function report(payload) {
     target: `${total.agents} agents, ${total.blocked} blocked, ${total.rereads} re-reads, ${total.slices} slices`,
     result: `~${total.tokens} tokens saved, ${total.cache} cache-read`,
   });
+  bank(state);
   for (const key of COUNTERS) state.saved[key] = 0;
   save(root, session, state);
-  return savingsLine(total);
+  return line;
 }
 
 function announce(note, extra) {
@@ -107,7 +110,7 @@ function gate() {
   const scripts = scriptsAt(root);
   if (!scripts) announce(note);
 
-  if (!DONE_CLAIM.test(message)) announce(note);
+  if (!DONE_CLAIM.test(message.replace(HANDOFF_CARD, ''))) announce(note);
 
   const command = stepsToCommand(resolveSteps(scripts));
   if (!command) announce(note);

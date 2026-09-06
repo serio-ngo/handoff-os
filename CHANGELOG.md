@@ -1,29 +1,13 @@
 # Changelog
 
-## 1.4.0 — 2026-09-06
+## 1.5.1 — 2026-09-06
 
-- git open except merge and delete, optional --lock git; query budget reopens on write; anchored fetch-server match; read ceiling releases on compact
+- benchmark report now prints with every release; dependabot, funding and issue-template clutter removed
+- cumulative guard-actions savings line, pinned to every reply with HANDOFF_STATS=1; guard unwraps nested shells and blocks shell deletes, gh api mutations, interpreter egress, destructive SQL and protected-path redirects
 
-## 1.3.0 — 2026-09-06
+## 1.4.1 — 2026-09-06
 
-- git lock: merge and deletion refused in every mode; cowork runs the rest of git
-
-## 1.2.0 — 2026-09-06
-
-- query and read ceilings, raw-fetch connector routing, minimal guard messages
-
-## 1.1.0 — 2026-09-06
-
-- savings visibility: six-figure Stop line, shell read budget, cache-hit accounting, skills 5 to 3, npm run benchmark
-
-## 1.0.3 — 2026-09-06
-
-- zero-input setup and sync, one test harness, no restated values
-
-## 1.0.2 — 2026-09-06
-
-- first-prompt backup, haiku scout does the boring lookups
-
-## 1.0.1 — 2026-09-05
-
-- Reposition messaging for founders and micro-teams; professionalise documentation
+- Egress lock on shell and connectors; git open except merge and delete, optional `--lock git` bans every git write
+- Read, query and dispatch budgets, fan-out cap, whole-file limit and session ceiling — all release on compact
+- Verify gate and scout citation contract; audit ledger and savings line
+- Three skills, one scout, zero-input setup and sync; dead canon guard patterns removed

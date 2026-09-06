@@ -5,6 +5,9 @@ export const READ_CEILING_BYTES = 500 * 1024;
 export const OPUS = /opus/i;
 export const QUALITY = /\bQUALITY:\s*(?:writing|creative|legal|security)\b/;
 export const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
+export const SHELL_INNER = /(?:^|\s)-(?:-command|[a-z]*c)\s+(['"])([\s\S]*)\1\s*$/i;
+export const SHELL_PREFIX = /^(?:eval|command|exec|builtin|nohup|time|nice|stdbuf|xargs)\b(?:\s+-\S+)*\s+/i;
+export const SHELL_QUOTED = /^(['"])([\s\S]*)\1$/;
 
 const GIT = String.raw`^git\b(?:\s+(?:-[Cc]\s+\S+|--\S+(?:[=\s]\S+)?))*\s+`;
 const git = (tail) => new RegExp(GIT + tail, 'i');
@@ -54,6 +57,25 @@ export const AT_HEAD = [
   /^terraform\s+apply\b/i,
 ];
 
+export const SHELL_DESTRUCTIVE = [
+  /^rm\b/i,
+  /^rmdir\b/i,
+  /^shred\b/i,
+  /^truncate\b/i,
+  /^(?:del|erase)\b/i,
+  /^Remove-Item\b/i,
+];
+
+export const GH_MUTATION = /^gh\s+api\b[^\n]*(?:\s-[fF]\b|--field|--raw-field|\bgraphql\b[^\n]*mutation)/i;
+
+export const INTERPRETER_EGRESS = /^(?:python[\d.]*|node|deno|bun|ruby|perl|php)\b[^\n]*\s--?(?:c|e|eval)\b[\s\S]*(?:requests\.(?:post|put|patch|delete)|urllib\.request|http\.client|fetch\s*\(|axios|smtplib|Net::HTTP|curl_exec)/i;
+
+export const SHELL_WRITE_TARGET = [
+  /(?:^|\s)(?:\d?>>?|&>)\s*['"]?([^'"\s]+)/,
+  /\btee\s+(?:-a\s+)?['"]?([^'"\s]+)/,
+  /\bsed\b[^\n]*\s-i\S*\s+(?:-\S+\s+)*(?:'[^']*'\s+|"[^"]*"\s+)?['"]?([^'"\s]+)/,
+];
+
 export const ANYWHERE = [
   /(?:ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper)\s*[=:]/i,
   /\b(?:setx|set|export|env|\$env:)\b[^\n]{0,40}(?:ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper)/i,
@@ -63,9 +85,11 @@ export const OUTWARD = ['send', 'email', 'mail', 'publish', 'publication', 'post
   'share', 'submit', 'submission', 'pay', 'charge', 'invoice', 'checkout', 'subscribe', 'broadcast',
   'deploy', 'release', 'reply', 'forward', 'redirect', 'resend', 'notif', 'respond', 'rsvp', 'spam'];
 export const DESTRUCTIVE = ['delete', 'trash', 'remove', 'destroy', 'purge', 'archive', 'revoke', 'unshare'];
+export const WRITE_VERBS = ['write', 'execute', 'truncate', 'drop', 'overwrite', 'upsert'];
 export const STRONG = ['send', 'pay', 'charge', 'invoice', 'checkout', 'publish', 'publication', 'submit',
-  'submission', 'deploy', 'tweet', 'broadcast', 'resend', 'delete', 'trash', 'purge', 'destroy',
-  'revoke', 'unshare'];
+  'submission', 'deploy', 'tweet', 'broadcast', 'resend', ...DESTRUCTIVE, ...WRITE_VERBS];
+export const SQL_DESTRUCTIVE = /\b(?:drop\s+(?:table|database|index|schema)|truncate\s+table|delete\s+from|alter\s+table)\b/i;
+export const MODEL_TIERS = /\b(?:haiku|sonnet|opus|fable)\b/i;
 export const OUTWARD_PREFIX = /^request[-_]/;
 export const READ_PREFIX = /^(?:list|get|search|read|fetch|find|describe|count|preview|resolve|export)[-_]/;
 export const RESTORATIVE = /^un(?:trash|archive|delete|hide|mark)[-_]/;
@@ -75,12 +99,11 @@ export const CONNECTOR_ALLOW = [
 ];
 
 export const PROTECTED_PATHS = [
-  /(^|[/\\])canon[/\\][^/\\]*\.(?:json|ya?ml|csv|tsv)$/i,
   /\.env(\.[^/\\]*)?$/i,
   /(^|[/\\])secrets?[/\\]/i,
 ];
 export const PROTECTED_NAMES = [
-  /^(?:org|brands|systems|facts|canon|beneficiar\w*|contacts)\.(?:json|ya?ml|csv|tsv)$/i,
+  /^(?:org|brands|systems|facts|beneficiar\w*|contacts)\.(?:json|ya?ml|csv|tsv)$/i,
   /^(?:logo|favicon|og-image|brand-kit|brandmark)/i,
   /credential/i,
   /\.(?:pem|key|p12|pfx)$/i,
@@ -94,6 +117,6 @@ export const FIXTURES = [
 ];
 export const ACCOUNT_NUMBER = /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,4})?\b/;
 
-export const WHOLE_FILE_READ = /^(?:cat|bat|more|less)\s+(\S+)$/;
+export const WHOLE_FILE_READ = /^(?:cat|bat|more|less|type|gc|Get-Content)\s+(?:-\S+\s+)*(\S+)$/i;
 
 export const WEB_FETCH_SERVER = /^(?:.*[-_])?(?:fetch|crawl|firecrawl|scrape|scraper|search|websearch|serp|reader|tavily|exa|jina|duckduckgo|ddg|brave|browserbase|puppeteer|playwright)(?:[-_].*)?$/i;

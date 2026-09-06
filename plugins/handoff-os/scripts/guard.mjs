@@ -3,9 +3,10 @@ import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, stat
 import path from 'node:path';
 import {
   ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES,
-  GIT_DESTRUCTIVE, GIT_WRITE, MAX_PER_WAVE, OPUS, OUTWARD, OUTWARD_PREFIX, PROTECTED_NAMES, PROTECTED_PATHS,
-  QUALITY, READ_CEILING_BYTES, READ_PREFIX, RESTORATIVE, SHELLS, STRONG, WAVE_MS,
-  WEB_FETCH_SERVER, WHOLE_FILE_READ,
+  GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS, OPUS,
+  OUTWARD, OUTWARD_PREFIX, PROTECTED_NAMES, PROTECTED_PATHS, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
+  RESTORATIVE, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED, SHELL_WRITE_TARGET, SHELLS,
+  SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_READ, WRITE_VERBS,
 } from './patterns.mjs';
 import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
 
@@ -39,12 +40,25 @@ export function segments(command) {
   return out.map((part) => part.replace(/^\s*(?:\w+=\S+\s+)*/, '').trim()).filter(Boolean);
 }
 
+export function unwrap(segment) {
+  let out = String(segment).trim();
+  for (let i = 0; i < 3; i += 1) {
+    const next = out.replace(SHELL_PREFIX, '').trim().replace(SHELL_QUOTED, '$2').trim();
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 function judgeShell(command, depth = 0) {
   const lockGit = process.env.HANDOFF_LOCK_GIT === '1';
   for (const rx of ANYWHERE) if (rx.test(command)) return `blocked a metered-credential assignment (${rx.source.slice(0, 40)})`;
-  for (const segment of segments(command)) {
+  for (const segment of segments(command).map(unwrap)) {
     for (const rx of GIT_DESTRUCTIVE) {
       if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — a merge or a delete. Those destroy work nobody can get back, so they stay with the human`;
+    }
+    for (const rx of SHELL_DESTRUCTIVE) {
+      if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — a delete. Move it aside instead, or let the human remove it`;
     }
     if (lockGit) {
       for (const rx of GIT_WRITE) {
@@ -54,8 +68,14 @@ function judgeShell(command, depth = 0) {
     for (const rx of AT_HEAD) {
       if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — an outward action, the human performs it`;
     }
+    if (GH_MUTATION.test(segment)) {
+      return `blocked "${segment.slice(0, 80)}" — a gh api call carrying fields, which writes. The human performs it`;
+    }
+    if (INTERPRETER_EGRESS.test(segment)) {
+      return `blocked "${segment.slice(0, 80)}" — an interpreter one-liner that posts over the network. The human performs it`;
+    }
     if (depth < 2 && SHELLS.test(segment)) {
-      const inner = (/(?:^|\s)-c\s+(['"])([\s\S]*)\1\s*$/.exec(segment) || [])[2];
+      const inner = (SHELL_INNER.exec(segment) || [])[2];
       if (inner) {
         const verdict = judgeShell(inner, depth + 1);
         if (verdict) return verdict;
@@ -65,11 +85,44 @@ function judgeShell(command, depth = 0) {
   return null;
 }
 
-export function wholeFileRead(command) {
-  const parts = segments(command);
-  if (parts.length !== 1) return null;
-  const hit = WHOLE_FILE_READ.exec(parts[0]);
-  return hit && !hit[1].startsWith('-') ? hit[1] : null;
+export function pipelines(command) {
+  const out = [];
+  let buffer = '';
+  let quote = null;
+  for (let i = 0; i < command.length; i += 1) {
+    const char = command[i];
+    if (quote) {
+      if (char === quote && command[i - 1] !== '\\') quote = null;
+      buffer += char;
+      continue;
+    }
+    if (char === '"' || char === "'") { quote = char; buffer += char; continue; }
+    if (char === ';' || char === '\n' || char === '&') { out.push(buffer); buffer = ''; continue; }
+    buffer += char;
+  }
+  out.push(buffer);
+  return out.map((part) => part.replace(/^\s*(?:\w+=\S+\s+)*/, '').trim()).filter(Boolean);
+}
+
+export function wholeFileReads(command) {
+  const out = [];
+  for (const chunk of pipelines(command)) {
+    if (/[|`]/.test(chunk) || chunk.includes('$(')) continue;
+    const hit = WHOLE_FILE_READ.exec(unwrap(chunk));
+    if (hit && !hit[1].startsWith('-')) out.push(hit[1]);
+  }
+  return out;
+}
+
+export function shellWriteTargets(command) {
+  const out = [];
+  for (const segment of segments(command)) {
+    for (const rx of SHELL_WRITE_TARGET) {
+      const hit = rx.exec(segment);
+      if (hit && hit[1]) out.push(hit[1]);
+    }
+  }
+  return out;
 }
 
 function readBudget(payload, input) {
@@ -95,6 +148,7 @@ function readBudget(payload, input) {
 
   if (!sliced && stats.size > BIG_FILE_BYTES) {
     state.saved.slices += 1;
+    state.saved.bytes += stats.size - BIG_FILE_BYTES;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: ${path.basename(file)} is ${Math.round(stats.size / 1024)}KB, over the ${BIG_FILE_BYTES / 1024}KB whole-file limit. Read the region you need with offset/limit, or dispatch handoff-os:scout to answer from it.\n`);
     process.exit(2);
@@ -162,10 +216,25 @@ export function claimSlot(dir, bucket, cap) {
   return cap + 1;
 }
 
+export function judgeWrite(file, content, how = 'a write') {
+  const base = file.split(/[/\\]/).pop() || '';
+  if (PROTECTED_PATHS.some((rx) => rx.test(file)) || PROTECTED_NAMES.some((rx) => rx.test(base))) {
+    return `blocked ${how} to ${file} — brand-locked or secret-bearing`;
+  }
+  const exempt = /(^|[/\\])memory\.md$/i.test(file) || FIXTURES.some((rx) => rx.test(file));
+  if (!exempt && ACCOUNT_NUMBER.test(String(content ?? ''))) {
+    return `blocked an account number in ${how} to ${file} — keep it in memory.md, never in git`;
+  }
+  return null;
+}
+
 export function dispatchBudget(input) {
   const model = String(input.model || '').trim();
   if (!model) {
     return 'blocked a subagent dispatch that names no model (law 8). State one: haiku for lookups, sonnet for research and review, opus only for prose you publish';
+  }
+  if (!MODEL_TIERS.test(model)) {
+    return `blocked a subagent dispatch whose model "${model}" names no tier (law 8). Say haiku, sonnet or opus`;
   }
   if (OPUS.test(model) && !QUALITY.test(String(input.prompt || ''))) {
     return 'blocked an opus subagent (law 8). Web research and review go to sonnet; opus needs QUALITY: writing|creative|legal|security in the prompt';
@@ -209,14 +278,23 @@ else if (tool === 'Bash' || tool === 'PowerShell') {
   const command = typeof input.command === 'string' ? input.command : '';
   const verdict = judgeShell(command);
   if (verdict) deny(verdict);
-  const target = wholeFileRead(command);
-  if (target) readBudget(payload, { file_path: path.resolve(payload.cwd || process.cwd(), target.replace(/^['"]|['"]$/g, '')) });
+  for (const target of shellWriteTargets(command)) {
+    const reason = judgeWrite(target, command, 'a shell write');
+    if (reason) deny(reason);
+  }
+  for (const target of wholeFileReads(command)) {
+    readBudget(payload, { file_path: path.resolve(payload.cwd || process.cwd(), target.replace(/^['"]|['"]$/g, '')) });
+  }
 } else if (tool.startsWith('mcp__')) {
   const action = tool.split('__').slice(2).join('__').toLowerCase();
   if ((process.env.HANDOFF_MCP_ALLOW || '').split(',').map((s) => s.trim().toLowerCase()).includes(action)) process.exit(0);
+  if (SQL_DESTRUCTIVE.test(JSON.stringify(input))) {
+    deny(`blocked ${tool} — the payload carries a destructive statement. The human runs that one`);
+  }
   const dashed = action.replace(/_/g, '-');
   const strong = STRONG.some((verb) => action.includes(verb));
   const hit = DESTRUCTIVE.find((verb) => action.includes(verb))
+    || WRITE_VERBS.find((verb) => action.includes(verb))
     || OUTWARD.find((verb) => action.includes(verb))
     || (OUTWARD_PREFIX.test(dashed) ? 'request' : undefined);
   const allowed = RESTORATIVE.test(dashed)
@@ -232,13 +310,8 @@ else if (tool === 'Bash' || tool === 'PowerShell') {
   }
 } else if (tool === 'Edit' || tool === 'Write') {
   invalidateQueries(payload);
-  const file = String(input.file_path || '');
-  const base = file.split(/[/\\]/).pop() || '';
-  const guarded = PROTECTED_PATHS.some((rx) => rx.test(file)) || PROTECTED_NAMES.some((rx) => rx.test(base));
-  if (guarded) deny(`blocked a write to ${file} — brand-locked or secret-bearing`);
-  if (!/(^|[/\\])memory\.md$/i.test(file) && !FIXTURES.some((rx) => rx.test(file)) && ACCOUNT_NUMBER.test(String(input.content ?? input.new_string ?? ''))) {
-    deny(`blocked an account number in a write to ${file} — keep it in memory.md, never in git`);
-  }
+  const reason = judgeWrite(String(input.file_path || ''), input.content ?? input.new_string ?? '');
+  if (reason) deny(reason);
 }
 
 process.exit(0);

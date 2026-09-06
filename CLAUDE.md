@@ -10,7 +10,7 @@ the never-list, memory status.
 
 1. Owner context lives in gitignored `config/memory.md`, written by the agent itself. Read it when needed; empty is valid.
 2. **One home per fact. Crossing a plane is a sync, never a copy.** TRUTH=memory.md · STATE=tracker · BUILD=git · BRAND=design tool · HUMAN=the owner.
-3. **Never** send, pay, submit or publish — those are human acts, and RED stops with the three-line handoff card. Git writes are allowed; `git merge` and every delete (`rm`, `branch -D`, `tag -d`, `push --delete/--force`, `remote remove`, `stash drop`, `clean -f`, `reset --hard`) are not. `npm run sync -- --lock git` bans every git write instead.
+3. **Never** send, pay, submit or publish — those are human acts, and RED stops with the three-line handoff card. Git writes are allowed; `git merge` and every delete (`rm`, `branch -D`, `tag -d`, `push --delete/--force`, `remote remove`, `stash drop`, `clean -f`, `reset --hard`) are not. The git lock is **off by default**; `npm run sync -- --lock git` (or `HANDOFF_LOCK_GIT=1`) bans every git write instead.
 4. **Never** set `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` or `apiKeyHelper`. Subscription auth only.
 5. **No organisation data in git — ever.** No identifiers, no secrets, no mirrors. Memory lives in gitignored `config/memory.md` and is never copied into a tracked file.
 6. Before researching Claude Code or any connected system, read [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md). An identifier reaches a deliverable with its doc URL, or tagged **UNVERIFIED**.

@@ -3,11 +3,11 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { load, rootOf, save, sessionOf } from './ledger.mjs';
+import { lifetimeLine, load, rootOf, save, sessionOf } from './ledger.mjs';
 
-export const FREEING = new Set(['compact', 'clear']);
+const FREEING = new Set(['compact', 'clear']);
 
-export function releaseCeiling(payload) {
+function releaseCeiling(payload) {
   if (!FREEING.has(String(payload.source || ''))) return false;
   const root = rootOf(payload);
   const session = sessionOf(payload);
@@ -68,7 +68,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
   if (!backup) releaseCeiling(payload);
 
-  if (backup && (!session || existsSync(seenPath(session)))) process.exit(0);
+  if (backup && (!session || existsSync(seenPath(session)))) {
+    const line = process.env.HANDOFF_STATS === '1' && session
+      ? lifetimeLine(load(rootOf(payload), session))
+      : '';
+    if (line) process.stdout.write(`${line}\nClose your reply with that line, on its own, nothing after it.\n`);
+    process.exit(0);
+  }
   if (session) { try { writeFileSync(seenPath(session), 'card', 'utf8'); } catch { } }
 
   process.stdout.write(`${card()}\n`);

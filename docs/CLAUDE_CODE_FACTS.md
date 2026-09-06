@@ -127,8 +127,7 @@ Everything lives **at the plugin root** — `skills/`, `agents/`, `commands/`, `
 `.mcp.json`. Only `plugin.json` goes inside `.claude-plugin/`; `marketplace.json` goes at
 `<repo>/.claude-plugin/marketplace.json`. A session runs the plugin from
 `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`, keyed by the `version` in `plugin.json` —
-**ship content without bumping `version` and the update is a no-op.** Cowork adds marketplaces by git URL
-only.
+**ship content without bumping `version` and the update is a no-op.**
 
 ## Auth
 

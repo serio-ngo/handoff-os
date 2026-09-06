@@ -143,9 +143,8 @@ describe('the savings line the operator sees', () => {
     const { status, stdout } = finish(root);
     assert.equal(status, ALLOWED);
     const { systemMessage } = JSON.parse(stdout);
-    for (const figure of [/agents 4/, /blocked 2/, /cache hits 51,000 tok/, /re-reads 3/, /sliced 2/, /~10,000 tok saved/]) {
-      assert.match(systemMessage, figure);
-    }
+    assert.match(systemMessage, /HANDOFF OS · ~10.0k tok saved · 11 guard actions/);
+    assert.doesNotMatch(systemMessage, /cache|re-reads|sliced/);
   });
 
   it('says nothing at all when nothing was saved', () => {
@@ -188,5 +187,19 @@ describe('cache reads are counted from the transcript', () => {
   it('returns zero for a transcript that is missing or unreadable', () => {
     assert.deepEqual(cacheTokens(path.join(root, 'absent.jsonl'), 0), { sum: 0, cursor: 0 });
     assert.deepEqual(cacheTokens('', 4), { sum: 0, cursor: 4 });
+  });
+});
+
+describe('the handoff card is not a done-claim', () => {
+  it('lets the RED stop end a turn without demanding a test run', () => {
+    const root = repoWith({ verify: 'node --version' });
+    const card = 'Draft is prepared.\n\nDONE post drafted\nFILE scratchpad/launch-post.md\nYOU post -> Show HN -> this week';
+    assert.equal(stop(root, { session_id: 'carded', transcript_path: transcript(root, card) }).status, ALLOWED);
+  });
+
+  it('still catches a done-claim sitting next to a card', () => {
+    const root = repoWith({ verify: 'node --version' });
+    const card = 'The refactor is finished.\n\nDONE post drafted\nFILE x.md\nYOU post -> Show HN -> today';
+    assert.equal(stop(root, { session_id: 'carded2', transcript_path: transcript(root, card) }).status, BLOCKED);
   });
 });

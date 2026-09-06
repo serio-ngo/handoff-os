@@ -112,3 +112,29 @@ describe('the read ceiling releases when the context is freed', () => {
     }
   });
 });
+
+describe('the running total the operator can pin to every reply', () => {
+  it('stays silent unless the operator asks for it', () => {
+    const root = sandbox('stats-');
+    mkdirSync(path.join(root, '.claude'), { recursive: true });
+    writeFileSync(path.join(root, '.claude', '.session-run.json'),
+      JSON.stringify({ reads: {}, saved: {}, lifetime: { agents: 2, blocked: 3, rereads: 1, slices: 0, bytes: 40000, cache: 0 } }), 'utf8');
+    writeFileSync(seenPath('run'), 'card', 'utf8');
+    const payload = { cwd: root, session_id: 'run', hook_event_name: 'UserPromptSubmit' };
+
+    assert.equal(fire(CARD, payload, { ...process.env, HANDOFF_OS_DIR: root }).stdout, '');
+
+    const on = fire(CARD, payload, { ...process.env, HANDOFF_OS_DIR: root, HANDOFF_STATS: '1' }).stdout;
+    assert.match(on, /HANDOFF OS · ~10.0k tok saved · 6 guard actions/);
+    assert.match(on, /Close your reply with that line/);
+  });
+
+  it('says nothing when the plugin has not fired yet', () => {
+    const root = sandbox('stats-quiet-');
+    mkdirSync(path.join(root, '.claude'), { recursive: true });
+    writeFileSync(seenPath('idle'), 'card', 'utf8');
+    const out = fire(CARD, { cwd: root, session_id: 'idle', hook_event_name: 'UserPromptSubmit' },
+      { ...process.env, HANDOFF_OS_DIR: root, HANDOFF_STATS: '1' }).stdout;
+    assert.equal(out, '');
+  });
+});

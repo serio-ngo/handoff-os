@@ -1,65 +1,48 @@
-# Settings templates
+# Permission policy
 
-A plugin's own `settings.json` supports only `agent` and `subagentStatusLine`. **Permission rules cannot
-ship inside a plugin.** They are defined here and merged by `npm run sync:settings`.
+A plugin's own `settings.json` supports only `agent` and `subagentStatusLine`. **Permission rules cannot ship
+inside a plugin.** They live in `policy.json` here, and `npm run setup` projects them into the three layers.
 
-Templates contain policy only. Marketplace identity, plugin enablement, and the checkout path are derived
-at merge time from `marketplace.json` and the git remote, so forks require no manual find-and-replace.
+| Scope | Written to | Adds |
+|---|---|---|
+| `user` | `~/.claude/settings.json`, or each `CLAUDE_CONFIG_DIR` in use | `deny` + `ask` + subscription login |
+| `project` | a repository's `.claude/settings.json` | `deny`, so a fresh clone is covered before user settings exist |
+| `managed` | the managed settings path, applied as administrator | `deny` + `disableBypassPermissionsMode` |
 
-## Files
+```bash
+npm run sync -- --scope managed --target /path/to/managed-settings.json
+```
 
-| File | Destination | Coverage | Verification |
-|---|---|---|---|
-| `user-settings.template.json` | `~/.claude/settings.json` and each `CLAUDE_CONFIG_DIR` in use | Subscription login, state-changing git, secret reads, named egress commands, brand-locked writes; `ask` on connector servers | `/permissions` lists the deny rules; a `git push --dry-run` request must be refused |
-| `project-settings.template.json` | A consuming repository's `.claude/settings.json` | Identical rules, repository-scoped, so a fresh clone is protected before user settings are touched | `/permissions` within that repository |
-| `managed-settings.template.json` | Managed settings path, applied as administrator | Adds `disableBypassPermissionsMode` so no flag bypasses the deny list | `claude --permission-mode bypassPermissions` must refuse entry |
+One list, three projections — a rule added to `policy.json` reaches every layer, and the layers cannot drift
+apart. `npm test` asserts the projections stay identical.
 
-## Order of authority, highest first
-
-| # | Layer |
-|---|---|
-| 1 | managed settings |
-| 2 | `claude --settings` |
-| 3 | `.claude/settings.local.json` |
-| 4 | `.claude/settings.json` |
-| 5 | `~/.claude/settings.json` |
-
-## Rules for editing templates
+## Editing `policy.json`
 
 | Rule | Consequence of violation |
 |---|---|
-| JSON permits no comments or trailing commas | Settings fail to load silently |
-| `deny` and `ask` evaluate before the workspace trust dialog; `allow` does not | Security rules belong in `deny`, never in `allow` |
-| Evaluation order is `deny` → `ask` → `allow`; first match wins; specificity is irrelevant | A broad `deny` admits no `allow` exception. Never deny `Bash(git *)` — it blocks `git status` irreversibly |
-| `:*` is recognised only at the **end** of a pattern | `Bash(git:* push)` never matches. Write `Bash(git push *)` |
-| Parameterised forms of a tool's primary field are ignored, with a startup warning | Never `Bash(command:…)`, `Read(file_path:…)`, or `WebFetch(url:…)` |
-| Windows paths normalise to POSIX | Absolute rules take the form `//c/Users/<you>/…/**`, never `C:\…` |
-| A single leading `/` in a Read/Edit rule anchors at the settings file's directory | `Read(/secrets/**)` in `~/.claude/settings.json` means `~/.claude/secrets/**`. Use `//` for the filesystem root |
-| `WebFetch(domain:*.example.com)` does not match `example.com` | Declare both forms |
-| Any `mcp__` rule containing parentheses is skipped at load | Write `mcp__service`, never `mcp__service(action)` |
+| Security rules go in `deny`, never `allow` | `deny` and `ask` apply before the workspace trust dialog; `allow` does not |
+| Never deny a whole binary you also need to read with | `deny: Bash(git *)` blocks `git status` and admits no `allow` exception |
+| `:*` is recognised only at the end of a pattern | `Bash(git:* push)` never matches |
+| No `mcp__` rule may contain parentheses | The rule is skipped at load, silently |
+| Windows paths normalise to POSIX | `//c/Users/<you>/…/**`, never `C:\…` |
 
-Details and source URLs: [../docs/CLAUDE_CODE_FACTS.md](../docs/CLAUDE_CODE_FACTS.md) §9–10.
+Full traps, each with its source URL: [../docs/CLAUDE_CODE_FACTS.md](../docs/CLAUDE_CODE_FACTS.md) §§9–10.
 
-## Connector selection
+## The `ask` list
 
-The `permissions.ask` list names connector servers, defaulting to monday, Google (Drive, Gmail,
-Calendar), and Canva. Server names vary by installation. Run `/mcp`, record the actual names, and update accordingly.
-All other entries are derived or merged.
+`ask` names the connector servers that should prompt before a write. It ships with a short generic set;
+server names vary per installation, so run `/mcp`, then edit the list to match what you actually have.
 
-To omit unused connectors, filter their prompts at merge time:
+Removing an entry removes a prompt, never protection — the `PreToolUse` guard blocks every outward and
+destructive verb on **any** server, listed or not. To drop prompts without editing the file:
 
 ```bash
-npm run sync:settings -- --target ~/.claude/settings.json --without canva,gmail
+npm run sync -- --without <token>,<token>
 ```
 
-Only `ask` prompts are removed. `deny` entries are never filtered, and the hook guard continues to block
-every outward and destructive verb on any server — omitting a tool reduces prompts, never protection.
+## What static rules cannot reach
 
-## Coverage split
-
-| Gap in static rules | Compensating control |
-|---|---|
-| `Write` tool paths — path rules are expressed as `Read(…)` / `Edit(…)` | `PreToolUse` → `egress-guard.mjs`, which inspects `Edit` and `Write` |
-| `az` / `aws` / `gcloud` deploy and publish subcommands | The guard — denying the whole CLI would block read-only calls |
-| `curl` / `wget` / `Invoke-WebRequest` with a body or non-GET method | The guard — read-only web access remains permitted |
-| Connector tools that send, publish, pay, or delete | The guard's verb policy, plus `ask` on connector servers |
+`Write` paths (rules only express `Read`/`Edit`), cloud-CLI deploy subcommands, `curl`/`wget` carrying a
+body, and connector tools that send or delete. All four are covered by the `PreToolUse` guard instead —
+denying the whole binary would block the read-only calls you need. Layers and gaps:
+[../docs/ORCHESTRATOR.md](../docs/ORCHESTRATOR.md) §5 and [../SECURITY.md](../SECURITY.md).

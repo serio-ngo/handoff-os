@@ -2,22 +2,17 @@
 
 <!-- One imperative line per change. -->
 
-## Membership test
+## Checks
 
-<!-- Delete the rows that do not apply. -->
-
-- [ ] This binds every repository, not one codebase, one craft or one job — see CONTRIBUTING.md.
-- [ ] No organisation data, secret, registry identifier or personal path is added anywhere.
+- [ ] Binds every repository, not one codebase, one craft or one job — see CONTRIBUTING.md §1.
+- [ ] No organisation data, secret, identifier, personal path or vendor name added to the product.
 - [ ] Every external fact carries a primary-source URL, or the tag UNVERIFIED.
+- [ ] A new guard branch ships with a blocking case **and** an allowing near-miss.
+- [ ] A new skill deletes or justifies an existing one — at most five ship.
 
 ## Proof
 
-```
-npm test
-```
+<!-- Paste the real last lines of npm test. A green run is the only accepted evidence. -->
 
-<!-- Paste the real last lines. A green run is the only accepted evidence. -->
-
-- [ ] A new hook script ships with a blocking case and an allowing case.
-- [ ] A new skill deletes or justifies an existing one — the plugin ships at most five.
-- [ ] `npm run release <patch|minor|major> "note"` ran, because the plugin cache is keyed by version.
+```
+```

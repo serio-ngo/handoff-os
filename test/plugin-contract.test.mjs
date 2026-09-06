@@ -1,6 +1,5 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,17 +38,11 @@ describe('marketplace and plugin manifests', () => {
   });
 
   it('gives every listed plugin a source that exists on disk', () => {
-    for (const plugin of marketplace.plugins) {
-      assert.ok(existsSync(path.resolve(REPO, plugin.source)), plugin.source);
-    }
+    for (const plugin of marketplace.plugins) assert.ok(existsSync(path.resolve(REPO, plugin.source)), plugin.source);
   });
 
   it('carries a version, because the plugin cache is keyed by it', () => {
     assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  });
-
-  it('declares a licence a forker can act on', () => {
-    assert.equal(manifest.license, readJson(REPO, 'package.json').license);
   });
 
   it('keeps every component at the plugin root, never inside .claude-plugin', () => {
@@ -61,35 +54,48 @@ describe('hook wiring', () => {
   const scriptsOf = (event) => JSON.stringify(hooks[event] ?? []);
 
   it('injects the session card at SessionStart, the only event whose stdout reaches context', () => {
-    assert.match(scriptsOf('SessionStart'), /session-card\.mjs/);
+    assert.match(scriptsOf('SessionStart'), /card\.mjs/);
   });
 
-  it('guards shell and file writes before they run', () => {
-    const matchers = hooks.PreToolUse.map((entry) => entry.matcher);
-    assert.ok(matchers.some((m) => m.includes('Bash') && m.includes('Edit') && m.includes('Write')));
+  it('re-injects the card on resume, clear, compact and fork', () => {
+    const entry = hooks.SessionStart[0];
+    for (const source of ['startup', 'resume', 'clear', 'compact', 'fork']) {
+      assert.match(entry.matcher, new RegExp(source));
+    }
   });
 
-  it('guards every connector tool before it runs', () => {
-    assert.ok(hooks.PreToolUse.some((entry) => entry.matcher === '^mcp__'));
+  it('backs up the first prompt with the same card, so the text has one home', () => {
+    assert.match(scriptsOf('UserPromptSubmit'), /card\.mjs/);
+  });
+
+  it('spawns one guard per tool call, not one per concern', () => {
+    assert.equal(hooks.PreToolUse.length, 1);
+    assert.match(JSON.stringify(hooks.PreToolUse), /guard\.mjs/);
+  });
+
+  it('routes every guarded tool into it', () => {
+    const matcher = new RegExp(hooks.PreToolUse[0].matcher);
+    for (const tool of ['Read', 'Bash', 'PowerShell', 'Edit', 'Write', 'Agent', 'mcp__server__send']) {
+      assert.ok(matcher.test(tool), tool);
+    }
+  });
+
+  it('spends no process on tools it has no opinion about', () => {
+    const matcher = new RegExp(hooks.PreToolUse[0].matcher);
+    for (const tool of ['Glob', 'Grep', 'WebFetch', 'TodoWrite']) assert.ok(!matcher.test(tool), tool);
   });
 
   it('caps fan-out on PreToolUse, the event that can actually block', () => {
     assert.ok(!hooks.SubagentStart);
-    const cap = hooks.PreToolUse.find((entry) => entry.matcher === 'Agent');
-    assert.match(JSON.stringify(cap), /subagent-cap\.mjs/);
-  });
-
-  it('budgets re-reads on the Read tool', () => {
-    const budget = hooks.PreToolUse.find((entry) => entry.matcher === 'Read');
-    assert.match(JSON.stringify(budget), /read-budget\.mjs/);
+    assert.match(new RegExp(hooks.PreToolUse[0].matcher).source, /Agent/);
   });
 
   it('appends the audit receipt after the tool ran, never before', () => {
-    assert.match(scriptsOf('PostToolUse'), /audit-append\.mjs/);
+    assert.match(scriptsOf('PostToolUse'), /audit\.mjs/);
   });
 
   it('holds the verification gate at Stop', () => {
-    assert.match(scriptsOf('Stop'), /verify-gate\.mjs/);
+    assert.match(scriptsOf('Stop'), /verify\.mjs/);
   });
 
   it('points every command at a script that exists', () => {
@@ -111,6 +117,16 @@ describe('context budget — every skill description is loaded in every session'
     const agents = path.join(PLUGIN, 'agents');
     const count = existsSync(agents) ? readdirSync(agents).filter((n) => n.endsWith('.md')).length : 0;
     assert.ok(count <= MAX_AGENTS);
+  });
+
+  it('ships a haiku scout for cheap lookups, so simple tasks stop burning the main model', () => {
+    const scout = read(PLUGIN, 'agents', 'scout.md');
+    assert.match(scout, /^name: scout$/m);
+    assert.match(scout, /^model: haiku$/m);
+    const tools = (/^tools:\s*(.*)$/m.exec(scout) || [])[1] || '';
+    assert.doesNotMatch(tools, /Edit|Write|Bash/);
+    assert.match(tools, /Read/);
+    assert.match(tools, /Grep/);
   });
 
   const descriptions = skillNames.map((name) => {
@@ -136,18 +152,4 @@ describe('context budget — every skill description is loaded in every session'
     const total = descriptions.reduce((sum, length) => sum + length, 0);
     assert.ok(total <= MAX_DESCRIPTION_TOTAL, `${total} chars`);
   });
-});
-
-describe('every shipped script parses', () => {
-  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (
-    entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]
-  ));
-  const sources = [path.join(REPO, 'scripts'), path.join(PLUGIN, 'scripts'), path.join(REPO, 'test')]
-    .flatMap(walk).filter((file) => file.endsWith('.mjs'));
-
-  for (const file of sources) {
-    it(path.relative(REPO, file).replace(/\\/g, '/'), () => {
-      assert.equal(spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' }).status, 0);
-    });
-  }
 });

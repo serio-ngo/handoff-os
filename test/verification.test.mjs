@@ -1,7 +1,7 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveSteps, stepsToCommand } from '../plugins/handoff-os/scripts/verify.mjs';
@@ -102,5 +102,66 @@ describe('verify runner', () => {
   it('refuses to run without a session id', () => {
     const root = repoWith({ verify: 'node --version' });
     assert.notEqual(spawnSync(process.execPath, [RUNNER, '', root], { encoding: 'utf8' }).status, 0);
+  });
+});
+
+describe('the scout citation contract', () => {
+  const root = sandbox('scout-');
+  const subagent = (text) => fire(GATE, {
+    cwd: root, hook_event_name: 'SubagentStop', last_assistant_message: text,
+  }).status;
+  const long = (tail) => `${'The repository routes every outward verb through one gate. '.repeat(4)}${tail}`;
+
+  it('blocks a substantive return that cites nothing', () => assert.equal(subagent(long('')), BLOCKED));
+
+  it('allows the same return once a fact carries its source', () => {
+    for (const tail of ['guard.mjs:117', 'https://code.claude.com/docs/en/hooks.md', 'UNVERIFIED']) {
+      assert.equal(subagent(long(tail)), ALLOWED, tail);
+    }
+  });
+
+  it('allows a short return, which claims nothing worth checking', () => assert.equal(subagent('No match found.'), ALLOWED));
+
+  it('names what a citation looks like when it blocks', () => {
+    const { stderr } = fire(GATE, { cwd: root, hook_event_name: 'SubagentStop', last_assistant_message: long('') });
+    assert.match(stderr, /file:line/);
+    assert.match(stderr, /UNVERIFIED/);
+  });
+});
+
+describe('the savings line the operator sees', () => {
+  const ledgerAt = (root, saved) => {
+    mkdirSync(path.join(root, '.claude'), { recursive: true });
+    writeFileSync(path.join(root, '.claude', '.session-spender.json'),
+      JSON.stringify({ reads: {}, wave: null, saved }), 'utf8');
+  };
+  const finish = (root) => fire(GATE, { cwd: root, session_id: 'spender' }, { ...process.env, HANDOFF_OS_DIR: root });
+
+  it('reports three figures once anything was saved', () => {
+    const root = repoWith({ verify: 'node --test' });
+    ledgerAt(root, { rereads: 3, slices: 2, bytes: 40000 });
+    const { status, stdout } = finish(root);
+    assert.equal(status, ALLOWED);
+    const { systemMessage } = JSON.parse(stdout);
+    assert.match(systemMessage, /re-reads blocked 3/);
+    assert.match(systemMessage, /large reads sliced 2/);
+    assert.match(systemMessage, /10,000 tokens saved/);
+  });
+
+  it('says nothing at all when nothing was saved', () => {
+    const root = repoWith({ verify: 'node --test' });
+    ledgerAt(root, { rereads: 0, slices: 0, bytes: 0 });
+    assert.equal(finish(root).stdout, '');
+  });
+
+  it('leaves a history line in the audit ledger and resets the counters', () => {
+    const root = repoWith({ verify: 'node --test' });
+    ledgerAt(root, { rereads: 1, slices: 0, bytes: 8000 });
+    finish(root);
+    const month = new Date().toISOString().slice(0, 7);
+    const entry = JSON.parse(readFileSync(path.join(root, 'audit', `${month}.jsonl`), 'utf8').trim());
+    assert.equal(entry.action, 'read-budget');
+    assert.match(entry.result, /2000 tokens saved/);
+    assert.equal(finish(root).stdout, '');
   });
 });

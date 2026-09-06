@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin.json",
   "name": "handoff-os",
   "displayName": "Handoff OS",
-  "version": "1.0.12",
-  "description": "Agent operating rules for founders and micro-teams. Five skills, four enforcement hooks, deterministic scripts. Nothing sends, pays, submits or publishes without human approval.",
+  "version": "1.0.15",
+  "description": "Cost and focus guardrails for solo founders and micro-startups on one flat subscription. Deterministic hooks cut token waste, cap subagent spend, verify every done-claim, and stop each send, pay, submit or publish until the founder acts. No API keys, no telemetry.",
   "author": {
     "name": "Serio NGO",
     "url": "https://serio.org.pl"

@@ -1,6 +1,6 @@
 # Manifest
 
-Everything the plugin loads, at version 1.0.12. Generated — `npm run upkeep` rewrites it.
+Everything the plugin loads, at version 1.0.15. Generated — `npm run upkeep` rewrites it.
 
 ## Skills
 
@@ -20,4 +20,5 @@ Everything the plugin loads, at version 1.0.12. Generated — `npm run upkeep` r
 | `PreToolUse` | `^(Read\|Bash\|PowerShell\|Edit\|Write\|Agent\|mcp__)` | `scripts/guard.mjs` |
 | `SessionStart` | `startup\|resume\|clear\|compact\|fork` | `scripts/card.mjs` |
 | `Stop` | `*` | `scripts/verify.mjs` |
+| `SubagentStop` | `scout$` | `scripts/verify.mjs` |
 | `UserPromptSubmit` | `*` | `scripts/card.mjs` |

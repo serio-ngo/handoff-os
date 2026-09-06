@@ -1,11 +1,13 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ALLOWED, BLOCKED, SERVER, fire, sandbox, scrub } from './helper.mjs';
 
 const GUARD = fileURLToPath(new URL('../plugins/handoff-os/scripts/guard.mjs', import.meta.url));
+const MAX_PER_WAVE = 3;
 
 const verdict = (payload) => fire(GUARD, payload).status;
 const bash = (command) => ({ tool_name: 'Bash', tool_input: { command } });
@@ -65,6 +67,19 @@ describe('cowork mode (HANDOFF_ALLOW_GIT=1)', () => {
     assert.equal(cowork(bash('npm publish --access public')), BLOCKED);
     assert.equal(cowork(bash('curl -X POST -d "a=1" https://api.example.com/items')), BLOCKED);
     assert.equal(cowork(connector('send_message')), BLOCKED);
+  });
+});
+
+describe('the HANDOFF_MCP_ALLOW escape hatch', () => {
+  const env = { ...process.env, HANDOFF_MCP_ALLOW: 'submission_status' };
+
+  it('admits a listed connector action the verb lock would trip on', () => {
+    assert.equal(fire(GUARD, connector('submission_status'), env).status, ALLOWED);
+  });
+
+  it('leaves every unlisted action under the lock', () => {
+    assert.equal(fire(GUARD, connector('send_message'), env).status, BLOCKED);
+    assert.equal(fire(GUARD, connector('submission_status')).status, BLOCKED);
   });
 });
 
@@ -177,14 +192,14 @@ describe('malformed hook payloads', () => {
 describe('context budgets', () => {
   const workspace = sandbox('budgets-');
   const launch = (payload) => fire(GUARD, { cwd: workspace, ...payload }, { ...process.env, HANDOFF_OS_DIR: workspace });
-  const agent = (session_id) => launch({ session_id, tool_name: 'Agent', tool_input: {} }).status;
+  const agent = (session_id) => launch({ session_id, tool_name: 'Agent', tool_input: { model: 'sonnet' } }).status;
 
   it('lets three subagents through and blocks the fourth', () => {
     assert.deepEqual([1, 2, 3, 4].map(() => agent('first-wave')), [ALLOWED, ALLOWED, ALLOWED, BLOCKED]);
   });
 
   it('names the law it enforces and where the procedure is', () => {
-    const { stderr } = launch({ session_id: 'first-wave', tool_name: 'Agent', tool_input: {} });
+    const { stderr } = launch({ session_id: 'first-wave', tool_name: 'Agent', tool_input: { model: 'sonnet' } });
     assert.match(stderr, /law 7/i);
     assert.match(stderr, /research-budget/);
   });
@@ -207,4 +222,94 @@ describe('context budgets', () => {
     assert.equal(read(), ALLOWED);
   });
   it('defers when the file does not exist', () => assert.equal(read({ file_path: path.join(workspace, 'absent.txt') }), ALLOWED));
+
+  const bulky = path.join(workspace, 'bulky.txt');
+  const bulk = (tool_input) => launch({
+    session_id: 'slicer', tool_name: 'Read', tool_input: { file_path: bulky, ...tool_input },
+  });
+
+  it('blocks a whole-file read once the file is over the limit', () => {
+    writeFileSync(bulky, 'x'.repeat(25 * 1024));
+    const { status, stderr } = bulk();
+    assert.equal(status, BLOCKED);
+    assert.match(stderr, /offset\/limit/);
+    assert.match(stderr, /scout/);
+  });
+
+  it('allows the same oversized file when a slice is asked for', () => assert.equal(bulk({ offset: 1, limit: 40 }).status, ALLOWED));
+
+  it('allows a whole-file read just under the limit', () => {
+    const lean = path.join(workspace, 'lean.txt');
+    writeFileSync(lean, 'x'.repeat(23 * 1024));
+    assert.equal(launch({ session_id: 'slicer', tool_name: 'Read', tool_input: { file_path: lean } }).status, ALLOWED);
+  });
+});
+
+describe('the fan-out cap under a parallel dispatch', () => {
+  const workspace = sandbox('parallel-');
+  const spawnGuard = (session_id) => new Promise((resolve) => {
+    const child = spawn(process.execPath, [GUARD], { env: { ...process.env, HANDOFF_OS_DIR: workspace } });
+    child.stdin.end(JSON.stringify({ cwd: workspace, session_id, tool_name: 'Agent', tool_input: { model: 'sonnet' } }));
+    child.on('close', resolve);
+  });
+
+  it('admits exactly three when ten launch at once', async () => {
+    const codes = await Promise.all(Array.from({ length: 10 }, () => spawnGuard('burst')));
+    assert.equal(codes.filter((code) => code === ALLOWED).length, MAX_PER_WAVE);
+    assert.equal(codes.filter((code) => code === BLOCKED).length, 10 - MAX_PER_WAVE);
+  });
+
+  it('opens a fresh wave for a later bucket', async () => {
+    const codes = await Promise.all(Array.from({ length: 2 }, () => spawnGuard('other-burst')));
+    assert.deepEqual(codes, [ALLOWED, ALLOWED]);
+  });
+});
+
+describe('every dispatch states its model', () => {
+  const workspace = sandbox('dispatch-');
+  const dispatch = (tool_input) => fire(GUARD, { cwd: workspace, session_id: 'd', tool_name: 'Agent', tool_input },
+    { ...process.env, HANDOFF_OS_DIR: workspace });
+
+  it('blocks a dispatch that names no model', () => {
+    const { status, stderr } = dispatch({ prompt: 'search the web for grant deadlines' });
+    assert.equal(status, BLOCKED);
+    assert.match(stderr, /law 8/);
+  });
+
+  it('blocks opus without a QUALITY flag', () => assert.equal(
+    dispatch({ model: 'opus', prompt: 'search the web for grant deadlines' }).status, BLOCKED));
+
+  it('allows opus once the prompt claims the quality it needs', () => assert.equal(
+    dispatch({ model: 'opus', prompt: 'QUALITY: writing — draft the grant narrative' }).status, ALLOWED));
+
+  it('allows the cheap models a lookup should use', () => {
+    for (const model of ['haiku', 'sonnet']) {
+      assert.equal(dispatch({ model, prompt: 'find the config' }).status, ALLOWED, model);
+    }
+  });
+});
+
+describe('the session ledger', () => {
+  const workspace = sandbox('ledger-');
+  const launch = (payload) => fire(GUARD, { cwd: workspace, ...payload }, { ...process.env, HANDOFF_OS_DIR: workspace });
+  const probe = path.join(workspace, 'counted.txt');
+  const state = () => JSON.parse(readFileSync(path.join(workspace, '.claude', '.session-counter.json'), 'utf8'));
+
+  it('counts a blocked re-read and the bytes it kept out of context', () => {
+    writeFileSync(probe, 'y'.repeat(4096));
+    const read = () => launch({ session_id: 'counter', tool_name: 'Read', tool_input: { file_path: probe } }).status;
+    assert.equal(read(), ALLOWED);
+    assert.equal(read(), BLOCKED);
+    assert.deepEqual(state().saved, { rereads: 1, slices: 0, bytes: 4096 });
+  });
+
+  it('counts a forced slice separately from a re-read', () => {
+    writeFileSync(path.join(workspace, 'huge.txt'), 'z'.repeat(30 * 1024));
+    launch({ session_id: 'counter', tool_name: 'Read', tool_input: { file_path: path.join(workspace, 'huge.txt') } });
+    assert.deepEqual(state().saved, { rereads: 1, slices: 1, bytes: 4096 });
+  });
+
+  it('keeps reads and savings in one file per session', () => {
+    assert.deepEqual(Object.keys(state()).sort(), ['reads', 'saved']);
+  });
 });

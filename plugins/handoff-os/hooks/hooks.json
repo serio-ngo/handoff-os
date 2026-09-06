@@ -23,6 +23,12 @@
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/audit.mjs\"", "timeout": 10, "statusMessage": "Audit receipt" }]
       }
     ],
+    "SubagentStop": [
+      {
+        "matcher": "scout$",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs\"", "timeout": 10, "statusMessage": "Scout citation contract" }]
+      }
+    ],
     "Stop": [
       {
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs\"", "timeout": 15, "statusMessage": "Verify gate" }]

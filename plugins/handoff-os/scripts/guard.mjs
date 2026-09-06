@@ -1,9 +1,13 @@
 #!/usr/bin/env node
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { load, rootOf, save, sessionOf } from './ledger.mjs';
 
 const MAX_PER_WAVE = 3;
 const WAVE_MS = 90 * 1000;
+const BIG_FILE_BYTES = 24 * 1024;
+const OPUS = /opus/i;
+const QUALITY = /\bQUALITY:\s*(?:writing|creative|legal|security)\b/;
 const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
 
 const GIT_OUT = [
@@ -116,52 +120,69 @@ function judgeShell(command, depth = 0) {
 }
 
 function readBudget(payload, input) {
-  if (input.offset !== undefined || input.limit !== undefined) return;
   const file = String(input.file_path || '');
   if (!file) return;
-  let fingerprint;
-  try {
-    const stats = statSync(file);
-    fingerprint = `${stats.mtimeMs}:${stats.size}`;
-  } catch { return; }
+  const sliced = input.offset !== undefined || input.limit !== undefined;
+  let stats;
+  try { stats = statSync(file); } catch { return; }
 
-  const root = process.env.HANDOFF_OS_DIR || process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
-  const session = String(payload.session_id || 'unknown').replace(/[^A-Za-z0-9_-]/g, '');
-  const store = path.join(root, '.claude', `.reads-${session}.json`);
-  let seen = {};
-  try { seen = JSON.parse(readFileSync(store, 'utf8')); } catch { seen = {}; }
-
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
   const key = path.resolve(file);
-  if (seen[key] === fingerprint) {
+  const fingerprint = `${stats.mtimeMs}:${stats.size}`;
+
+  if (!sliced && state.reads[key] === fingerprint) {
+    state.saved.rereads += 1;
+    state.saved.bytes += stats.size;
+    save(root, session, state);
     process.stderr.write(`READ BUDGET: ${path.basename(file)} is unchanged and already in context. Read a slice with offset/limit if you need one region.\n`);
     process.exit(2);
   }
-  seen[key] = fingerprint;
+
+  if (!sliced && stats.size > BIG_FILE_BYTES) {
+    state.saved.slices += 1;
+    save(root, session, state);
+    process.stderr.write(`READ BUDGET: ${path.basename(file)} is ${Math.round(stats.size / 1024)}KB, over the ${BIG_FILE_BYTES / 1024}KB whole-file limit. Read the region you need with offset/limit, or dispatch handoff-os:scout to answer from it.\n`);
+    process.exit(2);
+  }
+
+  if (!sliced) state.reads[key] = fingerprint;
+  save(root, session, state);
+}
+
+export function claimSlot(dir, bucket, cap) {
+  try { mkdirSync(dir, { recursive: true }); } catch { return 1; }
   try {
-    mkdirSync(path.dirname(store), { recursive: true });
-    writeFileSync(store, JSON.stringify(seen), 'utf8');
+    for (const name of readdirSync(dir)) {
+      if (!name.startsWith(`${bucket}-`)) rmSync(path.join(dir, name), { force: true });
+    }
   } catch { }
+  for (let n = 1; n <= cap + 1; n += 1) {
+    try {
+      closeSync(openSync(path.join(dir, `${bucket}-${n}`), 'wx'));
+      return n;
+    } catch { }
+  }
+  return cap + 1;
+}
+
+export function dispatchBudget(input) {
+  const model = String(input.model || '').trim();
+  if (!model) {
+    return 'blocked a subagent dispatch that names no model (law 8). State one: haiku for lookups, sonnet for research and review, opus only for prose you publish';
+  }
+  if (OPUS.test(model) && !QUALITY.test(String(input.prompt || ''))) {
+    return 'blocked an opus subagent (law 8). Web research and review go to sonnet; opus needs QUALITY: writing|creative|legal|security in the prompt';
+  }
+  return null;
 }
 
 function fanOutCap(payload) {
-  const root = process.env.HANDOFF_OS_DIR || process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
-  const session = String(payload.session_id || 'unknown').replace(/[^A-Za-z0-9_-]/g, '');
-  const store = path.join(root, '.claude', `.wave-${session}.json`);
-  const now = Date.now();
-  let state = { count: 0, first: now };
-  try {
-    const prior = JSON.parse(readFileSync(store, 'utf8'));
-    if (now - prior.first < WAVE_MS) state = prior;
-  } catch { }
-  state.count += 1;
-  try {
-    mkdirSync(path.dirname(store), { recursive: true });
-    writeFileSync(store, JSON.stringify(state), 'utf8');
-  } catch {
-    process.exit(0);
-  }
-  if (state.count > MAX_PER_WAVE) {
-    process.stderr.write(`FAN-OUT CAP: subagent ${state.count} of a wave capped at ${MAX_PER_WAVE} (law 7). Read what the first ${MAX_PER_WAVE} returned, then launch the next wave. Procedure: /handoff-os:research-budget.\n`);
+  const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
+  const slot = claimSlot(dir, Math.floor(Date.now() / WAVE_MS), MAX_PER_WAVE);
+  if (slot > MAX_PER_WAVE) {
+    process.stderr.write(`FAN-OUT CAP: subagent ${slot} of a wave capped at ${MAX_PER_WAVE} (law 7). Read what the first ${MAX_PER_WAVE} returned, then launch the next wave. Procedure: /handoff-os:research-budget.\n`);
     process.exit(2);
   }
 }
@@ -180,13 +201,18 @@ const tool = String(payload.tool_name || '');
 const input = payload.tool_input || {};
 
 if (tool === 'Read') readBudget(payload, input);
-else if (tool === 'Agent') fanOutCap(payload);
+else if (tool === 'Agent') {
+  const verdict = dispatchBudget(input);
+  if (verdict) deny(verdict);
+  fanOutCap(payload);
+}
 else if (tool === 'Bash' || tool === 'PowerShell') {
   if ('command' in input && typeof input.command !== 'string') deny('blocked a shell call whose command was not a string');
   const verdict = judgeShell(typeof input.command === 'string' ? input.command : '');
   if (verdict) deny(verdict);
 } else if (tool.startsWith('mcp__')) {
   const action = tool.split('__').slice(2).join('__').toLowerCase();
+  if ((process.env.HANDOFF_MCP_ALLOW || '').split(',').map((s) => s.trim().toLowerCase()).includes(action)) process.exit(0);
   const dashed = action.replace(/_/g, '-');
   const strong = STRONG.some((verb) => action.includes(verb));
   const hit = DESTRUCTIVE.find((verb) => action.includes(verb))

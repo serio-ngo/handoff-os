@@ -1,7 +1,6 @@
 .claude/.verified-*
 .claude/.verify-gate-count-*
-.claude/.wave-*
-.claude/.reads-*
+.claude/.session-*
 audit/*.jsonl
 !audit/README.md
 plugins/handoff-os/memory.md

@@ -140,14 +140,17 @@ function installTargets() {
   const existing = existsSync(cacheRoot())
     ? readdirSync(cacheRoot(), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
     : [];
-  return { declared, targets: [...new Set([declared, ...existing])] };
+  return { declared, targets: [declared], stale: existing.filter((version) => version !== declared) };
 }
 
 function install() {
-  const { declared, targets } = installTargets();
+  const { declared, targets, stale } = installTargets();
   const wanted = walk(PLUGIN);
   const memory = path.join(REPO, 'config', 'memory.md');
   let pruned = 0;
+  for (const version of stale) {
+    rmSync(path.join(cacheRoot(), version), { recursive: true, force: true });
+  }
   for (const version of targets) {
     const dest = path.join(cacheRoot(), version);
     for (const rel of wanted) {
@@ -161,7 +164,7 @@ function install() {
     }
     if (existsSync(memory)) copyFileSync(memory, path.join(dest, 'memory.md'));
   }
-  row('plugin', `${PLUGIN_NAME} ${declared} -> ${targets.join(', ')} (${wanted.length} files each, ${pruned} pruned)`);
+  row('plugin', `${PLUGIN_NAME} ${declared} (${wanted.length} files, ${pruned} file(s) and ${stale.length} old version(s) pruned)`);
   return { declared, targets };
 }
 
@@ -267,9 +270,9 @@ function doctor() {
 
   check('the plugin is enabled', settings.enabledPlugins?.[`${PLUGIN_NAME}@${marketplace.name}`] === true);
   check('login is restricted to the subscription', settings.forceLoginMethod === 'claudeai');
-  const cowork = settings.env?.HANDOFF_LOCK_GIT !== '1';
-  check(cowork ? 'git is open — cowork mode' : 'outward git is denied',
-    cowork ? true : (settings.permissions?.deny ?? []).some((r) => /git push/i.test(r)));
+  const openGit = settings.env?.HANDOFF_LOCK_GIT !== '1';
+  check(openGit ? 'git writes are allowed — the default' : 'every git write is denied',
+    openGit ? true : (settings.permissions?.deny ?? []).some((r) => /git push/i.test(r)));
   check('no metered credential is configured', !new RegExp(`${BANNED.join('|')}|apiKeyHelper`).test(JSON.stringify(settings)));
   check('no metered credential is in the environment', !BANNED.some((key) => process.env[key]));
 
@@ -282,40 +285,18 @@ function doctor() {
     `${targets.length} version(s): ${targets.join(', ')}`);
 
   if (existsSync(cache)) {
-    const fire = (script, payload) => spawnSync(process.execPath, [path.join(cache, 'scripts', script)], {
-      input: JSON.stringify(payload), encoding: 'utf8',
+    const fire = (script, payload, env) => spawnSync(process.execPath, [path.join(cache, 'scripts', script)], {
+      input: JSON.stringify(payload), encoding: 'utf8', env: { ...process.env, ...env },
     }).status;
-    check('the installed guard blocks a push', fire('guard.mjs', { hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git push origin main' } }) === BLOCKED);
+    const shell = (command, env) => fire('guard.mjs', { hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command } }, env);
+    check('the installed guard blocks a merge', shell('git merge main') === BLOCKED);
+    if (!openGit) check('the installed guard blocks a push', shell('git push origin main', { HANDOFF_LOCK_GIT: '1' }) === BLOCKED);
     check('the installed guard blocks an outward connector call', fire('guard.mjs', { hook_event_name: 'PreToolUse', tool_name: 'mcp__x__send_message', tool_input: {} }) === BLOCKED);
     check('the installed card prints', spawnSync(process.execPath, [path.join(cache, 'scripts', 'card.mjs')], { encoding: 'utf8' }).stdout.trim().length > 0);
   }
   const failed = checks.filter((ok) => !ok).length;
   console.log(`  ${checks.length - failed} of ${checks.length} yes`);
   return { failed, installed };
-}
-
-function publish() {
-  const repo = originRepo();
-  const version = readJson('plugins', PLUGIN_NAME, '.claude-plugin', 'plugin.json').version;
-  const PORTABLE = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'];
-  const problems = [];
-  if (!repo) problems.push('no git origin — Cowork installs from a git URL only');
-  if (readJson('package.json').version !== version) problems.push('package.json and plugin.json disagree on version');
-  if (readJson('package.json').contentHash !== stamp()) problems.push('content changed since the last stamp — run npm run upkeep');
-  for (const skill of walk(path.join(PLUGIN, 'skills')).filter((f) => f.endsWith('SKILL.md'))) {
-    const block = (/^---\r?\n([\s\S]*?)\r?\n---/.exec(readFileSync(path.join(PLUGIN, 'skills', skill), 'utf8')) || [])[1] || '';
-    for (const [, key] of block.matchAll(/^([A-Za-z-]+):/gm)) {
-      if (!PORTABLE.includes(key)) problems.push(`${skill} carries "${key}", which Cowork rejects on upload`);
-    }
-  }
-  const dirty = (spawnSync('git', ['-C', REPO, 'status', '--porcelain'], { encoding: 'utf8' }).stdout || '').trim();
-  row('marketplace', `${marketplace.name} @ ${repo || 'UNSET'}`);
-  row('version', version);
-  row('uncommitted', dirty ? `${dirty.split('\n').length} file(s) — Cowork installs the pushed commit, not these` : 'none');
-  row('cowork', problems.length ? `${problems.length} blocker(s)` : `add "${repo}" under Cowork > Customize > Add plugin`);
-  report();
-  for (const problem of problems) console.log(`  BLOCKER  ${problem}`);
-  return problems.length;
 }
 
 function release(args) {
@@ -347,6 +328,7 @@ function release(args) {
     'utf8');
   row('released', `${plugin.version} stamped ${pkg.contentHash}`);
   report();
+  spawnSync(process.execPath, [path.join(REPO, 'scripts', 'benchmark.mjs'), REPO], { stdio: 'inherit' });
 }
 
 function setup(args) {
@@ -364,7 +346,7 @@ function setup(args) {
 }
 
 const args = parse(process.argv.slice(2));
-const command = ['sync', 'install', 'upkeep', 'doctor', 'publish', 'release', 'setup'].includes(args._[0])
+const command = ['sync', 'install', 'upkeep', 'doctor', 'release', 'setup'].includes(args._[0])
   ? args._.shift()
   : 'setup';
 
@@ -373,5 +355,4 @@ else if (command === 'sync') { sync(args); report(); }
 else if (command === 'install') { install(); report(); }
 else if (command === 'upkeep') { upkeep(); if (args.install) install(); report(); }
 else if (command === 'doctor') process.exit(doctor().failed ? 1 : 0);
-else if (command === 'publish') process.exit(publish() ? 1 : 0);
 else if (command === 'release') release(args);

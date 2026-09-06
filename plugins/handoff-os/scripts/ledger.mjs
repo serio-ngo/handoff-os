@@ -3,7 +3,7 @@ import path from 'node:path';
 
 export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'bytes', 'cache'];
 
-const EMPTY = () => ({ reads: {}, saved: Object.fromEntries(COUNTERS.map((key) => [key, 0])) });
+const EMPTY = () => ({ reads: {}, saved: zero() });
 
 export const rootOf = (payload = {}) => process.env.HANDOFF_OS_DIR
   || process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
@@ -51,27 +51,24 @@ export function savings(state) {
 const num = (value) => Number(value || 0).toLocaleString('en-US');
 const compact = (value) => (value >= 10000 ? `${(value / 1000).toFixed(1)}k` : num(value));
 
+const zero = () => Object.fromEntries(COUNTERS.map((key) => [key, 0]));
 const stops = (t) => Number(t.blocked || 0) + Number(t.rereads || 0) + Number(t.slices || 0);
 const actions = (t) => stops(t) + Number(t.agents || 0);
 
-const blank = () => Object.fromEntries(COUNTERS.map((key) => [key, 0]));
-
 export function bank(state) {
-  const life = { ...blank(), ...(state.lifetime || {}) };
+  const life = { ...zero(), ...(state.lifetime || {}) };
   for (const key of COUNTERS) life[key] += Number(state.saved[key] || 0);
   state.lifetime = life;
   return life;
 }
 
-// The running total the operator pins to every reply: everything banked so far
-// plus whatever the current period has not banked yet — cumulative all session.
 export function lifetimeLine(state) {
-  const life = { ...blank(), ...(state.lifetime || {}) };
+  const life = { ...zero(), ...(state.lifetime || {}) };
   for (const key of COUNTERS) life[key] += Number(state.saved[key] || 0);
   return savingsLine({ ...life, tokens: Math.round(life.bytes / 4) });
 }
 
-export function savingsLine(t) {
+function savingsLine(t) {
   const parts = [];
   if (t.tokens) parts.push(`~${compact(t.tokens)} tok saved`);
   if (actions(t)) parts.push(`${num(actions(t))} guard actions`);

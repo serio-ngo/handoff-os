@@ -1,6 +1,6 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { policyFor } from '../scripts/generate.mjs';
@@ -158,5 +158,23 @@ describe('refusing to guess', () => {
     const target = scratch('dry.json');
     assert.equal(cli('sync', '--target', target, '--dry-run').status, 0);
     assert.ok(!existsSync(target));
+  });
+});
+
+describe('a healthy install reports healthy', () => {
+  const config = sandbox('doctor-');
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: config };
+  const cache = path.join(config, 'plugins', 'cache', 'serio-ngo', 'handoff-os');
+
+  it('never asks the default mode to block a push, because the default mode allows one', () => {
+    run(CLI, ['install'], { env });
+    const { stdout } = run(CLI, ['doctor'], { env });
+    assert.doesNotMatch(stdout, /NO {2}the installed guard blocks a push/);
+    assert.match(stdout, /yes {2}the installed guard blocks a merge/);
+  });
+
+  it('keeps one installed copy, not one per version ever released', () => {
+    run(CLI, ['install'], { env });
+    assert.deepEqual(readdirSync(cache).length, 1);
   });
 });

@@ -327,12 +327,6 @@ function release(args) {
   pkg.version = plugin.version;
   pkg.contentHash = stamp();
   writeJson(pkgPath, pkg);
-  const citation = path.join(REPO, 'CITATION.cff');
-  if (existsSync(citation)) {
-    writeFileSync(citation, readFileSync(citation, 'utf8')
-      .replace(/^version: .*$/m, `version: ${plugin.version}`)
-      .replace(/^date-released: .*$/m, `date-released: ${args.date || 'unreleased'}`), 'utf8');
-  }
   const changelog = path.join(REPO, 'CHANGELOG.md');
   const previous = existsSync(changelog) ? readFileSync(changelog, 'utf8').replace(/^# Changelog\n/, '') : '';
   writeFileSync(changelog,

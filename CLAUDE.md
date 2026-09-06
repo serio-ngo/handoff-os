@@ -4,8 +4,7 @@ This repository is **Handoff OS**: agent operating rules for small teams. Instru
 never organisation data. It ships one plugin installed by every repository and every Claude account.
 
 The decision procedure arrives as a **session card**, printed by the `SessionStart` hook — planes, tiers,
-the never-list, memory status. Consult [docs/ORCHESTRATOR.md](docs/ORCHESTRATOR.md) **only** when the
-card does not resolve a routing question.
+the never-list, memory status.
 
 ## Standing orders
 
@@ -29,7 +28,7 @@ card does not resolve a routing question.
 | `settings/policy.json` | the one deny/ask list; rules cannot ship inside a plugin | on owner order |
 | `scripts/` | `handoff.mjs` (the only CLI) and `generate.mjs` (pure generators) | on owner order |
 | `test/` | behaviour specs on Node's built-in runner | with every change |
-| `docs/` | the law, verified identifiers, the generated manifest | `MANIFEST.md` is generated |
+| `docs/` | verified identifiers and the generated manifest | `MANIFEST.md` is generated |
 | `config/` | `memory.md`, gitignored, agent-kept | never by hand |
 | `audit/` | `YYYY-MM.jsonl`, append-only | **hook only** |
 

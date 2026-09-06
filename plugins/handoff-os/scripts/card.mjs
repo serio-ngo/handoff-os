@@ -26,7 +26,7 @@ export function card(text = memory()) {
   const status = lines
     ? `set (${lines} lines) — read memory.md when owner context is needed`
     : 'empty — ask the owner for every org fact';
-  return `Handoff OS — session card (fallback procedure: docs/ORCHESTRATOR.md, only when this card cannot answer)
+  return `Handoff OS — session card
 PLANES one home per fact · crossing a plane is a sync, never a copy
   TRUTH=memory.md (gitignored, agent-kept) | STATE=ask the owner | BUILD=git | BRAND=ask the owner | HUMAN=the owner
 TIERS

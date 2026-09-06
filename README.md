@@ -19,18 +19,7 @@ cd handoff-os
 npm run setup
 ```
 
-Restart Claude Code when done. `npm run doctor` re-checks any time. **Cowork** installs from a git URL
-only: push your fork, run `npm run cowork`, add it under Cowork → Customize → Add plugin.
-
-## Modes
-
-| Mode | Git | Command |
-|---|---|---|
-| Dev (default) | commit and push are blocked | `npm run sync` |
-| Cowork | the agent may commit and push | `npm run sync -- --without git` |
-
-The flag strips the git rules from `deny` and sets `HANDOFF_ALLOW_GIT=1`, which the hook reads too.
-Re-sync without it to lock again.
+Restart Claude Code when done. `npm run doctor` re-checks any time.
 
 ## What is enforced
 
@@ -44,14 +33,35 @@ One hook runs before guarded tool calls and can refuse them. Nothing here is adv
 | Verify gate | A "done" claim with no run behind it | `Verify gate: you claimed done with no evidence` |
 
 `PostToolUse` appends a receipt per write to `audit/YYYY-MM.jsonl`. `SessionStart` prints a ≤20-line
-operating card instead of making every session read a document.
+operating card, so no session has to read a document first.
+
+## Tiers
+
+| Tier | Action | Agent behaviour |
+|---|---|---|
+| GREEN | reversible, inside the repo | act |
+| YELLOW | writes outside the repo, reversible | act, append one audit line |
+| RED | sends, pays, submits, publishes, or is irreversible | stop, emit a handoff card |
+
+Anything built on untrusted input — a fetched page, an email body, a connector payload — escalates one
+tier.
+
+## Modes
+
+| Mode | Git | Command |
+|---|---|---|
+| Dev (default) | commit and push are blocked | `npm run sync` |
+| Cowork | the agent may commit and push | `npm run sync -- --without git` |
+
+Cowork installs from a git URL only: push your fork, run `npm run cowork`, then add it under
+Cowork → Customize → Add plugin.
 
 ## Your org facts
 
 `config/memory.md` is plain free text the agent reads and writes itself. No schema, no setup questions.
 Empty or missing is valid — then the agent asks you. Gitignored, so it never reaches a remote.
 
-## Five skills
+## Skills
 
 | Skill | Answers |
 |---|---|
@@ -66,18 +76,10 @@ Five is the ceiling, enforced by the suite. Full load inventory: [docs/MANIFEST.
 ## Limits
 
 A policy gate on tool calls, not a sandbox. It does not confine already-written code, spawned processes,
-or a connector's own network calls. Run it *with* OS permissions and `deny` rules, not instead of them.
-All of it: [SECURITY.md](SECURITY.md).
+or a connector's own network calls. Run it *with* OS permissions and `deny` rules, not instead of them —
+[SECURITY.md](SECURITY.md).
 
-## Docs
+## Contributing
 
-| Document | Contents |
-|---|---|
-| [docs/ORCHESTRATOR.md](docs/ORCHESTRATOR.md) | Planes, tiers, routing, egress layers |
-| [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md) | Claude Code identifiers, each with its source URL |
-| [settings/README.md](settings/README.md) | The permission policy and its three projections |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Membership test, budgets, test conventions |
-| [SECURITY.md](SECURITY.md) | Threat model, known gaps, reporting |
-
-Maintained by **Serio NGO** (Fundacja Serio, Poland, <https://serio.org.pl>). No telemetry, no paid tier,
-no accounts. Licensed under [Apache-2.0](LICENSE).
+[CONTRIBUTING.md](CONTRIBUTING.md). Maintained by Serio NGO, Poland. No telemetry, no paid tier, no
+accounts. Licensed under [Apache-2.0](LICENSE).

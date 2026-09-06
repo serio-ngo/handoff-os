@@ -12,16 +12,8 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: What the documentation says should happen
-      description: Quote the line and name the file.
-    validations:
-      required: true
-  - type: textarea
-    id: actual
-    attributes:
-      label: What happened instead
-      description: Paste the real output, plus the output of npm test. Redact paths, tokens and account names.
-      render: text
+      label: What you expected, and what happened instead
+      description: Quote the documented line and paste the real output. Redact paths, tokens and account names.
     validations:
       required: true
   - type: textarea
@@ -29,12 +21,5 @@ body:
     attributes:
       label: The command that reproduces it
       render: shell
-    validations:
-      required: true
-  - type: dropdown
-    id: surface
-    attributes:
-      label: Surface
-      options: [Claude Code CLI, Claude desktop app, Cowork, other]
     validations:
       required: true

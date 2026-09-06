@@ -1,7 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const EMPTY = () => ({ reads: {}, saved: { rereads: 0, slices: 0, bytes: 0 } });
+export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'bytes', 'cache'];
+
+const EMPTY = () => ({ reads: {}, saved: Object.fromEntries(COUNTERS.map((key) => [key, 0])) });
 
 export const rootOf = (payload = {}) => process.env.HANDOFF_OS_DIR
   || process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
@@ -31,11 +33,27 @@ export function save(root, session, state) {
   }
 }
 
-export function savings(state) {
-  const { rereads, slices, bytes } = state.saved;
-  if (!rereads && !slices) return null;
-  return { rereads, slices, tokens: Math.round(bytes / 4) };
+export function bump(payload, field, amount = 1) {
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  state.saved[field] = (state.saved[field] || 0) + amount;
+  save(root, session, state);
+  return state;
 }
 
-export const savingsLine = ({ rereads, slices, tokens }) => `HANDOFF OS · re-reads blocked ${rereads}`
-  + ` · large reads sliced ${slices} · ~${tokens.toLocaleString('en-US')} tokens saved`;
+export function savings(state) {
+  const s = state.saved;
+  if (!COUNTERS.some((key) => s[key])) return null;
+  return { ...s, tokens: Math.round(s.bytes / 4) };
+}
+
+const num = (value) => Number(value || 0).toLocaleString('en-US');
+
+export const savingsLine = (t) => ['HANDOFF OS',
+  `agents ${num(t.agents)}`,
+  `blocked ${num(t.blocked)}`,
+  `cache hits ${num(t.cache)} tok`,
+  `re-reads ${num(t.rereads)}`,
+  `sliced ${num(t.slices)}`,
+  `~${num(t.tokens)} tok saved`].join(' · ');

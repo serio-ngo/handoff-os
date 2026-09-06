@@ -37,9 +37,10 @@ describe('session card', () => {
     assert.ok(Math.round(card.stdout.length / 4) <= MAX_TOKENS);
   });
 
-  it('carries the contract: planes, tiers, never-list, memory, proof, scout', () => {
+  it('carries the contract: planes, tiers, never-list, handoff card, memory, proof, scout', () => {
     for (const token of ['TRUTH=', 'STATE=', 'BUILD=', 'BRAND=', 'HUMAN=',
-      'GREEN', 'YELLOW', 'RED', 'handoff-card', 'NEVER', 'MEMORY', 'memory.md', 'verify.mjs', 'scout']) {
+      'GREEN', 'YELLOW', 'RED', 'HANDOFF', 'DONE', 'FILE', 'YOU',
+      'NEVER', 'MEMORY', 'memory.md', 'verify.mjs', 'scout']) {
       assert.match(card.stdout, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
   });

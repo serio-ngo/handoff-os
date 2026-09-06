@@ -1,6 +1,6 @@
 ---
 name: research-budget
-description: Picks the cheapest sufficient actor before any fan-out, and states the scope gate and per-agent budget that a dispatch must carry. Use before dispatching any subagent, before any research, analysis, verification or plan-writing whose answer is not already in the repo, and whenever choosing which model and effort a delegated task gets. Two profiles - DIRECT when the owner is present, where planning stays on the strong model, and ROUTINE for scheduled and unattended jobs, where cheap is the default and an expensive model needs an explicit QUALITY flag. The 3-per-wave cap is enforced by PreToolUse on the Agent tool.
+description: "Picks the cheapest sufficient actor before any fan-out, and states the scope gate and per-agent budget a dispatch must carry. Use before dispatching any subagent, before any research, analysis or verification whose answer is not already in the repo, and whenever choosing which model and effort a delegated task gets. The 3-per-wave cap and the model rule are enforced by PreToolUse on the Agent tool."
 license: Apache-2.0
 compatibility: No external dependencies. The cap is enforced by scripts/guard.mjs on the Agent tool.
 ---

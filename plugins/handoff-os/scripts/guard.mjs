@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { load, rootOf, save, sessionOf } from './ledger.mjs';
+import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
 
 const MAX_PER_WAVE = 3;
 const WAVE_MS = 90 * 1000;
@@ -73,7 +73,12 @@ const FIXTURES = [
 ];
 const ACCOUNT_NUMBER = /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,4})?\b/;
 
+const WHOLE_FILE_READ = /^(?:cat|bat|more|less)\s+(\S+)$/;
+
+let current = {};
+
 const deny = (reason) => {
+  bump(current, 'blocked');
   process.stderr.write(`EGRESS LOCK: ${reason}\n`);
   process.exit(2);
 };
@@ -117,6 +122,13 @@ function judgeShell(command, depth = 0) {
     }
   }
   return null;
+}
+
+export function wholeFileRead(command) {
+  const parts = segments(command);
+  if (parts.length !== 1) return null;
+  const hit = WHOLE_FILE_READ.exec(parts[0]);
+  return hit && !hit[1].startsWith('-') ? hit[1] : null;
 }
 
 function readBudget(payload, input) {
@@ -199,17 +211,22 @@ try {
 
 const tool = String(payload.tool_name || '');
 const input = payload.tool_input || {};
+current = payload;
 
 if (tool === 'Read') readBudget(payload, input);
 else if (tool === 'Agent') {
   const verdict = dispatchBudget(input);
   if (verdict) deny(verdict);
   fanOutCap(payload);
+  bump(payload, 'agents');
 }
 else if (tool === 'Bash' || tool === 'PowerShell') {
   if ('command' in input && typeof input.command !== 'string') deny('blocked a shell call whose command was not a string');
-  const verdict = judgeShell(typeof input.command === 'string' ? input.command : '');
+  const command = typeof input.command === 'string' ? input.command : '';
+  const verdict = judgeShell(command);
   if (verdict) deny(verdict);
+  const target = wholeFileRead(command);
+  if (target) readBudget(payload, { file_path: path.resolve(payload.cwd || process.cwd(), target.replace(/^['"]|['"]$/g, '')) });
 } else if (tool.startsWith('mcp__')) {
   const action = tool.split('__').slice(2).join('__').toLowerCase();
   if ((process.env.HANDOFF_MCP_ALLOW || '').split(',').map((s) => s.trim().toLowerCase()).includes(action)) process.exit(0);

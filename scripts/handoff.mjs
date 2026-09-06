@@ -330,7 +330,7 @@ function release(args) {
   const changelog = path.join(REPO, 'CHANGELOG.md');
   const previous = existsSync(changelog) ? readFileSync(changelog, 'utf8').replace(/^# Changelog\n/, '') : '';
   writeFileSync(changelog,
-    `# Changelog\n\n## ${plugin.version} — ${args.date || 'unreleased'}\n\n- ${note}\n\n${previous.replace(/^\n+/, '')}`,
+    `# Changelog\n\n## ${plugin.version} — ${args.date || new Date().toISOString().slice(0, 10)}\n\n- ${note}\n\n${previous.replace(/^\n+/, '')}`,
     'utf8');
   row('released', `${plugin.version} stamped ${pkg.contentHash}`);
   report();

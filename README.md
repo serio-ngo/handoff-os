@@ -41,14 +41,29 @@ operating card, so no session has to read a document first.
 ## What it saved you
 
 When a response ends having kept anything out of context, the terminal gets one line — and nothing at
-all when the figure is zero:
+all when every figure is zero:
 
 ```text
-HANDOFF OS · re-reads blocked 4 · large reads sliced 2 · ~12,400 tokens saved
+HANDOFF OS · agents 4 · blocked 2 · cache hits 51,000 tok · re-reads 3 · sliced 2 · ~10,000 tok saved
 ```
 
-The running history lands in `audit/YYYY-MM.jsonl` as a `read-budget` row, so you can total a month.
-Per-session state — reads, wave, savings — lives in one gitignored `.claude/.session-<id>.json`.
+| Figure | Means |
+|---|---|
+| `agents` | subagents dispatched, each one reading in its own context instead of yours |
+| `blocked` | outward actions and over-budget dispatches the guard refused |
+| `cache hits` | prompt-cache tokens read back, straight from the transcript's own `usage` |
+| `re-reads` | reads of a file unchanged since this session read it — via `Read` **or** a bare `cat` |
+| `sliced` | whole-file reads over 24KB sent back for an `offset`/`limit` slice |
+| `tok saved` | bytes those re-reads would have put back into context, over four |
+
+The running history lands in `audit/YYYY-MM.jsonl` as a `read-budget` row. For the full picture across
+a week, including how much work went to subagents instead of your context:
+
+```bash
+npm run benchmark
+```
+
+Per-session state lives in one gitignored `.claude/.session-<id>.json`.
 
 ## Tiers
 
@@ -83,13 +98,12 @@ Empty or missing is valid — then the agent asks you. Gitignored, so it never r
 
 | Skill | Answers |
 |---|---|
-| `/handoff-os:memory` | "What do you know about me?" — the durable notes, kept across sessions |
 | `/handoff-os:task-loop` | "Turn this into a tracked item, prepare the artefacts, name the approval clicks" |
-| `/handoff-os:handoff-card` | The three-line stop: `DONE` / `FILE` / `YOU` |
 | `/handoff-os:plan-session` | The document contract — one decided path per row, each external claim sourced |
 | `/handoff-os:research-budget` | The cheapest sufficient actor, from a table, before any fan-out |
 
-Five is the ceiling, enforced by the suite. Full load inventory: [docs/MANIFEST.md](docs/MANIFEST.md).
+Three is the ceiling, enforced by the suite. The durable-notes rule and the three-line handoff card
+moved into the session card, where they cost nothing extra. Full load inventory: [docs/MANIFEST.md](docs/MANIFEST.md).
 
 ## Limits
 

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { load, rootOf, save, savings, savingsLine, sessionOf } from './ledger.mjs';
+import { COUNTERS, load, rootOf, save, savings, savingsLine, sessionOf } from './ledger.mjs';
 
 const DONE_CLAIM = /\b(?:done|complete|completed|finished|works now|fixed|ready|shipped)\b/i;
 const MARKER_MAX_AGE_MS = 30 * 60 * 1000;
@@ -49,20 +49,37 @@ function citationGate(message) {
   process.exit(2);
 }
 
+export function cacheTokens(file, from) {
+  if (!file || !existsSync(file)) return { sum: 0, cursor: from };
+  let lines;
+  try { lines = readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean); } catch { return { sum: 0, cursor: from }; }
+  let sum = 0;
+  for (let i = from; i < lines.length; i += 1) {
+    let entry;
+    try { entry = JSON.parse(lines[i]); } catch { continue; }
+    const usage = entry.message && entry.message.usage;
+    if (usage) sum += Number(usage.cache_read_input_tokens || 0);
+  }
+  return { sum, cursor: lines.length };
+}
+
 function report(payload) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
+  const { sum, cursor } = cacheTokens(payload.transcript_path, state.cursor || 0);
+  state.saved.cache += sum;
+  state.cursor = cursor;
   const total = savings(state);
-  if (!total) return null;
+  if (!total) { save(root, session, state); return null; }
   append(root, {
     actor: 'main',
     tier: 'GREEN',
     action: 'read-budget',
-    target: `${total.rereads} re-reads, ${total.slices} slices`,
-    result: `~${total.tokens} tokens saved`,
+    target: `${total.agents} agents, ${total.blocked} blocked, ${total.rereads} re-reads, ${total.slices} slices`,
+    result: `~${total.tokens} tokens saved, ${total.cache} cache-read`,
   });
-  state.saved = { rereads: 0, slices: 0, bytes: 0 };
+  for (const key of COUNTERS) state.saved[key] = 0;
   save(root, session, state);
   return savingsLine(total);
 }

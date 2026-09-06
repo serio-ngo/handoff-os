@@ -32,7 +32,9 @@ PLANES one home per fact · crossing a plane is a sync, never a copy
 TIERS
   GREEN  reversible, inward → act silently
   YELLOW writes outside the repo, reversible → do it, append one audit line
-  RED    sends, pays, submits, publishes, or is irreversible → STOP, emit /handoff-os:handoff-card
+  RED    sends, pays, submits, publishes, or is irreversible → STOP, emit the handoff card
+HANDOFF the RED stop is exactly three lines, nothing before and nothing after
+       DONE <what is prepared> · FILE <path or link> · YOU <verb> -> <where> -> <by when>
 NEVER  send · pay · submit · publish${process.env.HANDOFF_ALLOW_GIT === '1' ? '' : ' · state-changing git'} · set ANTHROPIC_API_KEY /
        ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN / apiKeyHelper · put org data in git
 MEMORY ${status}

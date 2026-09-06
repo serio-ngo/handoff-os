@@ -8,7 +8,7 @@ const REPO = fileURLToPath(new URL('..', import.meta.url));
 const PLUGIN = path.join(REPO, 'plugins', 'handoff-os');
 const SKILLS = path.join(PLUGIN, 'skills');
 
-const MAX_SKILLS = 5;
+const MAX_SKILLS = 3;
 const MAX_AGENTS = 1;
 const MAX_DESCRIPTION_CHARS = 800;
 const MAX_DESCRIPTION_TOTAL = 4000;

@@ -300,16 +300,66 @@ describe('the session ledger', () => {
     const read = () => launch({ session_id: 'counter', tool_name: 'Read', tool_input: { file_path: probe } }).status;
     assert.equal(read(), ALLOWED);
     assert.equal(read(), BLOCKED);
-    assert.deepEqual(state().saved, { rereads: 1, slices: 0, bytes: 4096 });
+    assert.deepEqual(state().saved, { agents: 0, blocked: 0, rereads: 1, slices: 0, bytes: 4096, cache: 0 });
   });
 
   it('counts a forced slice separately from a re-read', () => {
     writeFileSync(path.join(workspace, 'huge.txt'), 'z'.repeat(30 * 1024));
     launch({ session_id: 'counter', tool_name: 'Read', tool_input: { file_path: path.join(workspace, 'huge.txt') } });
-    assert.deepEqual(state().saved, { rereads: 1, slices: 1, bytes: 4096 });
+    assert.deepEqual(state().saved, { agents: 0, blocked: 0, rereads: 1, slices: 1, bytes: 4096, cache: 0 });
   });
 
   it('keeps reads and savings in one file per session', () => {
     assert.deepEqual(Object.keys(state()).sort(), ['reads', 'saved']);
+  });
+});
+
+describe('a whole-file shell read spends the same budget as Read', () => {
+  const workspace = sandbox('shellread-');
+  const probe = path.join(workspace, 'notes.md');
+  const shell = (command) => fire(GUARD, { cwd: workspace, session_id: 'sh', tool_name: 'Bash', tool_input: { command } },
+    { ...process.env, HANDOFF_OS_DIR: workspace });
+
+  it('blocks the second bare cat of an unchanged file', () => {
+    writeFileSync(probe, 'one two three');
+    assert.equal(shell('cat notes.md').status, ALLOWED);
+    assert.equal(shell('cat notes.md').status, BLOCKED);
+  });
+
+  it('leaves every partial read alone, because none of it lands whole in context', () => {
+    for (const command of ['cat notes.md | grep one', 'sed -n 1,5p notes.md', 'head -n 2 notes.md',
+      'tail -1 notes.md', 'grep one notes.md', 'wc -l notes.md']) {
+      assert.equal(shell(command).status, ALLOWED, command);
+    }
+  });
+
+  it('counts the shell re-read into the same ledger the Read tool uses', () => {
+    const state = JSON.parse(readFileSync(path.join(workspace, '.claude', '.session-sh.json'), 'utf8'));
+    assert.equal(state.saved.rereads, 1);
+    assert.equal(state.saved.bytes, 13);
+  });
+});
+
+describe('the ledger counts what the operator wants to see', () => {
+  const workspace = sandbox('counters-');
+  const launch = (payload) => fire(GUARD, { cwd: workspace, session_id: 'vis', ...payload },
+    { ...process.env, HANDOFF_OS_DIR: workspace });
+  const saved = () => JSON.parse(readFileSync(path.join(workspace, '.claude', '.session-vis.json'), 'utf8')).saved;
+
+  it('counts an allowed subagent as a dispatch', () => {
+    launch({ tool_name: 'Agent', tool_input: { model: 'haiku', prompt: 'find it' } });
+    assert.equal(saved().agents, 1);
+  });
+
+  it('counts a refused outward action as a block', () => {
+    launch({ tool_name: 'Bash', tool_input: { command: 'npm publish' } });
+    assert.equal(saved().blocked, 1);
+  });
+
+  it('counts a refused dispatch as a block, not a dispatch', () => {
+    launch({ tool_name: 'Agent', tool_input: { model: 'opus', prompt: 'search the web' } });
+    const s = saved();
+    assert.equal(s.blocked, 2);
+    assert.equal(s.agents, 1);
   });
 });

@@ -21,7 +21,7 @@ skill on its **second** occurrence, never its first.
 
 | Budget | Limit |
 |---|---|
-| Skills | 5 — adding one means deleting one |
+| Skills | 3 — adding one means deleting one |
 | Subagents | 1 |
 | Skill description | 800 chars each, 4,000 total |
 | Skill body | 160 lines |

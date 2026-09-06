@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 — 2026-09-06
+
+- savings visibility: six-figure Stop line, shell read budget, cache-hit accounting, skills 5 to 3, npm run benchmark
+
 ## 1.0.3 — 2026-09-06
 
 - zero-input setup and sync, one test harness, no restated values

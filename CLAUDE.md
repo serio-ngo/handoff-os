@@ -24,7 +24,7 @@ the never-list, memory status.
 
 | Path | Holds | Changed |
 |---|---|---|
-| `plugins/handoff-os/` | 5 skills, 1 scout agent, 5 hooks, 4 scripts — the product | on owner order |
+| `plugins/handoff-os/` | 5 skills, 1 scout agent, 6 hooks, 5 scripts — the product | on owner order |
 | `settings/policy.json` | the one deny/ask list; rules cannot ship inside a plugin | on owner order |
 | `scripts/` | `handoff.mjs` (the only CLI) and `generate.mjs` (pure generators) | on owner order |
 | `test/` | behaviour specs on Node's built-in runner | with every change |

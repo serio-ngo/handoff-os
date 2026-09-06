@@ -29,11 +29,25 @@ One hook runs before guarded tool calls and can refuse them. Nothing here is adv
 |---|---|---|
 | Egress lock | Send, pay, submit, publish, push, delete, or configure an API key — in the shell and on every connector, matched by verb | `EGRESS LOCK: blocked…`, and the call never runs |
 | Read budget | Re-reading a file unchanged since this session read it | `READ BUDGET: …unchanged and already in context` |
+| Whole-file limit | Reading a file over 24KB without `offset`/`limit` | `READ BUDGET: …over the 24KB whole-file limit` |
 | Fan-out cap | A fourth subagent in one wave | `FAN-OUT CAP: subagent 4 of a wave capped at 3` |
+| Scout contract | A subagent return with no `file:line`, URL or `UNVERIFIED` tag | `SCOUT CONTRACT: …nothing in it can be checked` |
 | Verify gate | A "done" claim with no run behind it | `Verify gate: you claimed done with no evidence` |
 
 `PostToolUse` appends a receipt per write to `audit/YYYY-MM.jsonl`. `SessionStart` prints a ≤20-line
 operating card, so no session has to read a document first.
+
+## What it saved you
+
+When a response ends having kept anything out of context, the terminal gets one line — and nothing at
+all when the figure is zero:
+
+```text
+HANDOFF OS · re-reads blocked 4 · large reads sliced 2 · ~12,400 tokens saved
+```
+
+The running history lands in `audit/YYYY-MM.jsonl` as a `read-budget` row, so you can total a month.
+Per-session state — reads, wave, savings — lives in one gitignored `.claude/.session-<id>.json`.
 
 ## Tiers
 

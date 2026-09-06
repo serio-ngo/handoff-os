@@ -2,10 +2,14 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { append } from './audit.mjs';
+import { load, rootOf, save, savings, savingsLine, sessionOf } from './ledger.mjs';
 
 const DONE_CLAIM = /\b(?:done|complete|completed|finished|works now|fixed|ready|shipped)\b/i;
 const MARKER_MAX_AGE_MS = 30 * 60 * 1000;
 const MAX_BLOCKS = 2;
+const CITED = /[\w.-]+:\d+|https?:\/\/|\bUNVERIFIED\b/i;
+const MIN_CLAIM_CHARS = 200;
 
 export const FALLBACK_STEPS = ['content:check', 'typecheck', 'build'];
 export const resolveSteps = (scripts) => (scripts?.verify ? ['verify'] : FALLBACK_STEPS.filter((step) => scripts?.[step]));
@@ -34,19 +38,62 @@ function lastAssistantText(file) {
   return '';
 }
 
+export function uncited(message) {
+  const text = String(message || '').trim();
+  return text.length >= MIN_CLAIM_CHARS && !CITED.test(text);
+}
+
+function citationGate(message) {
+  if (!uncited(message)) process.exit(0);
+  process.stderr.write('SCOUT CONTRACT: this return carries no file:line, no URL and no UNVERIFIED tag, so nothing in it can be checked. Re-answer with a citation per fact, or mark the unconfirmed ones UNVERIFIED.\n');
+  process.exit(2);
+}
+
+function report(payload) {
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  const total = savings(state);
+  if (!total) return null;
+  append(root, {
+    actor: 'main',
+    tier: 'GREEN',
+    action: 'read-budget',
+    target: `${total.rereads} re-reads, ${total.slices} slices`,
+    result: `~${total.tokens} tokens saved`,
+  });
+  state.saved = { rereads: 0, slices: 0, bytes: 0 };
+  save(root, session, state);
+  return savingsLine(total);
+}
+
+function announce(note, extra) {
+  const text = [extra, note].filter(Boolean).join('\n');
+  if (text) {
+    process.stdout.write(JSON.stringify({
+      systemMessage: text,
+      hookSpecificOutput: { hookEventName: 'Stop' },
+    }));
+  }
+  process.exit(0);
+}
+
 function gate() {
   let payload = {};
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
 
+  const message = String(payload.last_assistant_message || '') || lastAssistantText(payload.transcript_path);
+  if (payload.hook_event_name === 'SubagentStop') citationGate(message);
+
+  const note = report(payload);
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
   const scripts = scriptsAt(root);
-  if (!scripts) process.exit(0);
+  if (!scripts) announce(note);
 
-  const message = String(payload.last_assistant_message || '') || lastAssistantText(payload.transcript_path);
-  if (!DONE_CLAIM.test(message)) process.exit(0);
+  if (!DONE_CLAIM.test(message)) announce(note);
 
   const command = stepsToCommand(resolveSteps(scripts));
-  if (!command) process.exit(0);
+  if (!command) announce(note);
 
   const session = String(payload.session_id || 'unknown').replace(/[^A-Za-z0-9_-]/g, '');
   const marker = `${root}/.claude/.verified-${session}`;
@@ -54,19 +101,15 @@ function gate() {
 
   if (existsSync(marker)) {
     try {
-      if (Date.now() - statSync(marker).mtimeMs < MARKER_MAX_AGE_MS) process.exit(0);
-    } catch { process.exit(0); }
+      if (Date.now() - statSync(marker).mtimeMs < MARKER_MAX_AGE_MS) announce(note);
+    } catch { announce(note); }
   }
 
   let blocks = 0;
   try { blocks = parseInt(readFileSync(counter, 'utf8').trim(), 10) || 0; } catch { blocks = 0; }
 
   if (blocks >= MAX_BLOCKS) {
-    process.stdout.write(JSON.stringify({
-      systemMessage: `Verify gate stood down after ${MAX_BLOCKS} blocks. "${command}" is unproven — the human must check it.`,
-      hookSpecificOutput: { hookEventName: 'Stop' },
-    }));
-    process.exit(0);
+    announce(note, `Verify gate stood down after ${MAX_BLOCKS} blocks. "${command}" is unproven — the human must check it.`);
   }
 
   try {

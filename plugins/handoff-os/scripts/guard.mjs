@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { load, rootOf, save, sessionOf } from './ledger.mjs';
 
 const MAX_PER_WAVE = 3;
 const WAVE_MS = 90 * 1000;
+const BIG_FILE_BYTES = 24 * 1024;
 const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
 
 const GIT_OUT = [
@@ -116,52 +118,47 @@ function judgeShell(command, depth = 0) {
 }
 
 function readBudget(payload, input) {
-  if (input.offset !== undefined || input.limit !== undefined) return;
   const file = String(input.file_path || '');
   if (!file) return;
-  let fingerprint;
-  try {
-    const stats = statSync(file);
-    fingerprint = `${stats.mtimeMs}:${stats.size}`;
-  } catch { return; }
+  const sliced = input.offset !== undefined || input.limit !== undefined;
+  let stats;
+  try { stats = statSync(file); } catch { return; }
 
-  const root = process.env.HANDOFF_OS_DIR || process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
-  const session = String(payload.session_id || 'unknown').replace(/[^A-Za-z0-9_-]/g, '');
-  const store = path.join(root, '.claude', `.reads-${session}.json`);
-  let seen = {};
-  try { seen = JSON.parse(readFileSync(store, 'utf8')); } catch { seen = {}; }
-
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
   const key = path.resolve(file);
-  if (seen[key] === fingerprint) {
+  const fingerprint = `${stats.mtimeMs}:${stats.size}`;
+
+  if (!sliced && state.reads[key] === fingerprint) {
+    state.saved.rereads += 1;
+    state.saved.bytes += stats.size;
+    save(root, session, state);
     process.stderr.write(`READ BUDGET: ${path.basename(file)} is unchanged and already in context. Read a slice with offset/limit if you need one region.\n`);
     process.exit(2);
   }
-  seen[key] = fingerprint;
-  try {
-    mkdirSync(path.dirname(store), { recursive: true });
-    writeFileSync(store, JSON.stringify(seen), 'utf8');
-  } catch { }
+
+  if (!sliced && stats.size > BIG_FILE_BYTES) {
+    state.saved.slices += 1;
+    save(root, session, state);
+    process.stderr.write(`READ BUDGET: ${path.basename(file)} is ${Math.round(stats.size / 1024)}KB, over the ${BIG_FILE_BYTES / 1024}KB whole-file limit. Read the region you need with offset/limit, or dispatch handoff-os:scout to answer from it.\n`);
+    process.exit(2);
+  }
+
+  if (!sliced) state.reads[key] = fingerprint;
+  save(root, session, state);
 }
 
 function fanOutCap(payload) {
-  const root = process.env.HANDOFF_OS_DIR || process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
-  const session = String(payload.session_id || 'unknown').replace(/[^A-Za-z0-9_-]/g, '');
-  const store = path.join(root, '.claude', `.wave-${session}.json`);
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
   const now = Date.now();
-  let state = { count: 0, first: now };
-  try {
-    const prior = JSON.parse(readFileSync(store, 'utf8'));
-    if (now - prior.first < WAVE_MS) state = prior;
-  } catch { }
-  state.count += 1;
-  try {
-    mkdirSync(path.dirname(store), { recursive: true });
-    writeFileSync(store, JSON.stringify(state), 'utf8');
-  } catch {
-    process.exit(0);
-  }
-  if (state.count > MAX_PER_WAVE) {
-    process.stderr.write(`FAN-OUT CAP: subagent ${state.count} of a wave capped at ${MAX_PER_WAVE} (law 7). Read what the first ${MAX_PER_WAVE} returned, then launch the next wave. Procedure: /handoff-os:research-budget.\n`);
+  if (!state.wave || now - state.wave.first >= WAVE_MS) state.wave = { count: 0, first: now };
+  state.wave.count += 1;
+  if (!save(root, session, state)) process.exit(0);
+  if (state.wave.count > MAX_PER_WAVE) {
+    process.stderr.write(`FAN-OUT CAP: subagent ${state.wave.count} of a wave capped at ${MAX_PER_WAVE} (law 7). Read what the first ${MAX_PER_WAVE} returned, then launch the next wave. Procedure: /handoff-os:research-budget.\n`);
     process.exit(2);
   }
 }

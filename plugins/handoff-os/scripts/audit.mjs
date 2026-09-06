@@ -32,6 +32,17 @@ export function line(payload, root) {
   return JSON.stringify(Object.fromEntries(FIELDS.map((key) => [key, values[key]])));
 }
 
+export function append(root, values) {
+  const now = new Date();
+  const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  const entry = Object.fromEntries(FIELDS.map((key) => [key, values[key] ?? '']));
+  entry.ts = values.ts || now.toISOString();
+  try {
+    mkdirSync(`${root}/audit`, { recursive: true });
+    appendFileSync(`${root}/audit/${month}.jsonl`, `${JSON.stringify(entry)}\n`, 'utf8');
+  } catch { }
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     let payload = {};

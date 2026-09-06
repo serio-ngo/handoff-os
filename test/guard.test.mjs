@@ -1,6 +1,6 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ALLOWED, BLOCKED, SERVER, fire, sandbox, scrub } from './helper.mjs';
@@ -207,4 +207,51 @@ describe('context budgets', () => {
     assert.equal(read(), ALLOWED);
   });
   it('defers when the file does not exist', () => assert.equal(read({ file_path: path.join(workspace, 'absent.txt') }), ALLOWED));
+
+  const bulky = path.join(workspace, 'bulky.txt');
+  const bulk = (tool_input) => launch({
+    session_id: 'slicer', tool_name: 'Read', tool_input: { file_path: bulky, ...tool_input },
+  });
+
+  it('blocks a whole-file read once the file is over the limit', () => {
+    writeFileSync(bulky, 'x'.repeat(25 * 1024));
+    const { status, stderr } = bulk();
+    assert.equal(status, BLOCKED);
+    assert.match(stderr, /offset\/limit/);
+    assert.match(stderr, /scout/);
+  });
+
+  it('allows the same oversized file when a slice is asked for', () => assert.equal(bulk({ offset: 1, limit: 40 }).status, ALLOWED));
+
+  it('allows a whole-file read just under the limit', () => {
+    const lean = path.join(workspace, 'lean.txt');
+    writeFileSync(lean, 'x'.repeat(23 * 1024));
+    assert.equal(launch({ session_id: 'slicer', tool_name: 'Read', tool_input: { file_path: lean } }).status, ALLOWED);
+  });
+});
+
+describe('the session ledger', () => {
+  const workspace = sandbox('ledger-');
+  const launch = (payload) => fire(GUARD, { cwd: workspace, ...payload }, { ...process.env, HANDOFF_OS_DIR: workspace });
+  const probe = path.join(workspace, 'counted.txt');
+  const state = () => JSON.parse(readFileSync(path.join(workspace, '.claude', '.session-counter.json'), 'utf8'));
+
+  it('counts a blocked re-read and the bytes it kept out of context', () => {
+    writeFileSync(probe, 'y'.repeat(4096));
+    const read = () => launch({ session_id: 'counter', tool_name: 'Read', tool_input: { file_path: probe } }).status;
+    assert.equal(read(), ALLOWED);
+    assert.equal(read(), BLOCKED);
+    assert.deepEqual(state().saved, { rereads: 1, slices: 0, bytes: 4096 });
+  });
+
+  it('counts a forced slice separately from a re-read', () => {
+    writeFileSync(path.join(workspace, 'huge.txt'), 'z'.repeat(30 * 1024));
+    launch({ session_id: 'counter', tool_name: 'Read', tool_input: { file_path: path.join(workspace, 'huge.txt') } });
+    assert.deepEqual(state().saved, { rereads: 1, slices: 1, bytes: 4096 });
+  });
+
+  it('keeps reads, wave and savings in one file per session', () => {
+    launch({ session_id: 'counter', tool_name: 'Agent', tool_input: {} });
+    assert.deepEqual(Object.keys(state()).sort(), ['reads', 'saved', 'wave']);
+  });
 });

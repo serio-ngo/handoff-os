@@ -1,17 +1,11 @@
 # Reference — Claude Code identifiers (VERIFIED)
 
-An invented identifier raises no error — it silently never executes. Consult this file instead of
-re-running the research. `UNVERIFIED` rows are not normative; never base enforcement on them.
+An invented identifier raises no error — it silently never executes. `UNVERIFIED` rows are not normative;
+never base enforcement on them. Verified against `code.claude.com/docs` on **2026-09-04**.
 
 ## 0. The events this plugin uses
 
-`SessionStart` · `UserPromptSubmit` · `PreToolUse` · `PostToolUse` · `Stop`. There are 33 in total —
-the full list is on the hooks page below. Nothing outside these five is wired here.
-
-Verified against `code.claude.com/docs` on **2026-09-04**. Every row below was read from a documentation page.
-
-
----
+`SessionStart` · `UserPromptSubmit` · `PreToolUse` · `PostToolUse` · `Stop`. There are 33 in total.
 
 ## 2. Hook file shape
 
@@ -39,13 +33,8 @@ Plugin: `<plugin-root>/hooks/hooks.json`. Settings: the `hooks` key. **Same obje
 | SessionStart · SessionEnd · Setup · Notification | reason / type |
 | SubagentStart · SubagentStop | agent type |
 | PreCompact · PostCompact | `manual` \| `auto` |
-| PreModelSwitch · PostModelSwitch | model name |
-| ConfigChange · DirectoryAdded · StopFailure · InstructionsLoaded · UserPromptExpansion · Elicitation · ElicitationResult | source / type / name |
-| FileChanged | literal filenames, **exact match only** |
-
-| No `matcher` — register with only a `hooks` array |
-|---|
-| UserPromptSubmit · PostToolBatch · Stop · TeammateIdle · TaskCreated · TaskCompleted · WorktreeCreate · WorktreeRemove · MessageDisplay · CwdChanged |
+| ConfigChange · StopFailure · InstructionsLoaded · UserPromptExpansion · Elicitation · FileChanged and the rest | source / type / name — see the hooks page |
+| No `matcher` — only a `hooks` array | UserPromptSubmit · PostToolBatch · Stop · TaskCreated · TaskCompleted · MessageDisplay · CwdChanged and the rest |
 
 **Pattern semantics.** `"*"` / `""` / omitted = all. Only letters, digits, `_`, `-`, space, comma,
 pipe = exact match or pipe-separated list. **Any other character makes it an unanchored JS RegExp** —
@@ -53,31 +42,25 @@ pipe = exact match or pipe-separated list. **Any other character makes it an una
 
 ## 3a. Which events can put text into context
 
-| Fact | Source |
-|---|---|
-| For most events stdout goes to the debug log only. The exceptions — where **plain-text stdout is added as context Claude can see** — are `UserPromptSubmit`, `UserPromptExpansion`, **`SessionStart`** and `PostModelSwitch` | <https://code.claude.com/docs/en/hooks.md> |
-| `hookSpecificOutput.additionalContext` is documented as available on "most events" | same |
-| Use this for a session card: a hook that prints ~15 lines replaces a "read this file first" instruction that costs the whole file, every session | measured 2026-09-05: 285 vs 5,315 tokens |
+For most events stdout goes to the debug log only. The exceptions — plain-text stdout added as context —
+are `UserPromptSubmit`, `UserPromptExpansion`, **`SessionStart`** and `PostModelSwitch`.
+Source: <https://code.claude.com/docs/en/hooks.md>. A ~15-line session card replaces a "read this file
+first" instruction that costs the whole file, every session.
 
 ## 3b. Plugin load path and the update trap
 
-| Fact | Verified live 2026-09-04 |
-|---|---|
-| A session runs the plugin from `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` | the firing hook's own path proved it |
-| `~/.claude/plugins/marketplaces/<name>/` is a git clone of the marketplace repo — the source, not what loads | clone was at an older commit than `origin/main` |
-| The cache dir is keyed by the `version` in `plugin.json` | only `0.1.0` existed after many content changes |
-| **Trap:** ship new content without bumping `version` and the cache key is unchanged, so update is a no-op — old skills, old hook scripts, silently | `/plugin update core` left stale content in place |
-| Fix | bump `version` in `plugins/<p>/.claude-plugin/plugin.json` on **every** content change |
-| Manual unstick | fast-forward the marketplace clone, then copy the plugin dir over the cache dir; hook scripts are re-read from disk per call, so guards take effect at once — skills need `/reload-plugins` |
+A session runs the plugin from `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`, keyed by the
+`version` in `plugin.json` (verified live 2026-09-04). **Ship content without bumping `version` and the
+update is a no-op — old code loads silently.** `npm run upkeep` bumps it on every content change.
 
 ## 4. Hook stdin
 
 | Scope | Fields |
 |---|---|
-| Every event | `session_id` `prompt_id` `transcript_path` `cwd` `permission_mode` `effort` `hook_event_name` `agent_id` `agent_type` |
+| Every event | `session_id` `prompt_id` `transcript_path` `cwd` `permission_mode` `effort` `hook_event_name` |
 | Tool events | `tool_name` `tool_input` `tool_use_id` — `tool_input.command` (Bash), `tool_input.file_path` (Edit/Write) |
 | UserPromptSubmit | `user_prompt` — **not** `prompt` |
-| Stop · SubagentStop | `last_assistant_message` — **may be absent.** Live probe 2026-09-04: a real Stop payload carried `transcript_path` and no `last_assistant_message`, so a hook reading only that field never fires. Read the last `assistant` text block out of the transcript JSONL as the fallback (see `scripts/verify.mjs`). |
+| Stop · SubagentStop | `last_assistant_message` — **may be absent.** A real Stop payload carried `transcript_path` and no message, so read the last `assistant` text block out of the transcript JSONL as fallback (see `scripts/verify.mjs`). |
 
 **Do not use:** `tool_response`, `stop_hook_active`, bare `prompt`. Absent from the current tables.
 
@@ -86,12 +69,11 @@ pipe = exact match or pipe-separated list. **Any other character makes it an una
 | Code | Effect |
 |---|---|
 | `0` | Success. stdout parsed as JSON when it starts `{` and ends `}`. |
-| `2` | **Blocks** on PreToolUse · UserPromptSubmit · UserPromptExpansion · Stop · SubagentStop · TeammateIdle · TaskCreated · TaskCompleted · ConfigChange · PostToolBatch · PreModelSwitch. Overrides JSON, including `permissionDecision: allow`. |
-| `2` (ignored) | PermissionRequest · PostToolUse · PostToolUseFailure · StopFailure |
+| `2` | **Blocks** on PreToolUse · UserPromptSubmit · Stop and most gating events. Overrides JSON, including `permissionDecision: allow`. Ignored on PermissionRequest · PostToolUse · PostToolUseFailure. |
 | any nonzero | WorktreeCreate · WorktreeRemove fail the operation; output never parsed |
 
-`stderr` is never shown to Claude **except** as the exit-2 block reason. Otherwise it is debug-log only.
-**PostToolUse cannot block — the tool already ran.**
+`stderr` is never shown to Claude **except** as the exit-2 block reason. **PostToolUse cannot block — the
+tool already ran.**
 
 ## 6. Hook JSON output
 
@@ -102,7 +84,7 @@ pipe = exact match or pipe-separated list. **Any other character makes it an una
 | `permissionDecision` (`allow`\|`deny`) + `permissionDecisionReason` + `additionalContext` | PreToolUse |
 | `decision` (`approve`\|`deny`) | PermissionRequest |
 | `decision` (`continue`\|`stop`\|`abort`) + `updatedInput.user_prompt` | UserPromptSubmit |
-| `decision` (`continue`\|`stop`) | Stop · SubagentStop · ConfigChange · PostToolBatch · TaskCreated · TaskCompleted |
+| `decision` (`continue`\|`stop`) | Stop · SubagentStop · ConfigChange · TaskCreated · TaskCompleted |
 | `retry` (boolean) | PermissionDenied |
 
 **Do not use** `stopReason` or `suppressOutput` — undocumented placement.
@@ -110,175 +92,90 @@ pipe = exact match or pipe-separated list. **Any other character makes it an una
 ## 7. Hook environment variables
 
 `CLAUDE_PROJECT_DIR` · `CLAUDE_PLUGIN_ROOT` (plugin hooks only) · `CLAUDE_PLUGIN_DATA` ·
-`CLAUDE_EFFORT` · `CLAUDE_CODE_REMOTE` · `CLAUDE_CODE_BRIDGE_SESSION_ID`. Parent env is inherited.
+`CLAUDE_EFFORT` · `CLAUDE_CODE_REMOTE`. Parent env is inherited.
 
 ## 8. Where hooks may be declared
 
 `~/.claude/settings.json` · `.claude/settings.json` · `.claude/settings.local.json` · managed settings ·
-plugin `hooks/hooks.json` · skill frontmatter `hooks:` (session-scoped) · subagent frontmatter `hooks:`
-(**ignored for plugin subagents**). Kill switch: `"disableAllHooks": true`.
-
----
+plugin `hooks/hooks.json` · skill frontmatter `hooks:` (session-scoped). Kill switch:
+`"disableAllHooks": true`.
 
 ## 9. Permissions
 
 Order: **`deny` → `ask` → `allow`. First match wins. Specificity does not matter.**
-A broad `deny` cannot carry an `allow` exception: `deny: Bash(aws *)` beats `allow: Bash(aws s3 ls)`.
+A broad `deny` cannot carry an `allow` exception.
 
 | Rule | Correct form | Broken form |
 |---|---|---|
-| Bash | `Bash(git push *)` · `Bash(ls:*)` (`:*` only at the **end**) | `Bash(git:* push)` · `Bash(command:rm *)` |
-| Read / Edit | `Read(//c/Users/<you>/Repos/handoff-os/.env)` · `Read(~/x)` · `Read(.env)` | `Read(file_path:...)` · `Read(C:\Users\...)` |
+| Bash | `Bash(git push *)` · `Bash(ls:*)` (`:*` only at the **end**) | `Bash(git:* push)` |
+| Read / Edit | `Read(//c/Users/<you>/Repos/handoff-os/.env)` · `Read(.env)` | `Read(file_path:...)` · `Read(C:\Users\...)` |
 | WebFetch | `WebFetch(domain:example.com)` | `WebFetch(url:...)` |
 | MCP | `mcp__gmail` · `mcp__gmail__send_email` · `mcp__gmail__*` | any `mcp__` rule containing `(` — **skipped at load** |
-| Subagent | `Agent(general-purpose)` | — |
-| `/cd` target | `Cd(~/code/**)` | — |
 
-**Windows:** Read/Edit paths are normalised to POSIX first. `C:\Users\<you>` becomes
-`/c/Users/<you>`. A rule with a backslash or a bare drive letter silently never matches.
-Absolute form: `//c/Users/<you>/Repos/handoff-os/**`. All drives: `//**/.env`.
-
-**Anchor trap:** in Read/Edit rules a **single** leading `/` anchors at the settings file's own
-directory. `Read(/secrets/**)` in `~/.claude/settings.json` means `~/.claude/secrets/**`, not the
-filesystem root. Use `//` for absolute.
+**Windows:** paths normalise to POSIX first (`C:\Users\<you>` → `/c/Users/<you>`). A rule with a
+backslash or bare drive letter never matches. A single leading `/` anchors at the settings file's own
+directory — use `//` for absolute. Redirection targets (`>`, `>>`, `2>`) are checked as file writes
+against Edit rules.
 
 | Rule | Applies before workspace trust? |
 |---|---|
 | `deny` · `ask` | **Yes** — always |
-| `allow` · `additionalDirectories` | No — only after the trust dialog is accepted |
-
-→ **Security rules go in `deny`, never in `allow`.**
-
-Bash redirection targets (`>`, `>>`, `2>`) are checked as file writes against Edit rules.
-`permissions.additionalDirectories` grants file access only; it loads no skills, commands or agents.
+| `allow` · `additionalDirectories` | No — only after the trust dialog |
 
 **Hooks vs permissions (verbatim):** *"Hook decisions don't bypass permission rules… a matching deny
 rule blocks the call, and a matching ask rule still prompts even when the hook returned allow."*
 Source: <https://code.claude.com/docs/en/permissions.md>
 
----
-
 ## 10. Settings
 
-Precedence, highest first:
+Precedence, highest first: managed (`%ProgramFiles%\ClaudeCode\managed-settings.json`) · CLI
+(`claude --settings`) · project local (`.claude/settings.local.json`) · project shared
+(`.claude/settings.json`) · user (`~/.claude/settings.json`).
 
-| # | Layer | Path |
-|---|---|---|
-| 1 | Managed | Windows `%ProgramFiles%\ClaudeCode\managed-settings.json` (legacy `%ProgramData%\...` is **not** read) |
-| 2 | CLI | `claude --settings` |
-| 3 | Project local | `.claude/settings.local.json` |
-| 4 | Project shared | `.claude/settings.json` |
-| 5 | User | `~/.claude/settings.json` |
+Real keys include `permissions{allow,deny,ask,defaultMode,additionalDirectories,disableBypassPermissionsMode}`
+· `enabledPlugins` · `extraKnownMarketplaces` · `env` · `hooks` · `forceLoginMethod` · `apiKeyHelper` ·
+`disableAllHooks` · `model` · `effortLevel`. Full list on the settings page.
 
-Real keys: `permissions{allow,deny,ask,defaultMode,additionalDirectories,blockReadsOutsideWorkingDirectories,disableBypassPermissionsMode}`
-· `enabledPlugins` · `extraKnownMarketplaces` · `outputStyle` · `disableBundledSkills` ·
-`skillOverrides` · `skillListingBudgetFraction` · `skillListingMaxDescChars` · `model` ·
-`effortLevel` · `agent` · `env` · `hooks` · `statusLine` · `cleanupPeriodDays` · `forceLoginMethod` ·
-`forceLoginOrgUUID` · `apiKeyHelper` · `enableAllProjectMcpServers` · `disableAllHooks` · `sandbox` ·
-`autoMode` · `claudeMd` · `claudeMdExcludes` · `autoMemoryEnabled` · `autoMemoryDirectory` ·
-`strictPluginOnlyCustomization` · `attribution`.
-**Deprecated:** `includeCoAuthoredBy` → use `attribution`.
-
-**Conflict, unresolved — 2026-09-06.** `code.claude.com/docs/en/plugins-reference` documents
-`extraKnownMarketplaces` as an **array** of `{name, source}`. The object-keyed form below is what a live
-working install on this machine contains, and what `scripts/handoff.mjs` writes. Both are recorded; the
-object form is the one with local evidence behind it. Do not flip without testing a real session.
-
-Object-keyed form (live evidence):
+**Conflict, unresolved — 2026-09-06.** The plugins-reference page documents `extraKnownMarketplaces` as an
+**array** of `{name, source}`; the live install on this machine uses the object-keyed form below, which is
+what `scripts/handoff.mjs` writes. Do not flip without testing a real session.
 
 ```json
 { "extraKnownMarketplaces": { "serio-ngo": { "source": { "source": "github", "repo": "serio-ngo/handoff-os" } } },
   "enabledPlugins": { "handoff-os@serio-ngo": true } }
 ```
 
----
-
 ## 11. Skills
 
-| Fact | Detail |
-|---|---|
-| Plugin path | `<plugin-root>/skills/<name>/SKILL.md` → invoked `/<plugin>:<skill>` |
-| **Portable fields (claude.ai / Cowork / Skills API)** | **`name` `description` `license` `compatibility` `metadata` `allowed-tools` — and nothing else.** Any other field is a hard upload error |
-| Context cost | `description`, truncated at 1,536 chars, is **always** in context. Body loads on invocation only |
-
-> **REPO RULE:** every skill here uses only the six portable fields. One file, three surfaces, zero
-> dialect bugs. `npm run cowork` fails the check if a seventh appears.
+Plugin path: `<plugin-root>/skills/<name>/SKILL.md` → `/<plugin>:<skill>`. **Portable fields
+(claude.ai / Cowork / Skills API): `name` `description` `license` `compatibility` `metadata`
+`allowed-tools` — and nothing else.** Any other field is a hard upload error. The `description`,
+truncated at 1,536 chars, is **always** in context; the body loads on invocation only.
 
 ## 12. Subagents
 
 `<plugin-root>/agents/<name>.md`, invoked as `<plugin>:<agent>`. Required frontmatter: `name`,
-`description`. Used here: `tools`, `model`, `effort`. For **plugin** subagents `hooks`, `mcpServers` and
-`permissionMode` are **IGNORED**; a `tools: Agent(a, b)` list is ignored too — block a subagent with
-`deny: ["Agent(name)"]`.
-
+`description`. For **plugin** subagents `hooks`, `mcpServers` and `permissionMode` are **IGNORED** — block
+one with `deny: ["Agent(name)"]`.
 
 ## 13. Plugins and marketplace
 
-Everything lives **at the plugin root** — `skills/`, `agents/`, `commands/`, `hooks/hooks.json`,
-`.mcp.json`, `settings.json`. Only `plugin.json` goes inside `.claude-plugin/`.
-
-| Trap | Truth |
-|---|---|
-| `commands/` `agents/` `skills/` `hooks/` inside `.claude-plugin/` | The documented common mistake. They belong at the root. |
-| **A plugin's own `settings.json`** | Supports **only** `agent` and `subagentStatusLine`. **Permission rules cannot ship in a plugin.** They go in `~/.claude/settings.json`, `.claude/settings.json`, or managed settings. |
-| Component path fields | `commands` `agents` `workflows` `outputStyles` **replace** the default directory. `skills` **adds** to the always-scanned `skills/`. |
-| MCP in a plugin | Yes — `.mcp.json` at the plugin root, or the `mcpServers` field in `plugin.json`. `~/.claude/.mcp.json` is **not** read. |
-
-`marketplace.json` at `<repo>/.claude-plugin/marketplace.json`. Required: `name` (kebab-case),
-`owner.name`. Each `plugins[]` entry requires `name` + `source`.
-`source` = `"./plugins/handoff-os"` or `{source:"github",repo,ref,sha}` / `url` / `git-subdir` /
-`npm` / `archive` / `command`.
-
-`source` types, verbatim: `github` · `git` · `directory` (field `path`) · `command` (field `command`,
-plus `mode`: `copy` default or `link`) · `hostPattern` · `settings`.
-Claude Code **copies** each installed plugin into `~/.claude/plugins/cache` for every source type except a
-`command` source in `link` mode, which it uses in place. Copy mode means source changes do not take effect
-until the `version` string changes — the trap in §3b applies to a local `directory` source too.
-**Cowork** adds marketplaces by GitHub repository or git URL only; no local-directory source exists in that
-UI, so skills reach Cowork solely through a pushed remote.
-Source: <https://code.claude.com/docs/en/plugin-marketplaces>
-
-CLI: `claude plugin marketplace add <owner/repo|url|path>` · `claude plugin install <p>@<m>` ·
-`claude plugin enable <p>@<m>` · `claude plugin validate <path> [--strict]` ·
-`claude --plugin-dir ./plugins/handoff-os` (local dev) · `/reload-plugins`.
-
----
-
----
+Everything lives **at the plugin root** — `skills/`, `agents/`, `commands/`, `hooks/hooks.json`. Only
+`plugin.json` goes inside `.claude-plugin/`. **Permission rules cannot ship in a plugin** — they go in
+`~/.claude/settings.json`, `.claude/settings.json`, or managed settings. MCP: `.mcp.json` at the plugin
+root. `marketplace.json` at `<repo>/.claude-plugin/marketplace.json`. **Cowork** adds marketplaces by git
+URL only. CLI: `claude plugin install <p>@<m>` · `claude --plugin-dir ./plugins/handoff-os` (local dev).
 
 ## 15. Auth — how to guarantee zero API credits
 
-Precedence, **highest first**:
-
-```
-1 CLAUDE_CODE_USE_BEDROCK / VERTEX / FOUNDRY
-2 ANTHROPIC_AUTH_TOKEN
-3 ANTHROPIC_API_KEY
-4 apiKeyHelper
-5 CLAUDE_CODE_OAUTH_TOKEN
-6 Anthropic profile / federation (ANTHROPIC_PROFILE)
-7 /login subscription OAuth   <-- LAST. Everything above wins.
-```
-
-| Action | Why |
-|---|---|
-| Never set `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` anywhere — shell profile, `.env`, CI | With a subscription **and** a key present, *"the API key takes precedence once approved"*. In `claude -p` it is used with **no prompt at all**. |
-| Never set `apiKeyHelper` or `CLAUDE_CODE_OAUTH_TOKEN` | Both outrank the subscription |
-| Set `"forceLoginMethod": "claudeai"` | Restricts login to claude.ai |
-| Check `/status` | `Login method` row = subscription. An `API key` row appearing = credits are being spent. A `Profile` row = a leftover Anthropic profile is selected, which also disables claude.ai connectors and `/schedule`. |
-| Credentials file | Windows `%USERPROFILE%\.claude\.credentials.json`, or under `CLAUDE_CONFIG_DIR` |
-
+Precedence, **highest first:** `CLAUDE_CODE_USE_BEDROCK / VERTEX / FOUNDRY` · `ANTHROPIC_AUTH_TOKEN` ·
+`ANTHROPIC_API_KEY` · `apiKeyHelper` · `CLAUDE_CODE_OAUTH_TOKEN` · profile / federation ·
+`/login` subscription OAuth, **last**. Never set any of the above — with a key present it wins over the
+subscription, in `claude -p` with no prompt. Set `"forceLoginMethod": "claudeai"` and check `/status`.
 Source: <https://code.claude.com/docs/en/authentication.md>
-
----
-
----
 
 ## 17. UNVERIFIED — do not build on these
 
-| Claim | Needs |
-|---|---|
-| `PostToolUse` receives `tool_response` | `claude --debug` on a live hook |
-| `stopReason` / `suppressOutput` placement | a per-event doc table |
-| `extraKnownMarketplaces` array form (see §10 conflict) | a real session started from the array shape |
-| HKLM/HKCU registry route for managed settings on Windows | key names and value format |
+`PostToolUse` receives `tool_response` · `stopReason` / `suppressOutput` placement ·
+`extraKnownMarketplaces` array form · HKLM/HKCU registry route for managed settings on Windows.
+Each needs a live probe before use.

@@ -14,5 +14,5 @@
 
 <!-- Paste the real last lines of npm test. A green run is the only accepted evidence. -->
 
-```
+```text
 ```

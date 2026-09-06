@@ -28,10 +28,10 @@ export const SCOPES = {
 };
 
 export function policyFor(scope, without = [], policy = readJson('settings', 'policy.json')) {
-  const ask = without.length
-    ? policy.ask.filter((rule) => !without.some((token) => rule.toLowerCase().includes(token)))
-    : policy.ask;
-  return SCOPES[scope]({ deny: policy.deny, ask });
+  const drop = (rules) => without.length
+    ? rules.filter((rule) => !without.some((token) => rule.toLowerCase().includes(token)))
+    : rules;
+  return SCOPES[scope]({ deny: drop(policy.deny), ask: drop(policy.ask) });
 }
 
 const SHIPPED = [['plugins/handoff-os', /\.(md|mjs|json)$/], ['settings', /\.json$/]];
@@ -40,7 +40,7 @@ export function stamp(root = REPO) {
   const files = SHIPPED
     .filter(([dir]) => existsSync(path.join(root, dir)))
     .flatMap(([dir, pattern]) => walk(path.join(root, dir), dir).filter((f) => pattern.test(path.basename(f))))
-    .filter((file) => file !== 'plugins/handoff-os/org.json')
+    .filter((file) => file !== 'plugins/handoff-os/memory.md')
     .sort();
   const hash = createHash('sha256');
   for (const file of files) {
@@ -66,11 +66,13 @@ function skillRows() {
   });
 }
 
+const cell = (value) => String(value).replace(/\|/g, '\\|');
+
 function hookRows() {
   return Object.entries(readJson('plugins', 'handoff-os', 'hooks', 'hooks.json').hooks)
     .flatMap(([event, entries]) => entries.flatMap((entry) => entry.hooks.map((handler) => {
       const script = (/scripts\/[a-z-]+\.mjs/.exec(handler.command) || [])[0];
-      return `| \`${event}\` | \`${entry.matcher || '*'}\` | \`${script}\` |`;
+      return `| \`${event}\` | \`${cell(entry.matcher || '*')}\` | \`${script}\` |`;
     })))
     .sort();
 }

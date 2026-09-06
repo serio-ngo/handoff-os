@@ -71,21 +71,14 @@ describe('which tool calls reach the audit', () => {
   );
   const tool = (action) => `mcp__${SERVER}__${action}`;
 
-  it('skips read-only connector calls', () => {
+  it('records writes, skips reads', () => {
     for (const action of ['get_thread', 'list_labels', 'search_threads', 'read_docs', 'asset_search',
       'resolve-shortlink', 'list-replies', 'get-export-formats']) {
       assert.ok(!matcher.test(tool(action)), action);
     }
-  });
-
-  it('records connector calls that write', () => {
     for (const action of ['send_message', 'create_update', 'change_item_column_values', 'delete_item',
-      'export-design', 'reply-to-comment', 'comment-on-design', 'create_and_send_email']) {
+      'export-design', 'reply-to-comment', 'comment-on-design', 'create_and_send_email', 'getaway_count']) {
       assert.ok(matcher.test(tool(action)), action);
     }
-  });
-
-  it('records getaway_count rather than reading it as a "get" call', () => {
-    assert.ok(matcher.test(tool('getaway_count')));
   });
 });

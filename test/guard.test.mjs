@@ -20,11 +20,11 @@ const KEY = ['ANTHROPIC', 'API', 'KEY'].join('_');
 const ACCOUNT = 'PL10000000000000000000000000';
 const ACCOUNT_SPACED = 'DE89 3704 0044 0532 0130 00';
 
-const blocks = (label, cases, payload) => describe(label, () => {
-  for (const c of cases) it(`blocks ${c}`, () => assert.equal(verdict(payload(c)), BLOCKED));
+const blocks = (label, cases, payload) => it(label, () => {
+  for (const c of cases) assert.equal(verdict(payload(c)), BLOCKED, c);
 });
-const allows = (label, cases, payload) => describe(label, () => {
-  for (const c of cases) it(`allows ${c}`, () => assert.equal(verdict(payload(c)), ALLOWED));
+const allows = (label, cases, payload) => it(label, () => {
+  for (const c of cases) assert.equal(verdict(payload(c)), ALLOWED, c);
 });
 
 after(scrub);
@@ -52,6 +52,21 @@ blocks('shell commands that would start spending API credits', [
   'setx CLAUDE_CODE_OAUTH_TOKEN abc',
   'echo apiKeyHelper: ./k.sh >> settings.json',
 ], bash);
+
+describe('cowork mode (HANDOFF_ALLOW_GIT=1)', () => {
+  const cowork = (payload) => fire(GUARD, payload, { ...process.env, HANDOFF_ALLOW_GIT: '1' }).status;
+
+  it('allows a push and a remote rewrite', () => {
+    assert.equal(cowork(bash(`${VCS} ${OUT} origin main`)), ALLOWED);
+    assert.equal(cowork(bash(`${VCS} remote set-url origin https://elsewhere.example/r.git`)), ALLOWED);
+  });
+
+  it('still blocks everything else outward', () => {
+    assert.equal(cowork(bash('npm publish --access public')), BLOCKED);
+    assert.equal(cowork(bash('curl -X POST -d "a=1" https://api.example.com/items')), BLOCKED);
+    assert.equal(cowork(connector('send_message')), BLOCKED);
+  });
+});
 
 allows('read-only and inward shell commands', [
   `${VCS} status`,
@@ -94,6 +109,8 @@ describe('PowerShell', () => {
 blocks('connector actions that send outward', [
   'send_message', 'SEND_MESSAGE', 'create_and_send_email',
   'reply', 'forward', 'create_notification', 'publish-brand-template-v2',
+  'respond_to_event', 'create_form_submission', 'vibe_publication',
+  'mark_message_spam', 'request-outline-review',
 ], connector);
 
 blocks('connector actions that destroy', [
@@ -106,12 +123,16 @@ allows('connector actions that only read', [
 ], connector);
 
 allows('connector actions that restore or annotate', [
-  'untrash_message', 'untrash_thread', 'unarchive_item',
+  'untrash_message', 'untrash_thread', 'unarchive_item', 'unmark_message_spam',
   'reply-to-comment', 'image_remove_background',
 ], connector);
 
-it('blocks an outward verb hidden inside a longer action name', () => assert.equal(
-  verdict(connector('get_reply_count')), BLOCKED));
+it('judges a read by its verb, not its noun', () => {
+  for (const [action, want] of [['list_posts', ALLOWED], ['get_reply_count', ALLOWED], ['list-reviews', ALLOWED],
+    ['get_public_url', ALLOWED], ['get_send_result', BLOCKED], ['list_submissions', BLOCKED]]) {
+    assert.equal(verdict(connector(action)), want, action);
+  }
+});
 
 blocks('writes to brand-locked and secret-bearing paths', [
   'assets/brand-kit.zip',
@@ -119,10 +140,11 @@ blocks('writes to brand-locked and secret-bearing paths', [
   '/synthetic/repo/.env',
   'deploy/id_ed25519',
   'Secrets/token.json',
-  '/synthetic/repo/canon/org.json',
+  '/synthetic/repo/contacts.csv',
 ], write);
 
 allows('ordinary repository writes', ['src/content/blog/post.mdx', 'scripts/new-tool.mjs'], edit);
+allows('agent-kept memory', ['config/memory.md', 'plugins/handoff-os/memory.md'], write);
 
 describe('account numbers in written content', () => {
   it('blocks a 26-digit national account number', () => assert.equal(
@@ -132,11 +154,13 @@ describe('account numbers in written content', () => {
   it('blocks one arriving through Edit', () => assert.equal(
     verdict(edit('/synthetic/repo/notes.md', ACCOUNT)), BLOCKED));
   it('allows the word with no number after it', () => assert.equal(
-    verdict(write('/synthetic/repo/notes.md', 'read the IBAN live from the canon')), ALLOWED));
+    verdict(write('/synthetic/repo/notes.md', 'keep it in memory.md, never in git')), ALLOWED));
+  it('allows an account number the owner dictates into memory.md', () => assert.equal(
+    verdict(write('/synthetic/repo/config/memory.md', `IBAN ${ACCOUNT}`)), ALLOWED));
   it('allows a fixture inside a test file', () => assert.equal(
     verdict(write('/synthetic/repo/test/guard.test.mjs', `case ${ACCOUNT}`)), ALLOWED));
   it('keeps the path rule above the fixture exemption', () => assert.equal(
-    verdict(write('/synthetic/repo/tests/canon/org.json', '{}')), BLOCKED));
+    verdict(write('/synthetic/repo/tests/secrets/x.json', '{}')), BLOCKED));
 });
 
 describe('malformed hook payloads', () => {

@@ -382,7 +382,7 @@ describe('the session ledger', () => {
   it('counts a forced slice separately from a re-read', () => {
     writeFileSync(path.join(workspace, 'huge.txt'), 'z'.repeat(30 * 1024));
     launch({ session_id: 'counter', tool_name: 'Read', tool_input: { file_path: path.join(workspace, 'huge.txt') } });
-    assert.deepEqual(state().saved, { agents: 0, blocked: 0, rereads: 1, slices: 1, bytes: 4096, cache: 0 });
+    assert.deepEqual(state().saved, { agents: 0, blocked: 0, rereads: 1, slices: 1, bytes: 4096 + (30 * 1024 - 24 * 1024), cache: 0 });
   });
 
   it('keeps reads and savings in one file per session', () => {
@@ -529,3 +529,69 @@ blocks('read tools on servers that are a fetcher', [
   'mcp__brave-search__web_search',
   'mcp__firecrawl__scrape_page',
 ], (name) => ({ tool_name: name, tool_input: {} }));
+
+describe('the holes a bypass pass found', () => {
+  const workspace = sandbox('bypass-');
+  const shell = (command) => fire(GUARD, { cwd: workspace, session_id: 'bp', tool_name: 'Bash', tool_input: { command } },
+    { ...process.env, HANDOFF_OS_DIR: workspace }).status;
+
+  it('sees a merge or a delete through a wrapper that hides the verb', () => {
+    for (const command of [
+      `command ${VCS} merge main`,
+      `eval "${VCS} merge main"`,
+      `bash -lc "${VCS} merge main"`,
+      `pwsh --command "${VCS} merge main"`,
+      'rm -rf docs',
+      'Remove-Item -Recurse -Force docs',
+    ]) assert.equal(shell(command), BLOCKED, command);
+  });
+
+  it('stops an outward call an argv matcher would miss', () => {
+    for (const command of [
+      'gh api graphql -f query=mutation{addComment}',
+      'gh api repos/a/b/issues --field title=x',
+      'python -c "import requests;requests.post(u, json=d)"',
+      'node -e "fetch(u, { method: 0 })"',
+    ]) assert.equal(shell(command), BLOCKED, command);
+  });
+
+  it('applies the write deny-list to a shell redirect, not only to Edit and Write', () => {
+    for (const command of [
+      'echo k > .env',
+      'echo k >> config/.env.local',
+      'printf x | tee assets/logo.svg',
+      `echo ${ACCOUNT} >> README.md`,
+      `sed -i "s/a/${ACCOUNT}/" README.md`,
+    ]) assert.equal(shell(command), BLOCKED, command);
+  });
+
+  it('still lets an ordinary redirect through', () => {
+    for (const command of ['echo note > notes.md', 'npm test > out.log', 'printf x | tee build/report.txt']) {
+      assert.equal(shell(command), ALLOWED, command);
+    }
+  });
+
+  it('spends the read budget on a chained whole-file read, not just a bare one', () => {
+    writeFileSync(path.join(workspace, 'chained.md'), 'one two three');
+    assert.equal(shell('cat chained.md && echo ok'), ALLOWED);
+    assert.equal(shell('cat chained.md && echo ok'), BLOCKED);
+    assert.equal(shell('type chained.md'), BLOCKED);
+  });
+
+  it('names a tier or does not dispatch', () => {
+    const agent = (model) => fire(GUARD, { cwd: workspace, session_id: 'bp', tool_name: 'Agent', tool_input: { prompt: 'x', model } },
+      { ...process.env, HANDOFF_OS_DIR: workspace }).status;
+    assert.equal(agent('best-available'), BLOCKED);
+    assert.equal(agent('cheapest'), BLOCKED);
+  });
+
+  it('reads the connector payload, not only the connector name', () => {
+    const call = (action, tool_input) => fire(GUARD, { cwd: workspace, session_id: 'bp', tool_name: `mcp__${SERVER}__${action}`, tool_input },
+      { ...process.env, HANDOFF_OS_DIR: workspace }).status;
+    assert.equal(call('d1_database_query', { sql: 'DROP TABLE donors' }), BLOCKED);
+    assert.equal(call('d1_database_query', { sql: 'SELECT 1' }), ALLOWED);
+    assert.equal(call('execute_code', {}), BLOCKED);
+    assert.equal(call('write_api', {}), BLOCKED);
+    assert.equal(call('read_api', {}), ALLOWED);
+  });
+});

@@ -10,7 +10,7 @@ export const rootOf = (payload = {}) => process.env.HANDOFF_OS_DIR
 
 export const sessionOf = (payload = {}) => String(payload.session_id || 'unknown').replace(/[^A-Za-z0-9_-]/g, '');
 
-export const ledgerPath = (root, session) => path.join(root, '.claude', `.session-${session}.json`);
+const ledgerPath = (root, session) => path.join(root, '.claude', `.session-${session}.json`);
 
 export function load(root, session) {
   const blank = EMPTY();
@@ -49,11 +49,31 @@ export function savings(state) {
 }
 
 const num = (value) => Number(value || 0).toLocaleString('en-US');
+const compact = (value) => (value >= 10000 ? `${(value / 1000).toFixed(1)}k` : num(value));
 
-export const savingsLine = (t) => ['HANDOFF OS',
-  `agents ${num(t.agents)}`,
-  `blocked ${num(t.blocked)}`,
-  `cache hits ${num(t.cache)} tok`,
-  `re-reads ${num(t.rereads)}`,
-  `sliced ${num(t.slices)}`,
-  `~${num(t.tokens)} tok saved`].join(' · ');
+const stops = (t) => Number(t.blocked || 0) + Number(t.rereads || 0) + Number(t.slices || 0);
+const actions = (t) => stops(t) + Number(t.agents || 0);
+
+const blank = () => Object.fromEntries(COUNTERS.map((key) => [key, 0]));
+
+export function bank(state) {
+  const life = { ...blank(), ...(state.lifetime || {}) };
+  for (const key of COUNTERS) life[key] += Number(state.saved[key] || 0);
+  state.lifetime = life;
+  return life;
+}
+
+// The running total the operator pins to every reply: everything banked so far
+// plus whatever the current period has not banked yet — cumulative all session.
+export function lifetimeLine(state) {
+  const life = { ...blank(), ...(state.lifetime || {}) };
+  for (const key of COUNTERS) life[key] += Number(state.saved[key] || 0);
+  return savingsLine({ ...life, tokens: Math.round(life.bytes / 4) });
+}
+
+export function savingsLine(t) {
+  const parts = [];
+  if (t.tokens) parts.push(`~${compact(t.tokens)} tok saved`);
+  if (actions(t)) parts.push(`${num(actions(t))} guard actions`);
+  return parts.length ? `HANDOFF OS · ${parts.join(' · ')}` : '';
+}

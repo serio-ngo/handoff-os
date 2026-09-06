@@ -7,7 +7,7 @@ compatibility: No external dependencies.
 
 ## 1. The card — exactly three lines
 
-```
+```text
 DONE   <what was prepared>
 FILE   <path or link>
 YOU    <one action> -> <where> -> <by when>
@@ -29,7 +29,7 @@ RED-tier action gets missed. Do **not** use it for GREEN work: the card marks a 
 
 ## 3. Example
 
-```
+```text
 DONE   Contractor invoice INV-2026-09 checked: amount, account number, due date
 FILE   <doc store> / Finance / INV-2026-09_checked.pdf
 YOU    Approve + pay -> bank -> by the due date on the invoice

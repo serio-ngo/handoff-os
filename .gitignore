@@ -4,8 +4,8 @@
 .claude/.reads-*
 audit/*.jsonl
 !audit/README.md
-plugins/handoff-os/org.json
-config/org.json
+plugins/handoff-os/memory.md
+config/memory.md
 node_modules/
 .DS_Store
 *.log

@@ -13,21 +13,13 @@ body:
     id: membership
     attributes:
       label: Why it binds every repository
-      description: If it binds one codebase it belongs in that repository, if it binds one craft it belongs in its own plugin, and if it recurs on a schedule it belongs in a task. See CONTRIBUTING.md.
+      description: If it binds one codebase it belongs in that repository; if it binds one craft it belongs in its own plugin. See CONTRIBUTING.md.
     validations:
       required: true
   - type: textarea
     id: builtin
     attributes:
-      label: Which built-in or public plugin already does this
-      description: Name it and say what your delta is. If the delta is wording, the proposal is closed.
-    validations:
-      required: true
-  - type: input
-    id: budget
-    attributes:
-      label: What you will delete to make room
-      description: The plugin ships at most five skills and one subagent.
+      label: Which built-in or public plugin already does this, and what your delta is
     validations:
       required: true
   - type: textarea

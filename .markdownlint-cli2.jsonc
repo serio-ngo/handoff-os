@@ -1,9 +1,14 @@
 {
   "globs": ["**/*.md"],
-  "ignores": ["node_modules/**", "docs/MANIFEST.md"],
+  "ignores": ["node_modules/**"],
   "config": {
+    // Prose wraps at 110; a hard limit fights tables.
     "line-length": false,
     "no-inline-html": false,
-    "no-duplicate-heading": { "siblings_only": true }
+    "no-duplicate-heading": { "siblings_only": true },
+    // Skills, agents and the PR template carry their title in frontmatter, not an h1.
+    "first-line-heading": false,
+    // Compact table separators (|---|---|) are the house style across every document.
+    "table-column-style": false
   }
 }

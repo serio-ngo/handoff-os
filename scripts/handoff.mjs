@@ -108,6 +108,10 @@ function sync(args) {
   const before = readJsonFile(target, {});
   let after = merge(before, policyFor(scope, args.without));
   if (scope === 'user') after = merge(after, installation());
+  after.env = { ...after.env };
+  if ((args.without ?? []).includes('git')) after.env.HANDOFF_ALLOW_GIT = '1';
+  else delete after.env.HANDOFF_ALLOW_GIT;
+  if (Object.keys(after.env).length === 0) delete after.env;
   refuseMeteredAuth(after);
   if (!args.dryRun) writeJson(target, after);
   const counts = RULE_LISTS
@@ -129,7 +133,7 @@ function installTargets() {
 function install() {
   const { declared, targets } = installTargets();
   const wanted = walk(PLUGIN);
-  const identity = path.join(REPO, 'config', 'org.json');
+  const memory = path.join(REPO, 'config', 'memory.md');
   let pruned = 0;
   for (const version of targets) {
     const dest = path.join(cacheRoot(), version);
@@ -138,14 +142,65 @@ function install() {
       copyFileSync(path.join(PLUGIN, rel), path.join(dest, rel));
     }
     for (const rel of walk(dest)) {
-      if (wanted.includes(rel) || rel === 'org.json' || RUNTIME_OWNED.some((rx) => rx.test(rel))) continue;
+      if (wanted.includes(rel) || rel === 'memory.md' || RUNTIME_OWNED.some((rx) => rx.test(rel))) continue;
       rmSync(path.join(dest, rel), { force: true });
       pruned += 1;
     }
-    if (existsSync(identity)) copyFileSync(identity, path.join(dest, 'org.json'));
+    if (existsSync(memory)) copyFileSync(memory, path.join(dest, 'memory.md'));
   }
   row('plugin', `${PLUGIN_NAME} ${declared} -> ${targets.join(', ')} (${wanted.length} files each, ${pruned} pruned)`);
   return { declared, targets };
+}
+
+const HEADING = /^#{1,6}\s/;
+const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s/;
+const FENCE = /^\s*(?:```|~~~)/;
+
+export function markdown(text) {
+  const lines = text.split('\n');
+  const out = [];
+  let fence = false;
+  let frontmatter = lines[0] === '---';
+
+  const blankBefore = () => {
+    if (out.length && out[out.length - 1].trim() !== '') out.push('');
+  };
+  const continues = (i) => {
+    const next = lines[i + 1];
+    return next !== undefined && (LIST_ITEM.test(next) || /^\s+\S/.test(next) || next.trim() === '');
+  };
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (frontmatter) {
+      out.push(line);
+      if (i > 0 && line === '---') frontmatter = false;
+      continue;
+    }
+    if (FENCE.test(line)) { fence = !fence; out.push(line); continue; }
+    if (fence) { out.push(line); continue; }
+
+    if (line.trim() === '') {
+      if (out.length && out[out.length - 1].trim() === '') continue;
+      out.push('');
+      continue;
+    }
+    if (HEADING.test(line)) {
+      blankBefore();
+      out.push(line);
+      if (lines[i + 1] !== undefined && lines[i + 1].trim() !== '') out.push('');
+      continue;
+    }
+    if (LIST_ITEM.test(line)) {
+      const previous = out[out.length - 1] ?? '';
+      if (previous.trim() !== '' && !LIST_ITEM.test(previous) && !/^\s+\S/.test(previous)) blankBefore();
+      out.push(line);
+      if (!continues(i)) out.push('');
+      continue;
+    }
+    out.push(line);
+  }
+  return `${out.join('\n').replace(/\n+$/, '')}\n`;
 }
 
 function normalise() {
@@ -156,9 +211,9 @@ function normalise() {
   for (const rel of files) {
     const file = path.join(REPO, rel);
     const before = readFileSync(file, 'utf8');
-    let after = before.replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '');
-    if (rel.endsWith('.md')) after = before.replace(/\r\n/g, '\n');
-    after = `${after.replace(/\n+$/, '')}\n`;
+    let after = before.replace(/\r\n/g, '\n');
+    if (rel.endsWith('.md')) after = markdown(after);
+    else after = `${after.replace(/[ \t]+$/gm, '').replace(/\n+$/, '')}\n`;
     if (after !== before) { writeFileSync(file, after, 'utf8'); touched += 1; }
   }
   return touched;
@@ -199,7 +254,9 @@ function doctor() {
 
   check('the plugin is enabled', settings.enabledPlugins?.[`${PLUGIN_NAME}@${marketplace.name}`] === true);
   check('login is restricted to the subscription', settings.forceLoginMethod === 'claudeai');
-  check('outward git is denied', (settings.permissions?.deny ?? []).some((r) => /git push/i.test(r)));
+  const cowork = settings.env?.HANDOFF_ALLOW_GIT === '1';
+  check(cowork ? 'git is open — cowork mode' : 'outward git is denied',
+    cowork ? true : (settings.permissions?.deny ?? []).some((r) => /git push/i.test(r)));
   check('no metered credential is configured', !new RegExp(`${BANNED.join('|')}|apiKeyHelper`).test(JSON.stringify(settings)));
   check('no metered credential is in the environment', !BANNED.some((key) => process.env[key]));
 
@@ -270,58 +327,16 @@ function release(args) {
   pkg.version = plugin.version;
   pkg.contentHash = stamp();
   writeJson(pkgPath, pkg);
-  const citation = path.join(REPO, 'CITATION.cff');
-  if (existsSync(citation)) {
-    writeFileSync(citation, readFileSync(citation, 'utf8')
-      .replace(/^version: .*$/m, `version: ${plugin.version}`)
-      .replace(/^date-released: .*$/m, `date-released: ${args.date || 'unreleased'}`), 'utf8');
-  }
   const changelog = path.join(REPO, 'CHANGELOG.md');
   const previous = existsSync(changelog) ? readFileSync(changelog, 'utf8').replace(/^# Changelog\n/, '') : '';
-  writeFileSync(changelog, `# Changelog\n\n## ${plugin.version} — ${args.date || 'unreleased'}\n- ${note}\n${previous}`, 'utf8');
+  writeFileSync(changelog,
+    `# Changelog\n\n## ${plugin.version} — ${args.date || 'unreleased'}\n\n- ${note}\n\n${previous.replace(/^\n+/, '')}`,
+    'utf8');
   row('released', `${plugin.version} stamped ${pkg.contentHash}`);
   report();
 }
 
-const ASKED = [
-  ['name', 'What is the organisation called?'],
-  ['addressAs', 'What should the agent call you?'],
-  ['sources', 'A link or document holding your org facts (optional)'],
-];
-
-async function identity(args, target) {
-  const example = readJson('config', 'org.example.json');
-  const stored = readJsonFile(target, {});
-  const org = Object.fromEntries(Object.keys(example).map((key) => [key, stored[key] ?? example[key]]));
-  for (const key of Object.keys(example)) {
-    if (args[key] === undefined) continue;
-    org[key] = key === 'sources'
-      ? String(args[key]).split(',').map((s) => s.trim()).filter(Boolean)
-      : String(args[key]);
-  }
-  const empty = !org.name && !org.addressAs && !org.sources.length;
-  if (empty && !args.yes && process.stdin.isTTY) {
-    const { createInterface } = await import('node:readline/promises');
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    console.log('  Three questions, all skippable with Enter.\n');
-    try {
-      for (const [key, question] of ASKED) {
-        const answer = (await rl.question(`  ${question} `)).trim();
-        if (!answer) continue;
-        org[key] = key === 'sources' ? [answer] : answer;
-      }
-    } finally { rl.close(); }
-    console.log('');
-  }
-  return org;
-}
-
-async function setup(args) {
-  const target = path.resolve(args.config || path.join(REPO, 'config', 'org.json'));
-  const org = await identity(args, target);
-  writeJson(target, org);
-  const known = [org.name && 'name', org.sources.length && `${org.sources.length} source(s)`].filter(Boolean);
-  row('identity', `${target}${known.length ? ` — ${known.join(', ')}` : ' — empty, the agent will ask you for org facts'}`);
+function setup(args) {
   sync(args);
   if (args.project) sync({ ...args, scope: 'project', target: args.project });
   upkeep();

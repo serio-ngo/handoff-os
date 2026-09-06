@@ -13,12 +13,12 @@ const MAX_TOKENS = 400;
 
 after(scrub);
 
-function print(org, payload = {}) {
+function print(memoryText, payload = {}) {
   const env = { ...process.env };
-  if (org) {
+  if (memoryText !== null && memoryText !== undefined) {
     const root = sandbox('card-');
     mkdirSync(path.join(root, 'config'), { recursive: true });
-    writeFileSync(path.join(root, 'config', 'org.json'), JSON.stringify(org), 'utf8');
+    writeFileSync(path.join(root, 'config', 'memory.md'), memoryText, 'utf8');
     env.HANDOFF_OS_DIR = root;
   }
   return fire(CARD, payload, env);
@@ -32,63 +32,27 @@ describe('session card', () => {
     assert.ok(card.stdout.trim().length > 0);
   });
 
-  it(`stays under ${MAX_LINES} lines`, () => {
-    assert.ok(card.stdout.trim().split('\n').length <= MAX_LINES, `${card.stdout.trim().split('\n').length} lines`);
+  it(`fits the budget: ${MAX_LINES} lines, ${MAX_TOKENS} tokens`, () => {
+    assert.ok(card.stdout.trim().split('\n').length <= MAX_LINES);
+    assert.ok(Math.round(card.stdout.length / 4) <= MAX_TOKENS);
   });
 
-  it(`stays under ${MAX_TOKENS} tokens, the whole reason it replaces a document read`, () => {
-    assert.ok(Math.round(card.stdout.length / 4) <= MAX_TOKENS, `${Math.round(card.stdout.length / 4)} tokens`);
+  it('carries the contract: planes, tiers, never-list, memory, proof, scout', () => {
+    for (const token of ['TRUTH=', 'STATE=', 'BUILD=', 'BRAND=', 'HUMAN=',
+      'GREEN', 'YELLOW', 'RED', 'handoff-card', 'NEVER', 'MEMORY', 'memory.md', 'verify.mjs', 'scout']) {
+      assert.match(card.stdout, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    }
   });
 
-  it('names every plane', () => {
-    for (const plane of ['TRUTH=', 'STATE=', 'BUILD=', 'BRAND=', 'HUMAN=']) assert.match(card.stdout, new RegExp(plane));
+  it('reports the memory file as set or empty', () => {
+    assert.match(print('Acme Corp, invoiced monthly.').stdout, /MEMORY set \(1 lines\)/);
+    assert.match(print('').stdout, /MEMORY empty/);
   });
 
-  it('names every tier and the handoff a RED tier ends in', () => {
-    for (const tier of ['GREEN', 'YELLOW', 'RED']) assert.match(card.stdout, new RegExp(tier));
-    assert.match(card.stdout, /handoff-card/);
-  });
-
-  it('carries the never-list', () => assert.match(card.stdout, /NEVER/));
-
-  it('points at the canon instead of quoting it', () => {
-    assert.match(card.stdout, /CANON/);
-    assert.match(card.stdout, /NOT IN CANON/);
-  });
-
-  it('states how a done-claim is proved', () => assert.match(card.stdout, /verify\.mjs/));
-
-  it('routes cheap lookups away from the main model', () => assert.match(card.stdout, /scout/));
-});
-
-describe('identity', () => {
-  it('reads what setup wrote', () => {
-    const { stdout } = print({
-      name: 'Marker Org', sources: ['https://marker.example/about'], tracker: 'a tracker',
-      docStore: 'a store', brandTools: 'a tool',
-    });
-    assert.match(stdout, /https:\/\/marker\.example\/about/);
-    assert.match(stdout, /STATE=a tracker/);
-  });
-
-  it('accepts a configuration that is nothing but a name', () => {
-    const { stdout } = print({ name: 'Solo' });
-    assert.equal(print({ name: 'Solo' }).status, 0);
-    assert.match(stdout, /no sources configured/);
-  });
-
-  it('lists several sources when the owner gave several', () => {
-    const { stdout } = print({ sources: ['https://a.example', 'a shared doc', 'a wiki page'] });
-    assert.match(stdout, /a shared doc/);
-    assert.match(stdout, /\+1 more/);
-  });
-
-  it('falls back to generic wording when nothing is configured', () => {
-    assert.match(print({}).stdout, /ask the owner/);
-  });
-
-  it('names no vendor by default, so any org installs clean', () => {
-    assert.doesNotMatch(print({}).stdout, /monday|canva|google drive/i);
+  it('drops state-changing git from the never-list in cowork mode', () => {
+    const env = { ...process.env, HANDOFF_ALLOW_GIT: '1' };
+    assert.doesNotMatch(fire(CARD, {}, env).stdout, /state-changing git/);
+    assert.match(card.stdout, /state-changing git/);
   });
 
   it('leaks no org fact the guard would refuse to commit', () => {
@@ -100,33 +64,18 @@ describe('first-prompt backup, for when SessionStart never fired', () => {
   const prompt = (session_id) => print(null, { session_id, hook_event_name: 'UserPromptSubmit' });
   const clear = (session) => { try { rmSync(seenPath(session), { force: true }); } catch { } };
 
-  it('prints the same card when the session card has not run', () => {
-    const session = 'guard-miss';
-    clear(session);
-    const result = prompt(session);
-    assert.equal(result.status, 0);
-    assert.match(result.stdout, /PLANES/);
-    clear(session);
-  });
-
-  it('stays silent once the session card already ran', () => {
-    const session = 'guard-hit';
-    clear(session);
-    print(null, { session_id: session });
-    assert.ok(existsSync(seenPath(session)));
-    assert.equal(prompt(session).stdout.trim(), '');
-    clear(session);
-  });
-
-  it('stays silent on its own second run', () => {
-    const session = 'guard-twice';
-    clear(session);
-    assert.ok(prompt(session).stdout.trim().length > 0);
-    assert.equal(prompt(session).stdout.trim(), '');
-    clear(session);
-  });
-
-  it('never blocks a prompt, whatever happens', () => {
+  it('prints once per session, then stays silent — and never blocks a prompt', () => {
+    for (const session of ['guard-miss', 'guard-twice']) {
+      clear(session);
+      assert.match(prompt(session).stdout, /PLANES/);
+      assert.equal(prompt(session).stdout.trim(), '');
+      clear(session);
+    }
+    clear('guard-hit');
+    print(null, { session_id: 'guard-hit' });
+    assert.ok(existsSync(seenPath('guard-hit')));
+    assert.equal(prompt('guard-hit').stdout.trim(), '');
+    clear('guard-hit');
     assert.equal(print(null, { hook_event_name: 'UserPromptSubmit' }).status, 0);
   });
 });

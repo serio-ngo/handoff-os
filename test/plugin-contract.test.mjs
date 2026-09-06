@@ -129,27 +129,28 @@ describe('context budget — every skill description is loaded in every session'
     assert.match(tools, /Grep/);
   });
 
-  const descriptions = skillNames.map((name) => {
-    const { fields, bodyLines } = frontmatter(read(SKILLS, name, 'SKILL.md'));
-    describe(name, () => {
-      it('uses only the six frontmatter fields that survive an upload to every surface', () => {
-        assert.deepEqual(Object.keys(fields).filter((key) => !PORTABLE_FIELDS.includes(key)), []);
-      });
-      it(`describes itself in at most ${MAX_DESCRIPTION_CHARS} characters`, () => {
-        assert.ok(fields.description.length <= MAX_DESCRIPTION_CHARS, `${fields.description.length} chars`);
-      });
-      it(`keeps its body under ${MAX_BODY_LINES} lines`, () => {
-        assert.ok(bodyLines <= MAX_BODY_LINES, `${bodyLines} lines`);
-      });
-      it('is named after its own directory, so the slash command is predictable', () => {
-        assert.equal(fields.name, name);
-      });
-    });
-    return fields.description.length;
+  const parsed = skillNames.map((name) => ({ name, ...frontmatter(read(SKILLS, name, 'SKILL.md')) }));
+
+  it('every skill uses only the six frontmatter fields that survive an upload to every surface', () => {
+    for (const { name, fields } of parsed) {
+      assert.deepEqual(Object.keys(fields).filter((key) => !PORTABLE_FIELDS.includes(key)), [], name);
+    }
+  });
+
+  it(`every description fits ${MAX_DESCRIPTION_CHARS} characters`, () => {
+    for (const { name, fields } of parsed) assert.ok(fields.description.length <= MAX_DESCRIPTION_CHARS, name);
+  });
+
+  it(`every body fits ${MAX_BODY_LINES} lines`, () => {
+    for (const { name, bodyLines } of parsed) assert.ok(bodyLines <= MAX_BODY_LINES, name);
+  });
+
+  it('every skill is named after its own directory, so the slash command is predictable', () => {
+    for (const { name, fields } of parsed) assert.equal(fields.name, name);
   });
 
   it(`spends at most ${MAX_DESCRIPTION_TOTAL} characters of permanent context in total`, () => {
-    const total = descriptions.reduce((sum, length) => sum + length, 0);
+    const total = parsed.reduce((sum, { fields }) => sum + fields.description.length, 0);
     assert.ok(total <= MAX_DESCRIPTION_TOTAL, `${total} chars`);
   });
 });

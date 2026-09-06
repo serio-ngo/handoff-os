@@ -1,9 +1,9 @@
 # Contributing
 
-Every skill description sits in the reader's context permanently, in every session, in every repository.
-Every hook executes shell code on another operator's machine. Placement and verification outrank novelty.
+Every skill description sits in context permanently, in every session, in every repository. Every hook
+runs shell code on another operator's machine. Placement and verification outrank novelty.
 
-## 1. Does it belong here?
+## Does it belong here?
 
 > **Does it bind every repository?**
 
@@ -13,43 +13,33 @@ Every hook executes shell code on another operator's machine. Placement and veri
 | No — it governs one codebase | that codebase's own `CLAUDE.md` |
 | No — it governs one craft | a separate plugin, or `~/.claude/skills/` |
 | No — it is a fact, not a rule | its home system, never a file here |
-| No — it is work, not law | the tracker |
 
-Two checks that have closed proposals before: does a **built-in** already cover it (`Explore`, `Plan`,
-`/code-review`, `/security-review`, bundled skills), and does a **public plugin**? Contribute only the
-difference. A wording difference is not a difference. Promote a pattern to a skill on its **second**
-occurrence, never its first.
+Check the built-ins (`Explore`, `Plan`, bundled skills) and public plugins first. Promote a pattern to a
+skill on its **second** occurrence, never its first.
 
-## 2. Budgets, enforced by `npm test`
+## Budgets, enforced by `npm test`
 
-| Budget | Limit | Why |
-|---|---|---|
-| Skills | 5 | adding one means deleting or justifying one |
-| Subagents | 1 | the built-ins cover explore, review and security |
-| Skill description | 800 chars each, 4,000 total | loaded in every session whether or not it fires |
-| Skill body | 160 lines | past that it is a document pretending to be a skill |
-| Session card | 20 lines, 400 tokens | it replaces a document read; past that it *is* the document |
-
-## 3. Code
-
-| Rule | Application |
+| Budget | Limit |
 |---|---|
-| No runtime dependencies | `package.json` declares none. Node standard library only |
-| No explanatory comments, no change narration | a line needing a sentence of justification needs a better name. Comments decay; names are verified on every read |
-| Deterministic work never gets a model | anything a script can decide, a script decides |
-| Fail open on parse errors, closed on ambiguity | an unreadable hook payload must not disable a session; a shell payload that *may* be a command and cannot be parsed must block |
-| One home per fact | the marketplace name comes from `marketplace.json`, the repository from the git remote, owner identity from `config/org.json`, permission rules from `settings/policy.json`. No second copy |
-| Match on command position, not substring | an egress word inside a quoted string is data. Blocking it makes ordinary work fail, which teaches operators to disable the guard |
+| Skills | 5 — adding one means deleting one |
+| Subagents | 1 |
+| Skill description | 800 chars each, 4,000 total |
+| Skill body | 160 lines |
+| Session card | 20 lines |
 
-## 4. Tests describe behaviour
+## Code
 
-`test/*.test.mjs`, Node's built-in runner, no other harness.
+- No runtime dependencies. Node standard library only.
+- No explanatory comments, no change narration.
+- Anything a script can decide, a script decides — deterministic work never gets a model.
+- Fail open on parse errors, closed on ambiguity.
+- Match on command position, not substring.
 
-```js
-describe('egress guard', () => {
-  it('blocks a push to a remote', () => assert.equal(verdict(bash(outward)), BLOCKED));
-});
-```
+## Tests
+
+`test/*.test.mjs` on Node's built-in runner. One `it` per behaviour group, cases looped inside with the
+case in the assert message. A test name states a behaviour: `blocks a re-read of the same unchanged
+bytes`, never `test read budget 2`.
 
 | Change | Test it must arrive with |
 |---|---|
@@ -57,34 +47,14 @@ describe('egress guard', () => {
 | A new egress pattern | the string it must catch, **and a near-miss it must not** |
 | A new permission rule | a projection case in `test/cli.test.mjs` |
 | A new skill | it passes the context budget, and it deletes another skill |
-| A value the product already knows | import it (`FIELDS`, `policyFor`, hook matchers) — never restate it |
-| Anything at all | `npm test` green, pasted into the pull request |
 
-A test name states a behaviour: `blocks a re-read of the same unchanged bytes`, never `test read budget 2`.
-
-## 5. Releasing
-
-The plugin cache is keyed by `version` in `plugins/handoff-os/.claude-plugin/plugin.json`. Content shipped
-without a version increment is silently ignored on update. `npm run upkeep` bumps it automatically whenever
-shipped content changes, and the `Stop` hook runs upkeep at the end of every turn, so this trap cannot bite
-during development.
+## Releasing
 
 ```bash
 npm run release patch "one-line note that becomes the changelog entry"
 ```
 
-That runs the suite, bumps, regenerates the manifest, stamps the content hash and writes `CHANGELOG.md`.
-CI regenerates and runs `git diff --exit-code`, so drift is reported as drift rather than as a command you
-should have run.
+Suite, version bump, manifest, content stamp, `CHANGELOG.md`. CI fails on drift.
 
-## 6. Identity
-
-This repository carries no organisation data — no identifiers, no account names, no personal paths, no
-secrets, and no vendor names inside the product. `npm test` scans for all of it and fails.
-
-Personalise with `npm run setup`, never by editing a tracked file. `config/org.json` is generated and
-ignored by git; `config/org.example.json` shows the shape, and every key in it is optional.
-
-## 7. Reporting a security issue
-
-Do not open a public issue. See [SECURITY.md](SECURITY.md).
+No organisation data in git — no identifiers, no secrets, no vendor names inside the product. Personalise
+with `npm run setup`, never by editing a tracked file. Security reports: [SECURITY.md](SECURITY.md).

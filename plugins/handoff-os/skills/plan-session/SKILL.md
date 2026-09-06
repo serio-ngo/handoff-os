@@ -56,14 +56,12 @@ SOURCE**. A choice with no rejected alternative was not a choice.
 | Claim is about | Only acceptable source |
 |---|---|
 | This repo's code, design or content | the file path, with a line range |
-| Your organisation | `/handoff-os:canon` — live, never cached, never from memory |
+| Your organisation | `/handoff-os:memory`, never from training |
 | The outside world — law, prices, APIs, library behaviour, market data | a **primary source URL plus the date it was read** |
 | Anything you could not confirm | the literal tag `UNVERIFIED`, kept in the deliverable |
 
-**A document inside a repo is a source only for facts about that repo.** A report, brief or postmortem
-committed here is *input*, not evidence. Re-verify its external claims against their own sources, or carry
-them forward tagged `UNVERIFIED`. A claim that enters as research and leaves as law, dropping its uncertainty
-at every hop, is the failure this rule exists to stop.
+**A document inside a repo is a source only for facts about that repo.** Committed reports are *input*,
+not evidence — re-verify their external claims or carry them tagged `UNVERIFIED`.
 
 ## 6. Decide — do not defer
 
@@ -73,8 +71,7 @@ at every hop, is the failure this rule exists to stop.
 | Genuinely the owner's call | one row: the question · who decides · what it blocks · **the default that ships if nobody answers** |
 | Blocked on a fact you cannot get | the row above, plus what you tried |
 
-Banned: a section of open questions with no defaults · "to be decided later" · any deferral of something the
-brief asked you to settle.
+Banned: open questions with no defaults · "to be decided later" · deferring what the brief asked to settle.
 
 ## 7. Prior art before custom code
 
@@ -89,11 +86,11 @@ package or built-in that does this **with its docs URL**, or why none fits, in o
 | No speculative abstraction | no config layer the document does not need today |
 | Scope | name which stated goal each row serves. Inferred-but-unasked work goes in an out-of-scope note |
 | Length | a paragraph over two lines is a table that has not been written yet |
-| Banned | first person · options surveys · a thinking-process section · a closing summary · self-assessment · hedge words ("consider", "might want to") · rhetorical questions · emoji |
+| Banned | first person · options surveys · thinking-process sections · closing summaries · hedge words · rhetorical questions · emoji |
 
 ## 9. Closing ledger — mandatory, one line per task, last thing in the document
 
-```
+```text
 1 -> grep -rn "TODO" src/ returns 0 matches
 2 -> npm run verify exits 0
 ```

@@ -37,17 +37,12 @@ describe('which command counts as verification', () => {
 });
 
 describe('Stop gate', () => {
-  it('blocks a done-claim that no run supports', () => {
+  it('blocks a done-claim that no run supports, naming the only command that clears it', () => {
     const root = repoWith({ verify: 'node --version' });
     const result = stop(root, { session_id: 'unproven', transcript_path: transcript(root, 'All done, it works now.') });
     assert.equal(result.status, BLOCKED);
-  });
-
-  it('names the only command that can clear it', () => {
-    const root = repoWith({ verify: 'node --version' });
-    const { stderr } = stop(root, { session_id: 'named', transcript_path: transcript(root, 'Fixed.') });
-    assert.match(stderr, /scripts\/verify\.mjs/);
-    assert.match(stderr, /npm run verify/);
+    assert.match(result.stderr, /scripts\/verify\.mjs/);
+    assert.match(result.stderr, /npm run verify/);
   });
 
   it('lets a turn end when nothing was claimed done', () => {

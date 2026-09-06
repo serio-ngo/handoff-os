@@ -1,24 +1,20 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveSteps, stepsToCommand } from '../plugins/handoff-os/scripts/verify-steps.mjs';
+import { resolveSteps, stepsToCommand } from '../plugins/handoff-os/scripts/verify.mjs';
+import { ALLOWED, BLOCKED, fire, sandbox, scrub } from './helper.mjs';
 
 const SCRIPTS = fileURLToPath(new URL('../plugins/handoff-os/scripts/', import.meta.url));
-const GATE = path.join(SCRIPTS, 'verify-gate.mjs');
-const RUNNER = path.join(SCRIPTS, 'verify-run.mjs');
-const BLOCKED = 2;
-const ALLOWED = 0;
+const GATE = path.join(SCRIPTS, 'verify.mjs');
+const RUNNER = path.join(SCRIPTS, 'verify.mjs');
 
-const sandboxes = [];
-after(() => sandboxes.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
+after(scrub);
 
 function repoWith(scripts) {
-  const root = mkdtempSync(path.join(tmpdir(), 'verify-'));
-  sandboxes.push(root);
+  const root = sandbox('verify-');
   writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'probe', scripts }), 'utf8');
   return root;
 }
@@ -29,24 +25,13 @@ function transcript(root, text) {
   return file;
 }
 
-const stop = (root, payload) => spawnSync(process.execPath, [GATE], {
-  input: JSON.stringify({ cwd: root, ...payload }), encoding: 'utf8',
-});
+const stop = (root, payload) => fire(GATE, { cwd: root, ...payload });
 
 describe('which command counts as verification', () => {
-  it('prefers a verify script when the repo defines one', () => {
+  it('resolves the command from what the repo actually defines', () => {
     assert.deepEqual(resolveSteps({ verify: 'x', build: 'y' }), ['verify']);
-  });
-
-  it('falls back to the checks a repo without verify usually has', () => {
     assert.deepEqual(resolveSteps({ typecheck: 'tsc', build: 'vite build' }), ['typecheck', 'build']);
-  });
-
-  it('finds nothing to run in a repo with no checks', () => {
     assert.deepEqual(resolveSteps({ dev: 'vite' }), []);
-  });
-
-  it('renders the steps as the command a human would type', () => {
     assert.equal(stepsToCommand(['typecheck', 'build']), 'npm run typecheck && npm run build');
   });
 });
@@ -61,7 +46,7 @@ describe('Stop gate', () => {
   it('names the only command that can clear it', () => {
     const root = repoWith({ verify: 'node --version' });
     const { stderr } = stop(root, { session_id: 'named', transcript_path: transcript(root, 'Fixed.') });
-    assert.match(stderr, /verify-run\.mjs/);
+    assert.match(stderr, /scripts\/verify\.mjs/);
     assert.match(stderr, /npm run verify/);
   });
 

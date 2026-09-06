@@ -1,26 +1,17 @@
 # Reference — Claude Code identifiers (VERIFIED)
 
+An invented identifier raises no error — it silently never executes. Consult this file instead of
+re-running the research. `UNVERIFIED` rows are not normative; never base enforcement on them.
+
+## 0. The events this plugin uses
+
+`SessionStart` · `UserPromptSubmit` · `PreToolUse` · `PostToolUse` · `Stop`. There are 33 in total —
+the full list is on the hooks page below. Nothing outside these five is wired here.
+
 Verified against `code.claude.com/docs` on **2026-09-04**. Every row below was read from a documentation page.
 
-**Why this file exists:** an invented identifier does not raise an error — it silently never executes. On
-2026-09-03 an agent proposed hooks named `PostWrite` and `PreGitOperation`. Neither exists.
-Consult this file instead of re-running research. One prior re-research pass cost approximately 2.0M tokens.
-
-**How to use:** `UNVERIFIED` rows are not normative. Do not base enforcement on them.
 
 ---
-
-## 1. Hook events — all 33, exact spelling
-
-```
-SessionStart  Setup  UserPromptSubmit  UserPromptExpansion  PreToolUse  PermissionRequest
-PermissionDenied  PostToolUse  PostToolUseFailure  PostToolBatch  Notification  MessageDisplay
-SubagentStart  SubagentStop  TaskCreated  TaskCompleted  Stop  StopFailure  TeammateIdle
-InstructionsLoaded  ConfigChange  CwdChanged  DirectoryAdded  FileChanged  WorktreeCreate
-WorktreeRemove  PreCompact  PostCompact  PreModelSwitch  PostModelSwitch  Elicitation
-ElicitationResult  SessionEnd
-```
-Source: <https://code.claude.com/docs/en/hooks.md>
 
 ## 2. Hook file shape
 
@@ -86,7 +77,7 @@ pipe = exact match or pipe-separated list. **Any other character makes it an una
 | Every event | `session_id` `prompt_id` `transcript_path` `cwd` `permission_mode` `effort` `hook_event_name` `agent_id` `agent_type` |
 | Tool events | `tool_name` `tool_input` `tool_use_id` — `tool_input.command` (Bash), `tool_input.file_path` (Edit/Write) |
 | UserPromptSubmit | `user_prompt` — **not** `prompt` |
-| Stop · SubagentStop | `last_assistant_message` — **may be absent.** Live probe 2026-09-04: a real Stop payload carried `transcript_path` and no `last_assistant_message`, so a hook reading only that field never fires. Read the last `assistant` text block out of the transcript JSONL as the fallback (see `verify-gate.mjs`). |
+| Stop · SubagentStop | `last_assistant_message` — **may be absent.** Live probe 2026-09-04: a real Stop payload carried `transcript_path` and no `last_assistant_message`, so a hook reading only that field never fires. Read the last `assistant` text block out of the transcript JSONL as the fallback (see `scripts/verify.mjs`). |
 
 **Do not use:** `tool_response`, `stop_hook_active`, bare `prompt`. Absent from the current tables.
 
@@ -188,7 +179,12 @@ Real keys: `permissions{allow,deny,ask,defaultMode,additionalDirectories,blockRe
 `strictPluginOnlyCustomization` · `attribution`.
 **Deprecated:** `includeCoAuthoredBy` → use `attribution`.
 
-`extraKnownMarketplaces` is an **object keyed by marketplace name**, never an array:
+**Conflict, unresolved — 2026-09-06.** `code.claude.com/docs/en/plugins-reference` documents
+`extraKnownMarketplaces` as an **array** of `{name, source}`. The object-keyed form below is what a live
+working install on this machine contains, and what `scripts/handoff.mjs` writes. Both are recorded; the
+object form is the one with local evidence behind it. Do not flip without testing a real session.
+
+Object-keyed form (live evidence):
 
 ```json
 { "extraKnownMarketplaces": { "serio-ngo": { "source": { "source": "github", "repo": "serio-ngo/handoff-os" } } },
@@ -202,46 +198,24 @@ Real keys: `permissions{allow,deny,ask,defaultMode,additionalDirectories,blockRe
 | Fact | Detail |
 |---|---|
 | Plugin path | `<plugin-root>/skills/<name>/SKILL.md` → invoked `/<plugin>:<skill>` |
-| Personal / project | `~/.claude/skills/<n>/SKILL.md` · `.claude/skills/<n>/SKILL.md` |
-| `name` semantics | Personal/project: **the directory name** sets the command; `name` is only a label. Plugin: `name` sets the last command segment. |
-| Full Claude Code fields | `name` `description` `when_to_use` `argument-hint` `arguments` `disable-model-invocation` `user-invocable` `allowed-tools` `disallowed-tools` `model` `effort` `context` `agent` `background` `hooks` `paths` `shell` `metadata` `license` `compatibility` |
-| **Portable fields (claude.ai / Cowork / Skills API)** | **`name` `description` `license` `compatibility` `metadata` `allowed-tools` — and nothing else.** Any other field is a hard upload error. |
-| Context cost | `description` (+`when_to_use`), truncated at 1,536 chars, is **always** in context. Body loads on invocation only. Keep under 500 lines. |
-| `disable-model-invocation: true` | Removes the description from context entirely; Claude will never suggest the skill. |
-| Substitutions | `${CLAUDE_SKILL_DIR}` `$ARGUMENTS` `$N` `${CLAUDE_SESSION_ID}` `${CLAUDE_EFFORT}` `${CLAUDE_PROJECT_DIR}` and, in plugin skills, `${CLAUDE_PLUGIN_ROOT}` `${CLAUDE_PLUGIN_DATA}` |
+| **Portable fields (claude.ai / Cowork / Skills API)** | **`name` `description` `license` `compatibility` `metadata` `allowed-tools` — and nothing else.** Any other field is a hard upload error |
+| Context cost | `description`, truncated at 1,536 chars, is **always** in context. Body loads on invocation only |
 
-> **REPO RULE:** every `handoff-os` skill uses only the six portable fields. One file, three surfaces,
-> zero dialect bugs. See `ORCHESTRATOR.md` §4.
-
----
+> **REPO RULE:** every skill here uses only the six portable fields. One file, three surfaces, zero
+> dialect bugs. `npm run cowork` fails the check if a seventh appears.
 
 ## 12. Subagents
 
-Files: `<plugin-root>/agents/<name>.md` · `.claude/agents/` · `~/.claude/agents/` (both scanned
-recursively). Plugin agents are named `<plugin>:<agent>`; a subpath becomes `plugin:dir:agent`.
+`<plugin-root>/agents/<name>.md`, invoked as `<plugin>:<agent>`. Required frontmatter: `name`,
+`description`. Used here: `tools`, `model`, `effort`. For **plugin** subagents `hooks`, `mcpServers` and
+`permissionMode` are **IGNORED**; a `tools: Agent(a, b)` list is ignored too — block a subagent with
+`deny: ["Agent(name)"]`.
 
-Required: `name` (lowercase-and-hyphens, no `:`), `description`.
-Optional: `tools` `disallowedTools` `model` (`sonnet`\|`opus`\|`haiku`\|`fable`\|`inherit`)
-`permissionMode` `maxTurns` `skills` `mcpServers` `hooks` `memory` `background`
-`effort` (`low`\|`medium`\|`high`\|`xhigh`\|`max`) `isolation` (`worktree`) `color` `initialPrompt`.
-
-| Trap | Truth |
-|---|---|
-| Plugin subagents | `hooks`, `mcpServers`, `permissionMode` are **IGNORED** |
-| `tools: Agent(a, b)` | The parenthesised list is **ignored** inside a subagent definition. To block a subagent use `deny: ["Agent(name)"]` |
-| Always removed from subagents | AskUserQuestion · EndConversation · EnterPlanMode · ScheduleWakeup · TaskOutput · WaitForMcpServers · Workflow |
-
----
 
 ## 13. Plugins and marketplace
 
-Layout **at the plugin root** — only `plugin.json` goes inside `.claude-plugin/`:
-
-```
-.claude-plugin/plugin.json     skills/<name>/SKILL.md   commands/*.md   agents/*.md
-hooks/hooks.json               .mcp.json                .lsp.json       bin/
-monitors/monitors.json         output-styles/           themes/*.json   settings.json
-```
+Everything lives **at the plugin root** — `skills/`, `agents/`, `commands/`, `hooks/hooks.json`,
+`.mcp.json`, `settings.json`. Only `plugin.json` goes inside `.claude-plugin/`.
 
 | Trap | Truth |
 |---|---|
@@ -255,21 +229,20 @@ monitors/monitors.json         output-styles/           themes/*.json   settings
 `source` = `"./plugins/handoff-os"` or `{source:"github",repo,ref,sha}` / `url` / `git-subdir` /
 `npm` / `archive` / `command`.
 
+`source` types, verbatim: `github` · `git` · `directory` (field `path`) · `command` (field `command`,
+plus `mode`: `copy` default or `link`) · `hostPattern` · `settings`.
+Claude Code **copies** each installed plugin into `~/.claude/plugins/cache` for every source type except a
+`command` source in `link` mode, which it uses in place. Copy mode means source changes do not take effect
+until the `version` string changes — the trap in §3b applies to a local `directory` source too.
+**Cowork** adds marketplaces by GitHub repository or git URL only; no local-directory source exists in that
+UI, so skills reach Cowork solely through a pushed remote.
+Source: <https://code.claude.com/docs/en/plugin-marketplaces>
+
 CLI: `claude plugin marketplace add <owner/repo|url|path>` · `claude plugin install <p>@<m>` ·
 `claude plugin enable <p>@<m>` · `claude plugin validate <path> [--strict]` ·
 `claude --plugin-dir ./plugins/handoff-os` (local dev) · `/reload-plugins`.
 
 ---
-
-## 14. CLAUDE.md
-
-| Fact | Detail |
-|---|---|
-| Load order | managed (`%ProgramFiles%\ClaudeCode\CLAUDE.md`) → `~/.claude/CLAUDE.md` → `./CLAUDE.md` or `./.claude/CLAUDE.md` → `./CLAUDE.local.md`. **Concatenated, never overridden.** |
-| `AGENTS.md` | *"Claude Code reads `CLAUDE.md`, not `AGENTS.md`."* Bridge with `@AGENTS.md` at the top of CLAUDE.md — the recommended route on Windows, where symlinks need Administrator or Developer Mode. |
-| Imports | `@path/to/file`, relative to the importing file, **max 4 hops**. Expanded at launch → **imports do not save context.** |
-| Deferred loading | `.claude/rules/*.md` with `paths:` frontmatter load only when Claude touches matching files. Skills load only on invocation. |
-| Enforcement | **CLAUDE.md is context, not enforcement.** The docs say so. A hard block is `permissions.deny` + a `PreToolUse` hook. |
 
 ---
 
@@ -299,13 +272,6 @@ Source: <https://code.claude.com/docs/en/authentication.md>
 
 ---
 
-## 16. Two accounts on one machine
-
-| Surface | Mechanism | Verified |
-|---|---|---|
-| Claude Code CLI / desktop terminal | `CLAUDE_CONFIG_DIR` → two directories, each with its own settings, session and auth | VERIFIED — <https://code.claude.com/docs/en/claude-directory> |
-| Cowork · Claude Design | **No local switch exists.** They follow the claude.ai account signed into the app. Two accounts = log out / in, or two OS or browser profiles | VERIFIED |
-
 ---
 
 ## 17. UNVERIFIED — do not build on these
@@ -314,7 +280,5 @@ Source: <https://code.claude.com/docs/en/authentication.md>
 |---|---|
 | `PostToolUse` receives `tool_response` | `claude --debug` on a live hook |
 | `stopReason` / `suppressOutput` placement | a per-event doc table |
-| A subagent `tools:` allowlist re-granting a `deny`-blocked tool | doc statement |
+| `extraKnownMarketplaces` array form (see §10 conflict) | a real session started from the array shape |
 | HKLM/HKCU registry route for managed settings on Windows | key names and value format |
-| `forceLoginMethod: "claudeai"` in **user** settings failing closed on a stray API key | doc statement — only documented together with `forceLoginOrgUUID` |
-| `claude plugin eval` | early access, per organisation. Not enabled here. Use `claude plugin validate` |

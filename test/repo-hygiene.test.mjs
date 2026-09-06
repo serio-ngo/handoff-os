@@ -1,22 +1,21 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generateManifest } from '../scripts/docs-manifest.mjs';
-import { contentHash } from '../scripts/content-hash.mjs';
+import { manifest, stamp } from '../scripts/generate.mjs';
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
 const read = (...parts) => readFileSync(path.join(REPO, ...parts), 'utf8');
 
-describe('regenerated artefacts', () => {
-  it('the manifest is committed in the state the generator produces', () => {
-    assert.equal(read('docs', 'MANIFEST.md'), generateManifest(), 'stale — run npm run docs');
+describe('generated artefacts, which npm run upkeep rewrites on every turn', () => {
+  it('the manifest matches its generator', () => {
+    assert.equal(read('docs', 'MANIFEST.md'), manifest(), 'stale — npm run upkeep');
   });
 
-  it('the stamp matches the content it claims to describe', () => {
-    assert.equal(JSON.parse(read('package.json')).contentHash, contentHash(),
-      'the plugin changed without a release — run npm run release');
+  it('the stamp matches the content it describes', () => {
+    assert.equal(JSON.parse(read('package.json')).contentHash, stamp(), 'stale — npm run upkeep');
   });
 });
 
@@ -29,35 +28,48 @@ const walk = (dir, base = '') => readdirSync(path.join(REPO, dir || '.'), { with
 const IGNORED = ['.git/', 'node_modules/', '.claude/', 'audit/'];
 const tracked = walk('')
   .filter((file) => /\.(md|mjs|json|jsonc|ya?ml|cff)$/.test(file))
-  .filter((file) => !IGNORED.some((prefix) => file.startsWith(prefix)));
+  .filter((file) => !IGNORED.some((prefix) => file.startsWith(prefix)))
+  .filter((file) => file !== 'config/org.json');
+
+const PRODUCT = tracked.filter((file) => file.startsWith('plugins/') || file.startsWith('settings/') || file.startsWith('scripts/'));
 
 describe('the publisher is named where attribution belongs, and nowhere else', () => {
   const ATTRIBUTION = [
     'README.md', 'NOTICE', 'CITATION.cff', 'CHANGELOG.md', 'CODE_OF_CONDUCT.md', 'GOVERNANCE.md',
     'package.json', '.claude-plugin/marketplace.json', 'plugins/handoff-os/.claude-plugin/plugin.json',
-    '.github/FUNDING.yml', 'docs/CLAUDE_CODE_FACTS.md', 'test/repo-hygiene.test.mjs',
+    '.github/FUNDING.yml', 'docs/CLAUDE_CODE_FACTS.md', 'test/repo-hygiene.test.mjs', 'test/cli.test.mjs',
   ];
   const PUBLISHER = /serio|fundacja/i;
 
   it('scans a meaningful number of files', () => assert.ok(tracked.length > 25, `${tracked.length} files`));
 
-  it('leaves the product itself organisation-neutral, so a fork needs no find-and-replace', () => {
-    const leaked = tracked.filter((file) => !ATTRIBUTION.includes(file) && PUBLISHER.test(read(file)));
+  it('leaves the product organisation-neutral, so a fork needs no find-and-replace', () => {
+    assert.deepEqual(tracked.filter((file) => !ATTRIBUTION.includes(file) && PUBLISHER.test(read(file))), []);
+  });
+});
+
+describe('the product names no vendor, so any company installs it clean', () => {
+  const VENDORS = /\b(monday\.com|monday|canva|google drive|gmail|notion|asana|trello|jira)\b/i;
+
+
+  it('keeps vendor names out of skills, hooks and scripts', () => {
+    const leaked = PRODUCT.filter((file) => VENDORS.test(read(file)));
     assert.deepEqual(leaked, []);
   });
 
-  it('names no skill, hook or setting after the publisher', () => {
-    const product = tracked.filter((file) => file.startsWith('plugins/') || file.startsWith('settings/'));
-    const leaked = product.filter((file) => !ATTRIBUTION.includes(file) && PUBLISHER.test(read(file)));
-    assert.deepEqual(leaked, []);
+  it('ships a generic identity example', () => {
+    assert.doesNotMatch(read('config', 'org.example.json'), VENDORS);
+  });
+
+  it('ships an ask list an owner fills in, empty by default', () => {
+    assert.deepEqual(JSON.parse(read('settings', 'policy.json')).ask, []);
   });
 });
 
 describe('the repository carries no private or jurisdiction-bound data', () => {
   const PRIVATE = [/adrian@/i, /kontakt@/i, /\b[A-Z]{2}\d{24,26}\b/];
   const JURISDICTION = [/\bKRS\b/, /\bNIP\b/, /\bREGON\b/, /\bstatut\b/i, /profil zaufany/i];
-  const CARRIES_FIXTURES = ['test/', 'plugins/handoff-os/scripts/egress-guard.mjs'];
-  const scanned = tracked.filter((file) => !CARRIES_FIXTURES.some((prefix) => file.startsWith(prefix)));
+  const scanned = tracked.filter((file) => !file.startsWith('test/'));
 
   for (const pattern of [...PRIVATE, ...JURISDICTION]) {
     it(`contains nothing matching ${pattern}`, () => {
@@ -70,21 +82,21 @@ describe('the owner identity never reaches git', () => {
   const gitignore = read('.gitignore');
 
   it('ignores the config setup writes', () => assert.match(gitignore, /^config\/org\.json$/m));
-  it('ignores the copy plugin-sync stamps', () => assert.match(gitignore, /^plugins\/handoff-os\/org\.json$/m));
   it('ignores the audit ledger but keeps its README', () => {
     assert.match(gitignore, /^audit\/\*\.jsonl$/m);
     assert.ok(existsSync(path.join(REPO, 'audit', 'README.md')));
   });
   it('has no generated config committed', () => {
-    assert.ok(!existsSync(path.join(REPO, 'config', 'org.json')));
+    const result = spawnSync('git', ['ls-files', '--error-unmatch', 'config/org.json'], { encoding: 'utf8', cwd: REPO });
+    assert.notEqual(result.status, 0);
   });
 });
 
 describe('the canon skill sources facts from setup, never from this repo', () => {
   const canon = read('plugins', 'handoff-os', 'skills', 'canon', 'SKILL.md');
 
-  it('reads the public URL the owner configured', () => assert.match(canon, /config\/org\.json/));
-  it('names no connector-gated home, so it works on every account', () => assert.doesNotMatch(canon, /Google Drive/));
+  it('reads the public URL the owner configured', () => assert.match(canon, /org\.json/));
+  it('names no connector-gated home, so it works on every account', () => assert.doesNotMatch(canon, /Google Drive/i));
   it('names no fact file inside this repository', () => assert.doesNotMatch(canon, /canon\/\*?\.json/i));
   it('states the refusal that replaces a guess', () => assert.match(canon, /NOT IN CANON/));
 });

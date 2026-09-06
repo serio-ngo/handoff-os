@@ -2,96 +2,30 @@
   "hooks": {
     "SessionStart": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-card.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Session card: planes, tiers, canon pointers"
-          }
-        ]
+        "matcher": "startup|resume|clear|compact|fork",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/card.mjs\"", "timeout": 10, "statusMessage": "Session card" }]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/card.mjs\"", "timeout": 10, "statusMessage": "Session card backup" }]
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/read-budget.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Read budget: checking for an unchanged re-read"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|PowerShell|Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/egress-guard.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Egress lock: checking command and path"
-          }
-        ]
-      },
-      {
-        "matcher": "^mcp__",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/egress-guard.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Egress lock: checking connector action"
-          }
-        ]
-      },
-      {
-        "matcher": "Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/subagent-cap.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Fan-out cap: counting this wave"
-          }
-        ]
+        "matcher": "^(Read|Bash|PowerShell|Edit|Write|Agent|mcp__)",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard.mjs\"", "timeout": 10, "statusMessage": "Egress lock, read budget, fan-out cap" }]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/audit-append.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Audit: appending file-write line"
-          }
-        ]
-      },
-      {
-          "matcher": "^mcp__(?!.*[_-](search|list|read|get|help|resolve)(_|-|$))",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/audit-append.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Audit: appending connector-write line"
-          }
-        ]
+        "matcher": "^(Edit|Write|mcp__(?!.*[_-](search|list|read|get|help|resolve)(_|-|$)))",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/audit.mjs\"", "timeout": 10, "statusMessage": "Audit receipt" }]
       }
     ],
     "Stop": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/verify-gate.mjs\"",
-            "timeout": 15,
-            "statusMessage": "Verify gate: checking evidence for the done claim"
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs\"", "timeout": 15, "statusMessage": "Verify gate" }]
       }
     ]
   }

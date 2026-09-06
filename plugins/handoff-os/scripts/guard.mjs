@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-import { readFileSync, statSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { load, rootOf, save, sessionOf } from './ledger.mjs';
 
 const MAX_PER_WAVE = 3;
 const WAVE_MS = 90 * 1000;
 const BIG_FILE_BYTES = 24 * 1024;
+const OPUS = /opus/i;
+const QUALITY = /\bQUALITY:\s*(?:writing|creative|legal|security)\b/;
 const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
 
 const GIT_OUT = [
@@ -149,16 +151,38 @@ function readBudget(payload, input) {
   save(root, session, state);
 }
 
+export function claimSlot(dir, bucket, cap) {
+  try { mkdirSync(dir, { recursive: true }); } catch { return 1; }
+  try {
+    for (const name of readdirSync(dir)) {
+      if (!name.startsWith(`${bucket}-`)) rmSync(path.join(dir, name), { force: true });
+    }
+  } catch { }
+  for (let n = 1; n <= cap + 1; n += 1) {
+    try {
+      closeSync(openSync(path.join(dir, `${bucket}-${n}`), 'wx'));
+      return n;
+    } catch { }
+  }
+  return cap + 1;
+}
+
+export function dispatchBudget(input) {
+  const model = String(input.model || '').trim();
+  if (!model) {
+    return 'blocked a subagent dispatch that names no model (law 8). State one: haiku for lookups, sonnet for research and review, opus only for prose you publish';
+  }
+  if (OPUS.test(model) && !QUALITY.test(String(input.prompt || ''))) {
+    return 'blocked an opus subagent (law 8). Web research and review go to sonnet; opus needs QUALITY: writing|creative|legal|security in the prompt';
+  }
+  return null;
+}
+
 function fanOutCap(payload) {
-  const root = rootOf(payload);
-  const session = sessionOf(payload);
-  const state = load(root, session);
-  const now = Date.now();
-  if (!state.wave || now - state.wave.first >= WAVE_MS) state.wave = { count: 0, first: now };
-  state.wave.count += 1;
-  if (!save(root, session, state)) process.exit(0);
-  if (state.wave.count > MAX_PER_WAVE) {
-    process.stderr.write(`FAN-OUT CAP: subagent ${state.wave.count} of a wave capped at ${MAX_PER_WAVE} (law 7). Read what the first ${MAX_PER_WAVE} returned, then launch the next wave. Procedure: /handoff-os:research-budget.\n`);
+  const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
+  const slot = claimSlot(dir, Math.floor(Date.now() / WAVE_MS), MAX_PER_WAVE);
+  if (slot > MAX_PER_WAVE) {
+    process.stderr.write(`FAN-OUT CAP: subagent ${slot} of a wave capped at ${MAX_PER_WAVE} (law 7). Read what the first ${MAX_PER_WAVE} returned, then launch the next wave. Procedure: /handoff-os:research-budget.\n`);
     process.exit(2);
   }
 }
@@ -177,7 +201,11 @@ const tool = String(payload.tool_name || '');
 const input = payload.tool_input || {};
 
 if (tool === 'Read') readBudget(payload, input);
-else if (tool === 'Agent') fanOutCap(payload);
+else if (tool === 'Agent') {
+  const verdict = dispatchBudget(input);
+  if (verdict) deny(verdict);
+  fanOutCap(payload);
+}
 else if (tool === 'Bash' || tool === 'PowerShell') {
   if ('command' in input && typeof input.command !== 'string') deny('blocked a shell call whose command was not a string');
   const verdict = judgeShell(typeof input.command === 'string' ? input.command : '');

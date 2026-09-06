@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const EMPTY = () => ({ reads: {}, wave: null, saved: { rereads: 0, slices: 0, bytes: 0 } });
+const EMPTY = () => ({ reads: {}, saved: { rereads: 0, slices: 0, bytes: 0 } });
 
 export const rootOf = (payload = {}) => process.env.HANDOFF_OS_DIR
   || process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();

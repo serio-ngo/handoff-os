@@ -30,7 +30,8 @@ One hook runs before guarded tool calls and can refuse them. Nothing here is adv
 | Egress lock | Send, pay, submit, publish, push, delete, or configure an API key — in the shell and on every connector, matched by verb | `EGRESS LOCK: blocked…`, and the call never runs |
 | Read budget | Re-reading a file unchanged since this session read it | `READ BUDGET: …unchanged and already in context` |
 | Whole-file limit | Reading a file over 24KB without `offset`/`limit` | `READ BUDGET: …over the 24KB whole-file limit` |
-| Fan-out cap | A fourth subagent in one wave | `FAN-OUT CAP: subagent 4 of a wave capped at 3` |
+| Fan-out cap | A fourth subagent in one wave, including ten launched at once | `FAN-OUT CAP: subagent 4 of a wave capped at 3` |
+| Dispatch budget | A subagent with no model named, or opus without a `QUALITY:` flag | `EGRESS LOCK: blocked an opus subagent (law 8)` |
 | Scout contract | A subagent return with no `file:line`, URL or `UNVERIFIED` tag | `SCOUT CONTRACT: …nothing in it can be checked` |
 | Verify gate | A "done" claim with no run behind it | `Verify gate: you claimed done with no evidence` |
 

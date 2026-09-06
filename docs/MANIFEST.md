@@ -1,6 +1,6 @@
 # Manifest
 
-Everything the plugin loads, at version 1.0.13. Generated — `npm run upkeep` rewrites it.
+Everything the plugin loads, at version 1.0.14. Generated — `npm run upkeep` rewrites it.
 
 ## Skills
 

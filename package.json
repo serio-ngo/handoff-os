@@ -1,6 +1,6 @@
 {
   "name": "handoff-os",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Agent operating rules for small teams: an egress lock, an audit trail and a verification gate for Claude Code.",
   "license": "Apache-2.0",
   "private": true,
@@ -16,7 +16,7 @@
   "engines": {
     "node": ">=22"
   },
-  "contentHash": "d1ab201d935da1d5",
+  "contentHash": "6db06ed9c76d022a",
   "scripts": {
     "test": "node --test",
     "verify": "node --test",

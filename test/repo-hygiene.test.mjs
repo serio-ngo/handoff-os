@@ -47,7 +47,8 @@ describe('the owner memory never reaches git', () => {
     assert.match(gitignore, /^plugins\/handoff-os\/memory\.md$/m);
   });
   it('ignores the audit ledger but keeps its README', () => {
-    assert.match(gitignore, /^audit\/\*\.jsonl$/m);
+    assert.match(gitignore, /^audit\/\*$/m);
+    assert.match(gitignore, /^!audit\/README\.md$/m);
     assert.ok(existsSync(path.join(REPO, 'audit', 'README.md')));
   });
   it('has no memory file committed', () => {

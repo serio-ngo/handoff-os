@@ -32,11 +32,6 @@ const allows = (label, cases, payload) => it(label, () => {
 after(scrub);
 
 blocks('shell commands that leave the machine', [
-  `${VCS} ${OUT} origin main`,
-  `${VCS} --no-pager ${OUT} origin main`,
-  `${VCS} remote set-url origin https://elsewhere.example/r.git`,
-  `echo staged && ${VCS} ${OUT}`,
-  `bash -c "${VCS} ${OUT} origin main"`,
   'gh pr create --title x --body y',
   'gh api repos/a/b/issues -X POST -f title=x',
   'npm publish --access public',
@@ -55,18 +50,73 @@ blocks('shell commands that would start spending API credits', [
   'echo apiKeyHelper: ./k.sh >> settings.json',
 ], bash);
 
-describe('cowork mode (HANDOFF_ALLOW_GIT=1)', () => {
-  const cowork = (payload) => fire(GUARD, payload, { ...process.env, HANDOFF_ALLOW_GIT: '1' }).status;
+describe('git by default: everything but a merge or a delete', () => {
+  it('allows the ordinary write commands, in every shape the matcher must see', () => {
+    for (const command of [
+      `${VCS} ${OUT} origin main`,
+      `${VCS} --no-pager ${OUT} origin main`,
+      `${VCS} -C /other/repo ${OUT} origin main`,
+      `echo staged && ${VCS} ${OUT}`,
+      `bash -c "${VCS} ${OUT} origin main"`,
+      `${VCS} commit -m "work"`,
+      `${VCS} add -A`,
+      `${VCS} checkout -b feature`,
+      `${VCS} rebase main`,
+      `${VCS} stash`,
+      `${VCS} remote set-url origin https://elsewhere.example/r.git`,
+    ]) assert.equal(verdict(bash(command)), ALLOWED, command);
+  });
 
-  it('allows a push and a remote rewrite', () => {
-    assert.equal(cowork(bash(`${VCS} ${OUT} origin main`)), ALLOWED);
-    assert.equal(cowork(bash(`${VCS} remote set-url origin https://elsewhere.example/r.git`)), ALLOWED);
+  it('never allows a merge or a delete, whatever the flags', () => {
+    for (const command of [
+      `${VCS} merge main`,
+      `${VCS} --no-pager merge main`,
+      `echo x && ${VCS} merge main`,
+      `${VCS} branch -D feature`,
+      `${VCS} branch --delete feature`,
+      `${VCS} tag -d v1`,
+      `${VCS} ${OUT} --delete origin feature`,
+      `${VCS} ${OUT} --force origin main`,
+      `${VCS} rm notes.md`,
+      `${VCS} remote remove origin`,
+      `${VCS} stash drop`,
+      `${VCS} clean -fd`,
+      `${VCS} reset --hard HEAD~1`,
+    ]) assert.equal(verdict(bash(command)), BLOCKED, command);
+  });
+
+  it('reads a merge or delete near-miss as ordinary work', () => {
+    for (const command of [
+      `${VCS} log --merges`,
+      `${VCS} branch -a`,
+      `${VCS} tag -l`,
+      `${VCS} reset --soft HEAD~1`,
+      `${VCS} clean -n`,
+      `${VCS} stash list`,
+    ]) assert.equal(verdict(bash(command)), ALLOWED, command);
+  });
+});
+
+describe('git lock mode (HANDOFF_LOCK_GIT=1) restores the total ban', () => {
+  const locked = (payload) => fire(GUARD, payload, { ...process.env, HANDOFF_LOCK_GIT: '1' }).status;
+
+  it('blocks every state-changing git command', () => {
+    for (const command of [`${VCS} ${OUT} origin main`, `${VCS} commit -m x`, `${VCS} add -A`,
+      `${VCS} checkout -b feature`, `${VCS} stash`]) {
+      assert.equal(locked(bash(command)), BLOCKED, command);
+    }
+  });
+
+  it('leaves the read-only commands alone, so the agent can still see the repo', () => {
+    for (const command of [`${VCS} status`, `${VCS} diff`, `${VCS} log --oneline -5`]) {
+      assert.equal(locked(bash(command)), ALLOWED, command);
+    }
   });
 
   it('still blocks everything else outward', () => {
-    assert.equal(cowork(bash('npm publish --access public')), BLOCKED);
-    assert.equal(cowork(bash('curl -X POST -d "a=1" https://api.example.com/items')), BLOCKED);
-    assert.equal(cowork(connector('send_message')), BLOCKED);
+    assert.equal(locked(bash('npm publish --access public')), BLOCKED);
+    assert.equal(locked(bash('curl -X POST -d "a=1" https://api.example.com/items')), BLOCKED);
+    assert.equal(locked(connector('send_message')), BLOCKED);
   });
 });
 
@@ -109,6 +159,32 @@ describe('an egress word that is data, not a command', () => {
     assert.equal(verdict(bash(`${VCS} ${OUT} --force`)), BLOCKED);
   });
 });
+
+blocks('git operations that merge or delete, in any mode', [
+  `${VCS} merge main`,
+  `${VCS} merge --no-ff feature`,
+  `${VCS} -C repo merge main`,
+  `${VCS} rm -r legacy`,
+  `${VCS} clean -fd`,
+  `${VCS} clean -f scratch`,
+  `${VCS} branch -D feature`,
+  `${VCS} branch --delete feature`,
+  `${VCS} tag -d v1`,
+  `${VCS} remote remove origin`,
+  `${VCS} push origin --delete feature`,
+], bash);
+
+allows('git operations an agent runs', [
+  `${VCS} add -A`,
+  `${VCS} commit -m "x"`,
+  `${VCS} branch feature`,
+  `${VCS} tag v1.0`,
+  `${VCS} stash`,
+  `${VCS} rebase main`,
+  `${VCS} checkout -b feature`,
+  `${VCS} pull`,
+  `${VCS} clean -n`,
+], bash);
 
 describe('PowerShell', () => {
   it('blocks a web request carrying a body', () => assert.equal(
@@ -186,7 +262,7 @@ describe('malformed hook payloads', () => {
   it('fails closed on a command that is not a string', () => assert.equal(
     verdict({ tool_name: 'Bash', tool_input: { command: 123 } }), BLOCKED));
   it('ignores tools outside its scope', () => assert.equal(
-    verdict({ tool_name: 'Glob', tool_input: { pattern: '*' } }), ALLOWED));
+    verdict({ tool_name: 'TodoWrite', tool_input: { todos: [] } }), ALLOWED));
 });
 
 describe('context budgets', () => {
@@ -300,16 +376,156 @@ describe('the session ledger', () => {
     const read = () => launch({ session_id: 'counter', tool_name: 'Read', tool_input: { file_path: probe } }).status;
     assert.equal(read(), ALLOWED);
     assert.equal(read(), BLOCKED);
-    assert.deepEqual(state().saved, { rereads: 1, slices: 0, bytes: 4096 });
+    assert.deepEqual(state().saved, { agents: 0, blocked: 0, rereads: 1, slices: 0, bytes: 4096, cache: 0 });
   });
 
   it('counts a forced slice separately from a re-read', () => {
     writeFileSync(path.join(workspace, 'huge.txt'), 'z'.repeat(30 * 1024));
     launch({ session_id: 'counter', tool_name: 'Read', tool_input: { file_path: path.join(workspace, 'huge.txt') } });
-    assert.deepEqual(state().saved, { rereads: 1, slices: 1, bytes: 4096 });
+    assert.deepEqual(state().saved, { agents: 0, blocked: 0, rereads: 1, slices: 1, bytes: 4096, cache: 0 });
   });
 
   it('keeps reads and savings in one file per session', () => {
-    assert.deepEqual(Object.keys(state()).sort(), ['reads', 'saved']);
+    assert.deepEqual(Object.keys(state()).sort(), ['read_bytes', 'reads', 'saved']);
   });
 });
+
+describe('a whole-file shell read spends the same budget as Read', () => {
+  const workspace = sandbox('shellread-');
+  const probe = path.join(workspace, 'notes.md');
+  const shell = (command) => fire(GUARD, { cwd: workspace, session_id: 'sh', tool_name: 'Bash', tool_input: { command } },
+    { ...process.env, HANDOFF_OS_DIR: workspace });
+
+  it('blocks the second bare cat of an unchanged file', () => {
+    writeFileSync(probe, 'one two three');
+    assert.equal(shell('cat notes.md').status, ALLOWED);
+    assert.equal(shell('cat notes.md').status, BLOCKED);
+  });
+
+  it('leaves every partial read alone, because none of it lands whole in context', () => {
+    for (const command of ['cat notes.md | grep one', 'sed -n 1,5p notes.md', 'head -n 2 notes.md',
+      'tail -1 notes.md', 'grep one notes.md', 'wc -l notes.md']) {
+      assert.equal(shell(command).status, ALLOWED, command);
+    }
+  });
+
+  it('counts the shell re-read into the same ledger the Read tool uses', () => {
+    const state = JSON.parse(readFileSync(path.join(workspace, '.claude', '.session-sh.json'), 'utf8'));
+    assert.equal(state.saved.rereads, 1);
+    assert.equal(state.saved.bytes, 13);
+  });
+});
+
+describe('the query budget', () => {
+  const workspace = sandbox('query-');
+  const launch = (tool_input, tool_name = 'Grep') => fire(GUARD, { cwd: workspace, session_id: 'q', tool_name, tool_input },
+    { ...process.env, HANDOFF_OS_DIR: workspace });
+
+  it('blocks a content-mode grep with no head_limit', () => {
+    const { status, stderr } = launch({ pattern: 'todo', output_mode: 'content' });
+    assert.equal(status, BLOCKED);
+    assert.match(stderr, /head_limit/);
+  });
+
+  it('allows a bounded content grep and a files-mode grep', () => {
+    assert.equal(launch({ pattern: 'todo', output_mode: 'content', head_limit: 30 }).status, ALLOWED);
+    assert.equal(launch({ pattern: 'todo' }).status, ALLOWED);
+  });
+
+  it('blocks the identical call a second time, per tool', () => {
+    assert.equal(launch({ pattern: 'todo', output_mode: 'content', head_limit: 30 }).status, BLOCKED);
+    assert.equal(launch({ pattern: 'todo' }).status, BLOCKED);
+    assert.equal(launch({ pattern: 'todo' }, 'Glob').status, ALLOWED);
+  });
+});
+
+describe('the session read ceiling', () => {
+  const workspace = sandbox('ceiling-');
+  const probe = path.join(workspace, 'bulk.txt');
+  const read = (tool_input = {}) => fire(GUARD,
+    { cwd: workspace, session_id: 'ceil', tool_name: 'Read', tool_input: { file_path: probe, ...tool_input } },
+    { ...process.env, HANDOFF_OS_DIR: workspace });
+
+  it('admits whole-file reads until the ceiling', () => {
+    for (let i = 0; i < 22; i += 1) {
+      writeFileSync(probe, String(i).padEnd(23 * 1024 + i, 'x'));
+      assert.equal(read().status, ALLOWED, `read ${i + 1}`);
+    }
+  });
+
+  it('blocks the next whole-file read, but never a slice', () => {
+    writeFileSync(probe, 'final'.padEnd(23 * 1024 + 99, 'x'));
+    const { status, stderr } = read();
+    assert.equal(status, BLOCKED);
+    assert.match(stderr, /ceiling/);
+    assert.equal(read({ offset: 1, limit: 10 }).status, ALLOWED);
+  });
+});
+
+blocks('raw web-fetch connectors that pour a page into context', [
+  'mcp__tavily__search',
+  'mcp__fetch__fetch_url',
+  'mcp__brave-search__web_search',
+  'mcp__firecrawl__scrape_page',
+], (name) => ({ tool_name: name, tool_input: {} }));
+
+allows('connector fetches on ordinary org servers', [
+  'mcp__github__search_code',
+  'mcp__notion__read_docs',
+], (name) => ({ tool_name: name, tool_input: {} }));
+
+describe('the ledger counts what the operator wants to see', () => {
+  const workspace = sandbox('counters-');
+  const launch = (payload) => fire(GUARD, { cwd: workspace, session_id: 'vis', ...payload },
+    { ...process.env, HANDOFF_OS_DIR: workspace });
+  const saved = () => JSON.parse(readFileSync(path.join(workspace, '.claude', '.session-vis.json'), 'utf8')).saved;
+
+  it('counts an allowed subagent as a dispatch', () => {
+    launch({ tool_name: 'Agent', tool_input: { model: 'haiku', prompt: 'find it' } });
+    assert.equal(saved().agents, 1);
+  });
+
+  it('counts a refused outward action as a block', () => {
+    launch({ tool_name: 'Bash', tool_input: { command: 'npm publish' } });
+    assert.equal(saved().blocked, 1);
+  });
+
+  it('counts a refused dispatch as a block, not a dispatch', () => {
+    launch({ tool_name: 'Agent', tool_input: { model: 'opus', prompt: 'search the web' } });
+    const s = saved();
+    assert.equal(s.blocked, 2);
+    assert.equal(s.agents, 1);
+  });
+});
+
+describe('the query budget reopens when the repo changes', () => {
+  const workspace = sandbox('requery-');
+  const launch = (payload) => fire(GUARD, { cwd: workspace, session_id: 'rq', ...payload },
+    { ...process.env, HANDOFF_OS_DIR: workspace });
+  const grep = () => launch({ tool_name: 'Grep', tool_input: { pattern: 'todo' } }).status;
+
+  it('blocks the identical query while nothing has been written', () => {
+    assert.equal(grep(), ALLOWED);
+    assert.equal(grep(), BLOCKED);
+  });
+
+  it('allows it again after a write, so a change can be verified', () => {
+    assert.equal(launch({ tool_name: 'Write', tool_input: { file_path: path.join(workspace, 'a.md'), content: 'x' } }).status, ALLOWED);
+    assert.equal(grep(), ALLOWED);
+  });
+});
+
+allows('read tools on org servers whose name merely contains a fetch word', [
+  'mcp__elasticsearch__get_index',
+  'mcp__hexagon__read_model',
+  'mcp__texas-registry__list_items',
+  'mcp__github__search_code',
+  'mcp__notion__read_docs',
+], (name) => ({ tool_name: name, tool_input: {} }));
+
+blocks('read tools on servers that are a fetcher', [
+  'mcp__tavily__search',
+  'mcp__fetch__fetch_url',
+  'mcp__brave-search__web_search',
+  'mcp__firecrawl__scrape_page',
+], (name) => ({ tool_name: name, tool_input: {} }));

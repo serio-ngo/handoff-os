@@ -1,6 +1,6 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { seenPath } from '../plugins/handoff-os/scripts/card.mjs';
@@ -37,9 +37,10 @@ describe('session card', () => {
     assert.ok(Math.round(card.stdout.length / 4) <= MAX_TOKENS);
   });
 
-  it('carries the contract: planes, tiers, never-list, memory, proof, scout', () => {
+  it('carries the contract: planes, tiers, never-list, handoff card, memory, proof, scout', () => {
     for (const token of ['TRUTH=', 'STATE=', 'BUILD=', 'BRAND=', 'HUMAN=',
-      'GREEN', 'YELLOW', 'RED', 'handoff-card', 'NEVER', 'MEMORY', 'memory.md', 'verify.mjs', 'scout']) {
+      'GREEN', 'YELLOW', 'RED', 'HANDOFF', 'DONE', 'FILE', 'YOU',
+      'NEVER', 'MEMORY', 'memory.md', 'verify.mjs', 'scout']) {
       assert.match(card.stdout, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
   });
@@ -49,10 +50,14 @@ describe('session card', () => {
     assert.match(print('').stdout, /MEMORY empty/);
   });
 
-  it('drops state-changing git from the never-list in cowork mode', () => {
-    const env = { ...process.env, HANDOFF_ALLOW_GIT: '1' };
-    assert.doesNotMatch(fire(CARD, {}, env).stdout, /state-changing git/);
-    assert.match(card.stdout, /state-changing git/);
+  it('names git merge and delete as human-only, whatever the mode', () => {
+    assert.match(card.stdout, /git merge \/ delete/);
+    assert.doesNotMatch(card.stdout, /state-changing git/);
+  });
+
+  it('adds the total git ban to the never-list only when git is locked', () => {
+    const env = { ...process.env, HANDOFF_LOCK_GIT: '1' };
+    assert.match(fire(CARD, {}, env).stdout, /every state-changing git \(locked\)/);
   });
 
   it('leaks no org fact the guard would refuse to commit', () => {
@@ -77,5 +82,33 @@ describe('first-prompt backup, for when SessionStart never fired', () => {
     assert.equal(prompt('guard-hit').stdout.trim(), '');
     clear('guard-hit');
     assert.equal(print(null, { hook_event_name: 'UserPromptSubmit' }).status, 0);
+  });
+});
+
+describe('the read ceiling releases when the context is freed', () => {
+  const root = sandbox('release-');
+  const ledger = () => path.join(root, '.claude', '.session-rel.json');
+  const seed = () => {
+    mkdirSync(path.join(root, '.claude'), { recursive: true });
+    writeFileSync(ledger(), JSON.stringify({ reads: { 'a.md': '1:2' }, read_bytes: 600000, saved: {} }), 'utf8');
+  };
+  const start = (source) => fire(CARD, { session_id: 'rel', cwd: root, hook_event_name: 'SessionStart', source },
+    { ...process.env, HANDOFF_OS_DIR: root });
+  const bytes = () => JSON.parse(readFileSync(ledger(), 'utf8')).read_bytes;
+
+  it('zeroes the ceiling on a compact and on a clear', () => {
+    for (const source of ['compact', 'clear']) {
+      seed();
+      start(source);
+      assert.equal(bytes(), 0, source);
+    }
+  });
+
+  it('leaves it standing on a plain start or resume, where the context survives', () => {
+    for (const source of ['startup', 'resume']) {
+      seed();
+      start(source);
+      assert.equal(bytes(), 600000, source);
+    }
   });
 });

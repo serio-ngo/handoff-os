@@ -8,7 +8,7 @@ const REPO = fileURLToPath(new URL('..', import.meta.url));
 const PLUGIN = path.join(REPO, 'plugins', 'handoff-os');
 const SKILLS = path.join(PLUGIN, 'skills');
 
-const MAX_SKILLS = 5;
+const MAX_SKILLS = 3;
 const MAX_AGENTS = 1;
 const MAX_DESCRIPTION_CHARS = 800;
 const MAX_DESCRIPTION_TOTAL = 4000;
@@ -75,14 +75,14 @@ describe('hook wiring', () => {
 
   it('routes every guarded tool into it', () => {
     const matcher = new RegExp(hooks.PreToolUse[0].matcher);
-    for (const tool of ['Read', 'Bash', 'PowerShell', 'Edit', 'Write', 'Agent', 'mcp__server__send']) {
+    for (const tool of ['Read', 'Bash', 'PowerShell', 'Edit', 'Write', 'Agent', 'Grep', 'Glob', 'mcp__server__send']) {
       assert.ok(matcher.test(tool), tool);
     }
   });
 
   it('spends no process on tools it has no opinion about', () => {
     const matcher = new RegExp(hooks.PreToolUse[0].matcher);
-    for (const tool of ['Glob', 'Grep', 'WebFetch', 'TodoWrite']) assert.ok(!matcher.test(tool), tool);
+    for (const tool of ['WebFetch', 'TodoWrite']) assert.ok(!matcher.test(tool), tool);
   });
 
   it('caps fan-out on PreToolUse, the event that can actually block', () => {

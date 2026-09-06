@@ -11,14 +11,16 @@ projects them into three layers.
 
 One list, three projections — `npm test` asserts they stay identical.
 
-## Cowork mode
+## Locking git
 
 ```bash
-npm run sync -- --without git
+npm run sync -- --lock git
 ```
 
-Strips every rule containing `git` from `deny` and sets `HANDOFF_ALLOW_GIT=1`, which the hook reads too.
-Re-sync without the flag to lock again. The same `--without` mechanism drops any other token.
+Adds the `lock.git` bundle from `policy.json` to `deny` and sets `HANDOFF_LOCK_GIT=1`, which the hook
+reads too. A plain `npm run sync` removes the bundle again and drops the variable. The merge and delete
+rules live in `deny` proper, so they apply in both modes. A separate `--without <token>` mechanism
+drops any rule containing that token, for connectors you do not use.
 
 ## Editing `policy.json`
 

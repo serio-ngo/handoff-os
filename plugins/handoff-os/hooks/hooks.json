@@ -13,7 +13,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "^(Read|Bash|PowerShell|Edit|Write|Agent|mcp__)",
+        "matcher": "^(Read|Bash|PowerShell|Edit|Write|Agent|Grep|Glob|mcp__)",
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard.mjs\"", "timeout": 10, "statusMessage": "Egress lock, read budget, fan-out cap" }]
       }
     ],

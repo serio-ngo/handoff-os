@@ -1,6 +1,6 @@
 ---
 name: task-loop
-description: Turns one owner sentence into a tracked item, breaks a tracked item into concrete steps, prepares every artefact (doc in the doc store, draft email, checklist), and ends with a handoff card for the human-only clicks. Use whenever the owner says "add a task", "break it down", or names any company job (pay a contractor invoice, file a form, prepare a grant draft, organise an event).
+description: "Turns one owner sentence into a tracked item, prepares the artefacts (doc, draft email, checklist), and ends with a handoff card for the human-only clicks. Use for add-a-task, break-it-down, or any named company job."
 license: Apache-2.0
 compatibility: Needs a tracker and doc store. Email read and draft only — never sends.
 ---
@@ -12,9 +12,9 @@ The tracker, doc store and design tool are whatever `memory.md` records. Never a
 | Step | Action |
 |---|---|
 | 1. CAPTURE | Create the tracked item: title + one-line goal. YELLOW — do it, append one audit line. |
-| 2. BREAK | Read the item plus `/handoff-os:memory`, only what the step needs. Split into ≤5 steps, each owned AI or human. |
+| 2. BREAK | Read the item plus `config/memory.md`, only what the step needs. Split into ≤5 steps, each owned AI or human. |
 | 3. PREPARE | Draft every AI-owned artefact: doc in the doc store, draft email (never sent), checklist on the item. |
-| 4. HANDOFF | One `/handoff-os:handoff-card` per human click. Update the item status. Stop. |
+| 4. HANDOFF | One handoff card per human click — DONE / FILE / YOU, three lines, per the session card. Update the item status. Stop. |
 
 ## 2. Step ownership — decided, not discussed
 

@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveSteps, stepsToCommand } from '../plugins/handoff-os/scripts/verify.mjs';
+import { cacheTokens, resolveSteps, stepsToCommand } from '../plugins/handoff-os/scripts/verify.mjs';
 import { ALLOWED, BLOCKED, fire, sandbox, scrub } from './helper.mjs';
 
 const SCRIPTS = fileURLToPath(new URL('../plugins/handoff-os/scripts/', import.meta.url));
@@ -133,35 +133,60 @@ describe('the savings line the operator sees', () => {
   const ledgerAt = (root, saved) => {
     mkdirSync(path.join(root, '.claude'), { recursive: true });
     writeFileSync(path.join(root, '.claude', '.session-spender.json'),
-      JSON.stringify({ reads: {}, wave: null, saved }), 'utf8');
+      JSON.stringify({ reads: {}, saved }), 'utf8');
   };
   const finish = (root) => fire(GATE, { cwd: root, session_id: 'spender' }, { ...process.env, HANDOFF_OS_DIR: root });
 
-  it('reports three figures once anything was saved', () => {
+  it('reports every figure the operator asked to see', () => {
     const root = repoWith({ verify: 'node --test' });
-    ledgerAt(root, { rereads: 3, slices: 2, bytes: 40000 });
+    ledgerAt(root, { agents: 4, blocked: 2, rereads: 3, slices: 2, bytes: 40000, cache: 51000 });
     const { status, stdout } = finish(root);
     assert.equal(status, ALLOWED);
     const { systemMessage } = JSON.parse(stdout);
-    assert.match(systemMessage, /re-reads blocked 3/);
-    assert.match(systemMessage, /large reads sliced 2/);
-    assert.match(systemMessage, /10,000 tokens saved/);
+    for (const figure of [/agents 4/, /blocked 2/, /cache hits 51,000 tok/, /re-reads 3/, /sliced 2/, /~10,000 tok saved/]) {
+      assert.match(systemMessage, figure);
+    }
   });
 
   it('says nothing at all when nothing was saved', () => {
     const root = repoWith({ verify: 'node --test' });
-    ledgerAt(root, { rereads: 0, slices: 0, bytes: 0 });
+    ledgerAt(root, { agents: 0, blocked: 0, rereads: 0, slices: 0, bytes: 0, cache: 0 });
     assert.equal(finish(root).stdout, '');
   });
 
   it('leaves a history line in the audit ledger and resets the counters', () => {
     const root = repoWith({ verify: 'node --test' });
-    ledgerAt(root, { rereads: 1, slices: 0, bytes: 8000 });
+    ledgerAt(root, { agents: 1, blocked: 1, rereads: 1, slices: 0, bytes: 8000, cache: 0 });
     finish(root);
     const month = new Date().toISOString().slice(0, 7);
     const entry = JSON.parse(readFileSync(path.join(root, 'audit', `${month}.jsonl`), 'utf8').trim());
     assert.equal(entry.action, 'read-budget');
     assert.match(entry.result, /2000 tokens saved/);
     assert.equal(finish(root).stdout, '');
+  });
+});
+
+describe('cache reads are counted from the transcript', () => {
+  const root = sandbox('cache-');
+  const write = (name, entries) => {
+    const file = path.join(root, name);
+    writeFileSync(file, entries.map((e) => JSON.stringify(e)).join('\n') + '\n', 'utf8');
+    return file;
+  };
+  const turn = (cache) => ({ type: 'assistant', message: { role: 'assistant', usage: { cache_read_input_tokens: cache } } });
+
+  it('sums cache_read_input_tokens across assistant turns', () => {
+    const file = write('t1.jsonl', [turn(1000), turn(2500), { type: 'user', message: { role: 'user' } }]);
+    assert.deepEqual(cacheTokens(file, 0), { sum: 3500, cursor: 3 });
+  });
+
+  it('counts only turns after the cursor, so a second Stop does not double count', () => {
+    const file = write('t2.jsonl', [turn(1000), turn(2500)]);
+    assert.equal(cacheTokens(file, 2).sum, 0);
+  });
+
+  it('returns zero for a transcript that is missing or unreadable', () => {
+    assert.deepEqual(cacheTokens(path.join(root, 'absent.jsonl'), 0), { sum: 0, cursor: 0 });
+    assert.deepEqual(cacheTokens('', 4), { sum: 0, cursor: 4 });
   });
 });

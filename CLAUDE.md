@@ -10,7 +10,7 @@ the never-list, memory status.
 
 1. Owner context lives in gitignored `config/memory.md`, written by the agent itself. Read it when needed; empty is valid.
 2. **One home per fact. Crossing a plane is a sync, never a copy.** TRUTH=memory.md · STATE=tracker · BUILD=git · BRAND=design tool · HUMAN=the owner.
-3. **Never** send, pay, submit, publish or run state-changing git. Those are human acts. RED stops and emits `/handoff-os:handoff-card`. Cowork mode (`sync --without git`) lifts the git half of this line and nothing else.
+3. **Never** send, pay, submit or publish — those are human acts, and RED stops with the three-line handoff card. Git writes are allowed; `git merge` and every delete (`rm`, `branch -D`, `tag -d`, `push --delete/--force`, `remote remove`, `stash drop`, `clean -f`, `reset --hard`) are not. `npm run sync -- --lock git` bans every git write instead.
 4. **Never** set `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` or `apiKeyHelper`. Subscription auth only.
 5. **No organisation data in git — ever.** No identifiers, no secrets, no mirrors. Memory lives in gitignored `config/memory.md` and is never copied into a tracked file.
 6. Before researching Claude Code or any connected system, read [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md). An identifier reaches a deliverable with its doc URL, or tagged **UNVERIFIED**.
@@ -24,9 +24,9 @@ the never-list, memory status.
 
 | Path | Holds | Changed |
 |---|---|---|
-| `plugins/handoff-os/` | 5 skills, 1 scout agent, 6 hooks, 5 scripts — the product | on owner order |
+| `plugins/handoff-os/` | 3 skills, 1 scout agent, 6 hooks, 6 scripts — the product | on owner order |
 | `settings/policy.json` | the one deny/ask list; rules cannot ship inside a plugin | on owner order |
-| `scripts/` | `handoff.mjs` (the only CLI) and `generate.mjs` (pure generators) | on owner order |
+| `scripts/` | `handoff.mjs` (the CLI), `generate.mjs` (pure generators), `benchmark.mjs` (token report) | on owner order |
 | `test/` | behaviour specs on Node's built-in runner | with every change |
 | `docs/` | verified identifiers and the generated manifest | `MANIFEST.md` is generated |
 | `config/` | `memory.md`, gitignored, agent-kept | never by hand |

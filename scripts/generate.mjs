@@ -27,11 +27,12 @@ export const SCOPES = {
   }),
 };
 
-export function policyFor(scope, without = [], policy = readJson('settings', 'policy.json')) {
+export function policyFor(scope, without = [], policy = readJson('settings', 'policy.json'), lock = []) {
   const drop = (rules) => without.length
     ? rules.filter((rule) => !without.some((token) => rule.toLowerCase().includes(token)))
     : rules;
-  return SCOPES[scope]({ deny: drop(policy.deny), ask: drop(policy.ask) });
+  const locked = lock.flatMap((token) => (policy.lock ?? {})[token] ?? []);
+  return SCOPES[scope]({ deny: drop([...policy.deny, ...locked]), ask: drop(policy.ask) });
 }
 
 const SHIPPED = [['plugins/handoff-os', /\.(md|mjs|json)$/], ['settings', /\.json$/]];

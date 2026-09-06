@@ -1,6 +1,6 @@
 ---
 name: plan-session
-description: "The document contract for repo work — implementation plans and specification documents (PRD, ADR, architecture, content model). Use when writing or updating either one inside a repo. A plan row carries WHAT / WHERE / WHY / WHEN / DONE. A spec row carries ID / RULE / VALUE / SOURCE / CHECK. One decided path per row, never an options menu, never a deferred decision. Every fact about the world outside this repo carries a primary-source URL and a retrieval date, or the tag UNVERIFIED — a document inside the repo is a source only for facts about that repo. Before planning custom code, search for an existing library and record what was found. For org ops tracked in the tracker use task-loop instead, never this skill."
+description: "Contract for repo plans and specs — WHAT/WHERE/WHY/WHEN/DONE plan rows and ID/RULE/VALUE/SOURCE/CHECK spec rows, one decided path per row, every external claim sourced or tagged UNVERIFIED. Use when writing or updating a plan or spec in a repo."
 license: Apache-2.0
 compatibility: No external dependencies. Repo plans and repo specs only — not org ops, not tracker work.
 ---
@@ -56,7 +56,7 @@ SOURCE**. A choice with no rejected alternative was not a choice.
 | Claim is about | Only acceptable source |
 |---|---|
 | This repo's code, design or content | the file path, with a line range |
-| Your organisation | `/handoff-os:memory`, never from training |
+| Your organisation | `config/memory.md`, never from training |
 | The outside world — law, prices, APIs, library behaviour, market data | a **primary source URL plus the date it was read** |
 | Anything you could not confirm | the literal tag `UNVERIFIED`, kept in the deliverable |
 

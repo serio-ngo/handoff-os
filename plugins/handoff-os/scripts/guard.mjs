@@ -1,79 +1,13 @@
 #!/usr/bin/env node
 import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
+import {
+  ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES,
+  GIT_DESTRUCTIVE, GIT_WRITE, MAX_PER_WAVE, OPUS, OUTWARD, OUTWARD_PREFIX, PROTECTED_NAMES, PROTECTED_PATHS,
+  QUALITY, READ_CEILING_BYTES, READ_PREFIX, RESTORATIVE, SHELLS, STRONG, WAVE_MS,
+  WEB_FETCH_SERVER, WHOLE_FILE_READ,
+} from './patterns.mjs';
 import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
-
-const MAX_PER_WAVE = 3;
-const WAVE_MS = 90 * 1000;
-const BIG_FILE_BYTES = 24 * 1024;
-const OPUS = /opus/i;
-const QUALITY = /\bQUALITY:\s*(?:writing|creative|legal|security)\b/;
-const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
-
-const GIT_OUT = [
-  /^git\b(?:\s+(?:-[Cc]\s+\S+|--\S+(?:[=\s]\S+)?))*\s+push\b/i,
-  /^git\s+remote\s+(?:add|set-url)\b/i,
-];
-
-const AT_HEAD = [
-  ...GIT_OUT,
-  /^(?:npm|yarn|pnpm)\s+publish\b/i,
-  /^gh\s+(?:pr\s+(?:create|merge)|issue\s+create|release\s+create)\b/i,
-  /^gh\s+api\b[^\n]*(?:-X|--method)[\s=]*(?:POST|PUT|PATCH|DELETE)/i,
-  /^(?:curl|wget)\b[^\n]*(?:-X[\s=]*(?:POST|PUT|PATCH|DELETE)|--request[\s=]*(?:POST|PUT|PATCH|DELETE)|\s-d\b|--data|\s-F\b|--form|--upload-file|\s-T\b|--post-data|--post-file)/i,
-  /^(?:Invoke-WebRequest|iwr|Invoke-RestMethod|irm)\b[^\n]*(?:-Method[\s=]*(?:Post|Put|Patch|Delete)|-Body\b|-InFile\b)/i,
-  /^scp\b/i,
-  /^rsync\b[^\n]*(?:\S+@\S+:|rsync:\/\/|::)/i,
-  /^ssh\b(?!-)/i,
-  /^(?:sendmail|mailx|msmtp)\b/i,
-  /^(?:az|aws|gcloud|wrangler|vercel|netlify)\b[^\n]*\b(?:deploy|publish)\b/i,
-  /^twine\s+upload\b/i,
-  /^cargo\s+publish\b/i,
-  /^docker\s+push\b/i,
-  /^terraform\s+apply\b/i,
-];
-
-const ANYWHERE = [
-  /(?:ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper)\s*[=:]/i,
-  /\b(?:setx|set|export|env|\$env:)\b[^\n]{0,40}(?:ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper)/i,
-];
-
-const OUTWARD = ['send', 'email', 'mail', 'publish', 'publication', 'post', 'tweet', 'invite',
-  'share', 'submit', 'submission', 'pay', 'charge', 'invoice', 'checkout', 'subscribe', 'broadcast',
-  'deploy', 'release', 'reply', 'forward', 'redirect', 'resend', 'notif', 'respond', 'rsvp', 'spam'];
-const DESTRUCTIVE = ['delete', 'trash', 'remove', 'destroy', 'purge', 'archive', 'revoke', 'unshare'];
-const STRONG = ['send', 'pay', 'charge', 'invoice', 'checkout', 'publish', 'publication', 'submit',
-  'submission', 'deploy', 'tweet', 'broadcast', 'resend', 'delete', 'trash', 'purge', 'destroy',
-  'revoke', 'unshare'];
-const OUTWARD_PREFIX = /^request[-_]/;
-const READ_PREFIX = /^(?:list|get|search|read|fetch|find|describe|count|preview|resolve|export)[-_]/;
-const RESTORATIVE = /^un(?:trash|archive|delete|hide|mark)[-_]/;
-const CONNECTOR_ALLOW = [
-  /(?:^|[-_])reply[-_]to[-_]comment(?:[-_]|$)/,
-  /(?:^|[-_])remove[-_](?:background|bg)(?:[-_]|$)/,
-];
-
-const PROTECTED_PATHS = [
-  /(^|[/\\])canon[/\\][^/\\]*\.(?:json|ya?ml|csv|tsv)$/i,
-  /\.env(\.[^/\\]*)?$/i,
-  /(^|[/\\])secrets?[/\\]/i,
-];
-const PROTECTED_NAMES = [
-  /^(?:org|brands|systems|facts|canon|beneficiar\w*|contacts)\.(?:json|ya?ml|csv|tsv)$/i,
-  /^(?:logo|favicon|og-image|brand-kit|brandmark)/i,
-  /credential/i,
-  /\.(?:pem|key|p12|pfx)$/i,
-  /^id_(?:rsa|ed25519|ecdsa)/i,
-];
-const FIXTURES = [
-  /(^|[/\\])(?:tests?|__tests__|fixtures?)[/\\]/i,
-  /(^|[/\\])test-[^/\\]*$/i,
-  /\.(?:test|spec)\.[a-z]+$/i,
-  /(^|[/\\])(?:temp|tmp|scratchpad)[/\\]/i,
-];
-const ACCOUNT_NUMBER = /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,4})?\b/;
-
-const WHOLE_FILE_READ = /^(?:cat|bat|more|less)\s+(\S+)$/;
 
 let current = {};
 
@@ -106,11 +40,18 @@ export function segments(command) {
 }
 
 function judgeShell(command, depth = 0) {
-  const allowGit = process.env.HANDOFF_ALLOW_GIT === '1';
+  const lockGit = process.env.HANDOFF_LOCK_GIT === '1';
   for (const rx of ANYWHERE) if (rx.test(command)) return `blocked a metered-credential assignment (${rx.source.slice(0, 40)})`;
   for (const segment of segments(command)) {
+    for (const rx of GIT_DESTRUCTIVE) {
+      if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — a merge or a delete. Those destroy work nobody can get back, so they stay with the human`;
+    }
+    if (lockGit) {
+      for (const rx of GIT_WRITE) {
+        if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — git is locked. Re-run npm run sync without --lock git to write`;
+      }
+    }
     for (const rx of AT_HEAD) {
-      if (allowGit && GIT_OUT.includes(rx)) continue;
       if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — an outward action, the human performs it`;
     }
     if (depth < 2 && SHELLS.test(segment)) {
@@ -159,7 +100,49 @@ function readBudget(payload, input) {
     process.exit(2);
   }
 
-  if (!sliced) state.reads[key] = fingerprint;
+  if (!sliced && (state.read_bytes || 0) >= READ_CEILING_BYTES) {
+    state.saved.blocked += 1;
+    save(root, session, state);
+    process.stderr.write(`READ BUDGET: ${Math.round((state.read_bytes || 0) / 1024)}KB of whole files read this session, over the ${READ_CEILING_BYTES / 1024}KB ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.\n`);
+    process.exit(2);
+  }
+
+  if (!sliced) {
+    state.reads[key] = fingerprint;
+    state.read_bytes = (state.read_bytes || 0) + stats.size;
+  }
+  save(root, session, state);
+}
+
+export function invalidateQueries(payload) {
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  let dropped = 0;
+  for (const key of Object.keys(state.reads)) {
+    if (key.startsWith('q:')) { delete state.reads[key]; dropped += 1; }
+  }
+  if (dropped) save(root, session, state);
+}
+
+function queryBudget(payload, input, tool) {
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  const key = `q:${tool}:${JSON.stringify(input)}`;
+  if (state.reads[key]) {
+    state.saved.rereads += 1;
+    save(root, session, state);
+    process.stderr.write(`READ BUDGET: this exact ${tool} already ran and nothing has been written since. Change the query, or read the file you are checking.\n`);
+    process.exit(2);
+  }
+  if (tool === 'Grep' && input.output_mode === 'content' && input.head_limit === undefined) {
+    state.saved.slices += 1;
+    save(root, session, state);
+    process.stderr.write(`READ BUDGET: set head_limit on a content-mode Grep so the match list cannot run away (30 is plenty).\n`);
+    process.exit(2);
+  }
+  state.reads[key] = 1;
   save(root, session, state);
 }
 
@@ -194,7 +177,7 @@ function fanOutCap(payload) {
   const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
   const slot = claimSlot(dir, Math.floor(Date.now() / WAVE_MS), MAX_PER_WAVE);
   if (slot > MAX_PER_WAVE) {
-    process.stderr.write(`FAN-OUT CAP: subagent ${slot} of a wave capped at ${MAX_PER_WAVE} (law 7). Read what the first ${MAX_PER_WAVE} returned, then launch the next wave. Procedure: /handoff-os:research-budget.\n`);
+    process.stderr.write(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE} (law 7). Read the returns, then relaunch via /handoff-os:research-budget.\n`);
     process.exit(2);
   }
 }
@@ -214,6 +197,7 @@ const input = payload.tool_input || {};
 current = payload;
 
 if (tool === 'Read') readBudget(payload, input);
+else if (tool === 'Grep' || tool === 'Glob') queryBudget(payload, input, tool);
 else if (tool === 'Agent') {
   const verdict = dispatchBudget(input);
   if (verdict) deny(verdict);
@@ -241,7 +225,13 @@ else if (tool === 'Bash' || tool === 'PowerShell') {
   if (hit && !allowed) {
     deny(`blocked ${tool} — matched "${hit}", an action that leaves the org or destroys a record. The human performs it`);
   }
+  const raw = WEB_FETCH_SERVER.test(tool.split('__')[1] || '')
+    && (READ_PREFIX.test(dashed) || /(?:scrape|crawl|extract|search)/.test(action));
+  if (raw) {
+    deny(`blocked ${tool} — a raw page fetch. Use WebFetch/WebSearch or handoff-os:scout.`);
+  }
 } else if (tool === 'Edit' || tool === 'Write') {
+  invalidateQueries(payload);
   const file = String(input.file_path || '');
   const base = file.split(/[/\\]/).pop() || '';
   const guarded = PROTECTED_PATHS.some((rx) => rx.test(file)) || PROTECTED_NAMES.some((rx) => rx.test(base));

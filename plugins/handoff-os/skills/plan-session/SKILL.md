@@ -1,6 +1,6 @@
 ---
 name: plan-session
-description: "The document contract for repo work — implementation plans and specification documents (PRD, ADR, architecture, content model). Use when writing or updating either one inside a repo. A plan row carries WHAT / WHERE / WHY / WHEN / DONE; a spec row carries ID / RULE / VALUE / SOURCE / CHECK. One decided path per row, never an options menu. Every fact about the world outside this repo carries a primary-source URL and a date, or the tag UNVERIFIED."
+description: "Contract for repo plans and specs — WHAT/WHERE/WHY/WHEN/DONE plan rows and ID/RULE/VALUE/SOURCE/CHECK spec rows, one decided path per row, every external claim sourced or tagged UNVERIFIED. Use when writing or updating a plan or spec in a repo."
 license: Apache-2.0
 compatibility: No external dependencies. Repo plans and repo specs only — not org ops, not tracker work.
 ---

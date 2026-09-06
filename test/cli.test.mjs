@@ -56,10 +56,20 @@ describe('one policy source, three projections', () => {
     assert.deepEqual(filtered.permissions.deny, POLICY.deny);
   });
 
-  it('drops the git deny rules with --without git, for cowork mode', () => {
-    const filtered = policyFor('user', ['git']);
-    assert.ok(filtered.permissions.deny.length < POLICY.deny.length);
-    assert.ok(filtered.permissions.deny.every((rule) => !rule.toLowerCase().includes('git')));
+  it('adds the lock bundle only when git is locked', () => {
+    const open = policyFor('user', [], undefined, []);
+    const locked = policyFor('user', [], undefined, ['git']);
+    assert.deepEqual(open.permissions.deny, POLICY.deny);
+    assert.equal(locked.permissions.deny.length, POLICY.deny.length + POLICY.lock.git.length);
+    for (const rule of POLICY.lock.git) assert.ok(locked.permissions.deny.includes(rule), rule);
+  });
+
+  it('keeps merge and delete denied in both modes', () => {
+    for (const lock of [[], ['git']]) {
+      const deny = policyFor('user', [], undefined, lock).permissions.deny;
+      assert.ok(deny.includes('Bash(git merge *)'), String(lock));
+      assert.ok(deny.includes('Bash(git branch -D *)'), String(lock));
+    }
   });
 });
 
@@ -89,16 +99,25 @@ describe('merging policy into a live settings file', () => {
     assert.equal(Object.values(merged.enabledPlugins).every(Boolean), true);
     assert.ok(existsSync(path.join(merged.env.HANDOFF_OS_DIR, 'package.json')));
   });
-  it('opens git on request and closes it again on a plain sync', () => {
+  it('locks git on request and unlocks it again on a plain sync', () => {
     const target = seed({});
-    cli('sync', '--target', target, '--without', 'git');
-    const open = read(target);
-    assert.equal(open.env.HANDOFF_ALLOW_GIT, '1');
-    assert.ok(open.permissions.deny.every((rule) => !rule.toLowerCase().includes('git')));
-    cli('sync', '--target', target);
+    cli('sync', '--target', target, '--lock', 'git');
     const shut = read(target);
-    assert.equal(shut.env?.HANDOFF_ALLOW_GIT, undefined);
-    assert.deepEqual([...shut.permissions.deny].sort(), [...POLICY.deny].sort());
+    assert.equal(shut.env.HANDOFF_LOCK_GIT, '1');
+    for (const rule of POLICY.lock.git) assert.ok(shut.permissions.deny.includes(rule), rule);
+    cli('sync', '--target', target);
+    const open = read(target);
+    assert.equal(open.env?.HANDOFF_LOCK_GIT, undefined);
+    assert.deepEqual([...open.permissions.deny].sort(), [...POLICY.deny].sort());
+  });
+
+  it('denies a merge or a delete even when git is unlocked', () => {
+    const target = seed({});
+    cli('sync', '--target', target);
+    const deny = read(target).permissions.deny;
+    assert.ok(deny.includes('Bash(git merge *)'));
+    assert.ok(deny.includes('Bash(git branch -D *)'));
+    assert.ok(deny.every((rule) => rule !== 'Bash(git commit *)'));
   });
   it('writes a runnable user file: subscription login, full deny list, install env', () => {
     const target = seed({});

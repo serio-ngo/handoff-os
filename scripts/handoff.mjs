@@ -28,7 +28,7 @@ const report = () => {
 };
 
 function parse(argv) {
-  const args = { _: [], without: [] };
+  const args = { _: [], without: [], lock: [] };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (!arg.startsWith('--')) { args._.push(arg); continue; }
@@ -37,8 +37,10 @@ function parse(argv) {
     if (next === undefined || next.startsWith('--')) { args[key] = true; continue; }
     args[key] = argv[++i];
   }
-  if (typeof args.without === 'string') {
-    args.without = args.without.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  for (const key of ['without', 'lock']) {
+    if (typeof args[key] === 'string') {
+      args[key] = args[key].split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    } else if (args[key] === true) args[key] = [];
   }
   return args;
 }
@@ -100,17 +102,28 @@ function installation() {
   return patch;
 }
 
+function releaseLocks(settings, requested) {
+  const bundles = readJson('settings', 'policy.json').lock ?? {};
+  const stale = Object.entries(bundles)
+    .filter(([token]) => !requested.includes(token))
+    .flatMap(([, rules]) => rules);
+  if (!stale.length || !settings.permissions?.deny) return settings;
+  const deny = settings.permissions.deny.filter((rule) => !stale.includes(rule));
+  return { ...settings, permissions: { ...settings.permissions, deny } };
+}
+
 function sync(args) {
   const scope = args.scope || 'user';
   if (!['user', 'project', 'managed'].includes(scope)) fail(`unknown scope "${scope}"`);
   const target = path.resolve(args.target
     || (scope === 'project' ? path.join(REPO, '.claude', 'settings.json') : path.join(CONFIG_DIR, 'settings.json')));
   const before = readJsonFile(target, {});
-  let after = merge(before, policyFor(scope, args.without));
+  let after = merge(before, policyFor(scope, args.without, undefined, args.lock));
   if (scope === 'user') after = merge(after, installation());
+  after = releaseLocks(after, args.lock ?? []);
   after.env = { ...after.env };
-  if ((args.without ?? []).includes('git')) after.env.HANDOFF_ALLOW_GIT = '1';
-  else delete after.env.HANDOFF_ALLOW_GIT;
+  if ((args.lock ?? []).includes('git')) after.env.HANDOFF_LOCK_GIT = '1';
+  else delete after.env.HANDOFF_LOCK_GIT;
   if (Object.keys(after.env).length === 0) delete after.env;
   refuseMeteredAuth(after);
   if (!args.dryRun) writeJson(target, after);
@@ -254,7 +267,7 @@ function doctor() {
 
   check('the plugin is enabled', settings.enabledPlugins?.[`${PLUGIN_NAME}@${marketplace.name}`] === true);
   check('login is restricted to the subscription', settings.forceLoginMethod === 'claudeai');
-  const cowork = settings.env?.HANDOFF_ALLOW_GIT === '1';
+  const cowork = settings.env?.HANDOFF_LOCK_GIT !== '1';
   check(cowork ? 'git is open — cowork mode' : 'outward git is denied',
     cowork ? true : (settings.permissions?.deny ?? []).some((r) => /git push/i.test(r)));
   check('no metered credential is configured', !new RegExp(`${BANNED.join('|')}|apiKeyHelper`).test(JSON.stringify(settings)));

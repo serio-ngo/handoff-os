@@ -28,8 +28,12 @@ One hook runs before guarded tool calls and can refuse them. Nothing here is adv
 | Guard | What it stops | What you see |
 |---|---|---|
 | Egress lock | Send, pay, submit, publish, push, delete, or configure an API key — in the shell and on every connector, matched by verb | `EGRESS LOCK: blocked…`, and the call never runs |
+| Git lock | `git merge` and every git deletion — `rm`, `clean -f`, branch/tag/remote delete, `push --delete` — in dev and cowork alike | `EGRESS LOCK: blocked…` |
 | Read budget | Re-reading a file unchanged since this session read it | `READ BUDGET: …unchanged and already in context` |
 | Whole-file limit | Reading a file over 24KB without `offset`/`limit` | `READ BUDGET: …over the 24KB whole-file limit` |
+| Session ceiling | Whole-file reads past 500KB in one session | `READ BUDGET: …500KB ceiling` |
+| Query budget | An identical Grep/Glob call this session already answered, or a content-mode Grep with no head_limit | `READ BUDGET: …set head_limit` |
+| Raw-fetch routing | A fetch/search/scrape connector whose page would enter this context | `EGRESS LOCK: blocked…` — use WebFetch/WebSearch or the scout |
 | Fan-out cap | A fourth subagent in one wave, including ten launched at once | `FAN-OUT CAP: subagent 4 of a wave capped at 3` |
 | Dispatch budget | A subagent with no model named, or opus without a `QUALITY:` flag | `EGRESS LOCK: blocked an opus subagent (law 8)` |
 | Scout contract | A subagent return with no `file:line`, URL or `UNVERIFIED` tag | `SCOUT CONTRACT: …nothing in it can be checked` |
@@ -80,8 +84,18 @@ tier.
 
 | Mode | Git | Command |
 |---|---|---|
-| Dev (default) | commit and push are blocked | `npm run sync` |
-| Cowork | the agent may commit and push | `npm run sync -- --without git` |
+| Default | every git write except a merge or a delete | `npm run sync` |
+| Locked | no git write at all; reads still work | `npm run sync -- --lock git` |
+
+**Merges and deletes are never delegated, in either mode.** `git merge`, `git rm`, `branch -d/-D`,
+`tag -d`, `push --delete`, `push --force`, `remote remove`, `stash drop`, `clean -f` and
+`reset --hard` all destroy work nobody can get back, so they stay with you. Near-misses stay open:
+`git log --merges`, `git branch -a`, `git reset --soft` and `git clean -n` all run.
+
+Why a hook rather than a `deny` rule in `settings.json`? For the plain form, `settings.json` is
+enough — use it. The hook earns its place on the shapes a static rule misses: a flag between the verb
+and the subcommand (`git -C /other/repo push`, `git --no-pager push`), a compound line
+(`echo staged && git push`), and a nested shell (`bash -c "git push"`). Run both.
 
 Cowork installs from a git URL only: push your fork, run `npm run cowork`, then add it under
 Cowork → Customize → Add plugin.

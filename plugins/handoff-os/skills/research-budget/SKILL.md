@@ -1,6 +1,6 @@
 ---
 name: research-budget
-description: "Picks the cheapest sufficient actor before any fan-out, and states the scope gate and per-agent budget a dispatch must carry. Use before dispatching any subagent, before any research, analysis or verification whose answer is not already in the repo, and whenever choosing which model and effort a delegated task gets. The 3-per-wave cap and the model rule are enforced by PreToolUse on the Agent tool."
+description: "Picks the cheapest sufficient actor — script, haiku scout, sonnet or opus — and sets the scope gate and per-agent budget before any fan-out. Use before dispatching any subagent or research. The 3-per-wave cap and model rule are enforced by hooks."
 license: Apache-2.0
 compatibility: No external dependencies. The cap is enforced by scripts/guard.mjs on the Agent tool.
 ---

@@ -3,6 +3,21 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { load, rootOf, save, sessionOf } from './ledger.mjs';
+
+export const FREEING = new Set(['compact', 'clear']);
+
+export function releaseCeiling(payload) {
+  if (!FREEING.has(String(payload.source || ''))) return false;
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  if (!state.read_bytes) return false;
+  state.read_bytes = 0;
+  state.reads = {};
+  save(root, session, state);
+  return true;
+}
 
 export const seenPath = (session) => path.join(os.tmpdir(), `handoff-os-${String(session || 'unknown').replace(/[^A-Za-z0-9_-]/g, '')}.seen`);
 
@@ -35,7 +50,7 @@ TIERS
   RED    sends, pays, submits, publishes, or is irreversible → STOP, emit the handoff card
 HANDOFF the RED stop is exactly three lines, nothing before and nothing after
        DONE <what is prepared> · FILE <path or link> · YOU <verb> -> <where> -> <by when>
-NEVER  send · pay · submit · publish${process.env.HANDOFF_ALLOW_GIT === '1' ? '' : ' · state-changing git'} · set ANTHROPIC_API_KEY /
+NEVER  send · pay · submit · publish · git merge / delete${process.env.HANDOFF_LOCK_GIT === '1' ? ' · every state-changing git (locked)' : ''} · set ANTHROPIC_API_KEY /
        ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN / apiKeyHelper · put org data in git
 MEMORY ${status}
        durable owner facts live there — read it, and update it when the owner states one
@@ -50,6 +65,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
   const session = String(payload.session_id || '').replace(/[^A-Za-z0-9_-]/g, '');
   const backup = payload.hook_event_name === 'UserPromptSubmit';
+
+  if (!backup) releaseCeiling(payload);
 
   if (backup && (!session || existsSync(seenPath(session)))) process.exit(0);
   if (session) { try { writeFileSync(seenPath(session), 'card', 'utf8'); } catch { } }

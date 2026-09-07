@@ -15,13 +15,13 @@ import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
 
 let current = {};
 
-const deny = (reason) => {
+const deny = (reason, label = 'EGRESS LOCK') => {
   bump(current, 'blocked');
-  process.stderr.write(`EGRESS LOCK: ${reason}\n`);
+  process.stderr.write(`${label}: ${reason}\n`);
   process.exit(2);
 };
 
-export function segments(command) {
+function split(command, breakers, subshell) {
   const out = [];
   let buffer = '';
   let quote = null;
@@ -33,17 +33,18 @@ export function segments(command) {
       continue;
     }
     if (char === '"' || char === "'") { quote = char; buffer += char; continue; }
-    if (char === ';' || char === '\n' || char === '&' || char === '|' || char === '`') {
-      out.push(buffer); buffer = ''; continue;
-    }
-    if (char === '$' && command[i + 1] === '(') { out.push(buffer); buffer = ''; i += 1; continue; }
+    if (breakers.includes(char)) { out.push(buffer); buffer = ''; continue; }
+    if (subshell && char === '$' && command[i + 1] === '(') { out.push(buffer); buffer = ''; i += 1; continue; }
     buffer += char;
   }
   out.push(buffer);
   return out.map((part) => part.replace(/^\s*(?:\w+=\S+\s+)*/, '').trim()).filter(Boolean);
 }
 
-export function unwrap(segment) {
+const segments = (command) => split(command, ';\n&|`', true);
+const pipelines = (command) => split(command, ';\n&', false);
+
+function unwrap(segment) {
   let out = String(segment).trim();
   for (let i = 0; i < 3; i += 1) {
     const next = out.replace(SHELL_PREFIX, '').trim().replace(SHELL_QUOTED, '$2').trim();
@@ -57,26 +58,23 @@ function judgeShell(command, depth = 0) {
   const lockGit = process.env.HANDOFF_LOCK_GIT === '1';
   for (const rx of ANYWHERE) if (rx.test(command)) return `blocked a metered-credential assignment (${rx.source.slice(0, 40)})`;
   for (const segment of segments(command).map(unwrap)) {
+    const quoted = `blocked "${segment.slice(0, 80)}"`;
     for (const rx of GIT_DESTRUCTIVE) {
-      if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — a merge or a delete. Those destroy work nobody can get back, so they stay with the human`;
+      if (rx.test(segment)) return `${quoted} — git merge and git delete are human-only`;
     }
     for (const rx of SHELL_DESTRUCTIVE) {
-      if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — a delete. Move it aside instead, or let the human remove it`;
+      if (rx.test(segment)) return `${quoted} — delete is human-only. Move the path aside instead`;
     }
     if (lockGit) {
       for (const rx of GIT_WRITE) {
-        if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — git is locked. Re-run npm run sync without --lock git to write`;
+        if (rx.test(segment)) return `${quoted} — git is locked. Run npm run sync without --lock git to write`;
       }
     }
     for (const rx of AT_HEAD) {
-      if (rx.test(segment)) return `blocked "${segment.slice(0, 80)}" — an outward action, the human performs it`;
+      if (rx.test(segment)) return `${quoted} — outward action, human-only`;
     }
-    if (GH_MUTATION.test(segment)) {
-      return `blocked "${segment.slice(0, 80)}" — a gh api call carrying fields, which writes. The human performs it`;
-    }
-    if (INTERPRETER_EGRESS.test(segment)) {
-      return `blocked "${segment.slice(0, 80)}" — an interpreter one-liner that posts over the network. The human performs it`;
-    }
+    if (GH_MUTATION.test(segment)) return `${quoted} — a gh api call carrying fields writes, human-only`;
+    if (INTERPRETER_EGRESS.test(segment)) return `${quoted} — an interpreter one-liner posting over the network, human-only`;
     if (depth < 2 && SHELLS.test(segment)) {
       const inner = (SHELL_INNER.exec(segment) || [])[2];
       if (inner) {
@@ -88,26 +86,7 @@ function judgeShell(command, depth = 0) {
   return null;
 }
 
-export function pipelines(command) {
-  const out = [];
-  let buffer = '';
-  let quote = null;
-  for (let i = 0; i < command.length; i += 1) {
-    const char = command[i];
-    if (quote) {
-      if (char === quote && command[i - 1] !== '\\') quote = null;
-      buffer += char;
-      continue;
-    }
-    if (char === '"' || char === "'") { quote = char; buffer += char; continue; }
-    if (char === ';' || char === '\n' || char === '&') { out.push(buffer); buffer = ''; continue; }
-    buffer += char;
-  }
-  out.push(buffer);
-  return out.map((part) => part.replace(/^\s*(?:\w+=\S+\s+)*/, '').trim()).filter(Boolean);
-}
-
-export function wholeFileReads(command) {
+function wholeFileReads(command) {
   const out = [];
   for (const chunk of pipelines(command)) {
     if (/[|`]/.test(chunk) || chunk.includes('$(')) continue;
@@ -117,7 +96,7 @@ export function wholeFileReads(command) {
   return out;
 }
 
-export function shellWriteTargets(command) {
+function shellWriteTargets(command) {
   const out = [];
   for (const segment of segments(command)) {
     for (const rx of SHELL_WRITE_TARGET) {
@@ -171,7 +150,7 @@ function readBudget(payload, input) {
   save(root, session, state);
 }
 
-export function invalidateQueries(payload) {
+function invalidateQueries(payload) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
@@ -203,7 +182,7 @@ function queryBudget(payload, input, tool) {
   save(root, session, state);
 }
 
-export function claimSlot(dir, bucket, cap) {
+function claimSlot(dir, bucket, cap) {
   try { mkdirSync(dir, { recursive: true }); } catch { return 1; }
   try {
     for (const name of readdirSync(dir)) {
@@ -219,7 +198,7 @@ export function claimSlot(dir, bucket, cap) {
   return cap + 1;
 }
 
-export function judgeWrite(file, content, how = 'a write') {
+function judgeWrite(file, content, how = 'a write') {
   const base = file.split(/[/\\]/).pop() || '';
   if (PROTECTED_PATHS.some((rx) => rx.test(file)) || PROTECTED_NAMES.some((rx) => rx.test(base))) {
     return `blocked ${how} to ${file} — brand-locked or secret-bearing`;
@@ -232,14 +211,14 @@ export function judgeWrite(file, content, how = 'a write') {
 }
 
 function deniedVerdict(text, hit) {
-  if (REVIEW.test(text)) return `blocked a ${hit} review (law 8). Review goes to sonnet; ${hit} is prose you publish`;
+  if (REVIEW.test(text)) return `blocked a ${hit} review. Review goes to sonnet; ${hit} is for prose you publish`;
   if (!QUALITY.test(text)) {
-    return `blocked a ${hit} subagent (law 8). Web research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`;
+    return `blocked a ${hit} subagent. Research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`;
   }
   return null;
 }
 
-export function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(process.env.HANDOFF_DENY_SUBAGENT_MODELS ?? DENY_SUBAGENT_DEFAULT)) {
+function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(process.env.HANDOFF_DENY_SUBAGENT_MODELS ?? DENY_SUBAGENT_DEFAULT)) {
   const model = String(input.model || '').trim();
   const text = SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
   if (!model) {
@@ -247,27 +226,27 @@ export function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(
       const hit = (text.match(denied) || [])[0]?.toLowerCase();
       return hit ? deniedVerdict(text, hit) : null;
     }
-    return 'blocked a subagent dispatch that names no model (law 8). State one: haiku for lookups, sonnet for research and review, opus or fable only for prose you publish';
+    return 'blocked a subagent dispatch that names no model. Set one: haiku for lookups, sonnet for research and review, opus or fable only for prose you publish';
   }
   if (!MODEL_TIERS.test(model)) {
-    return `blocked a subagent dispatch whose model "${model}" names no tier (law 8). Say haiku, sonnet, opus or fable`;
+    return `blocked a subagent dispatch whose model "${model}" names no tier. Use haiku, sonnet, opus or fable`;
   }
   const hit = (model.match(denied) || [])[0]?.toLowerCase();
   return hit ? deniedVerdict(text, hit) : null;
 }
 
-export function costBudget(input, tool) {
+function costBudget(input, tool) {
   const text = SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
   if (QUALITY.test(text)) return null;
   const think = (text.match(THINK_ESCALATION) || [])[0];
-  if (think) return `blocked a dispatch asking for "${think}" (law 8). Thinking is the dearest knob there is — cut it, or name QUALITY: writing|creative|legal|security`;
+  if (think) return `blocked a dispatch asking for "${think}". Drop it, or name QUALITY: writing|creative|legal|security`;
   const fan = tool === 'Workflow' ? (String(input.script ?? '').match(UNBOUNDED_FANOUT) || [])[0] : null;
   return fan
-    ? `blocked a workflow fanning out through "${fan.trim()}" (law 7) — the script never says how many agents. Write them out, ${MAX_PER_WAVE} to a wave`
+    ? `blocked a workflow fanning out through "${fan.trim()}" — the script never states its agent count. List the agents, ${MAX_PER_WAVE} to a wave`
     : null;
 }
 
-export const agentsRequested = (input, tool) => (tool === 'Workflow'
+const agentsRequested = (input, tool) => (tool === 'Workflow'
   ? Math.max(1, (String(input.script ?? '').match(WORKFLOW_AGENT_CALL) || []).length)
   : 1);
 
@@ -277,7 +256,7 @@ function fanOutCap(payload, count = 1) {
   let slot = 0;
   for (let n = 0; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
   if (slot > MAX_PER_WAVE) {
-    process.stderr.write(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE} (law 7). Read the returns, then relaunch via /handoff-os:research-budget.\n`);
+    process.stderr.write(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Read the returns, then relaunch via /handoff-os:research-budget.\n`);
     process.exit(2);
   }
 }
@@ -310,7 +289,7 @@ if (tool === 'Read') readBudget(payload, input);
 else if (tool === 'Grep' || tool === 'Glob') queryBudget(payload, input, tool);
 else if (SPAWN_TOOLS.includes(tool)) {
   const verdict = dispatchBudget(input, tool) || costBudget(input, tool);
-  if (verdict) deny(verdict);
+  if (verdict) deny(verdict, 'DISPATCH BUDGET');
   const count = agentsRequested(input, tool);
   fanOutCap(payload, count);
   bump(payload, 'agents', count);
@@ -332,7 +311,7 @@ else if (tool === 'Bash' || tool === 'PowerShell') {
   const action = tool.split('__').slice(2).join('__').toLowerCase();
   if ((process.env.HANDOFF_MCP_ALLOW || '').split(',').map((s) => s.trim().toLowerCase()).includes(action)) process.exit(0);
   if (SQL_DESTRUCTIVE.test(JSON.stringify(input))) {
-    deny(`blocked ${tool} — the payload carries a destructive statement. The human runs that one`);
+    deny(`blocked ${tool} — the payload carries a destructive SQL statement, human-only`);
   }
   const dashed = action.replace(/_/g, '-');
   const strong = STRONG.some((verb) => action.includes(verb));
@@ -344,12 +323,12 @@ else if (tool === 'Bash' || tool === 'PowerShell') {
     || (READ_PREFIX.test(dashed) && !strong)
     || CONNECTOR_ALLOW.some((rx) => rx.test(dashed));
   if (hit && !allowed) {
-    deny(`blocked ${tool} — matched "${hit}", an action that leaves the org or destroys a record. The human performs it`);
+    deny(`blocked ${tool} — matched "${hit}": leaves the org or destroys a record, human-only`);
   }
-  const raw = WEB_FETCH_SERVER.test(tool.split('__')[1] || '')
+  const rawFetch = WEB_FETCH_SERVER.test(tool.split('__')[1] || '')
     && (READ_PREFIX.test(dashed) || /(?:scrape|crawl|extract|search)/.test(action));
-  if (raw) {
-    deny(`blocked ${tool} — a raw page fetch. Use WebFetch/WebSearch or handoff-os:scout.`);
+  if (rawFetch) {
+    deny(`blocked ${tool} — a raw page fetch. Use WebFetch, WebSearch or handoff-os:scout`);
   }
 } else if (tool === 'Edit' || tool === 'Write') {
   invalidateQueries(payload);

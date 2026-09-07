@@ -1,13 +1,13 @@
 # Manifest
 
-Everything the plugin loads, at version 1.5.9. Generated — `npm run upkeep` rewrites it.
+Everything the plugin loads, at version 1.5.11. Generated — `npm run upkeep` rewrites it.
 
 ## Skills
 
 | Skill | Description chars, always in context | Body lines, on use |
 |---|---|---|
 | `plan-session` | 244 | 97 |
-| `research-budget` | 246 | 77 |
+| `research-budget` | 246 | 76 |
 | `task-loop` | 216 | 43 |
 
 ## Hooks

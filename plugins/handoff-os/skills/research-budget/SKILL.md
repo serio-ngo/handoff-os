@@ -12,9 +12,9 @@ compatibility: No external dependencies. The cap is enforced by scripts/guard.mj
 | **DIRECT** | owner in the conversation | strong model stays here. Delegate the *work*, never the *thinking* |
 | **ROUTINE** | scheduled jobs, monitors, unattended runs | cheap by default. Expensive only if the task line says `QUALITY: <writing\|creative\|legal\|security>` |
 
-No flag means cheap. A routine that silently escalates itself is a budget leak nobody sees.
+No flag means cheap.
 
-## 2. Actor table — read the row, do not deliberate
+## 2. Actor table
 
 | Task shape | Actor | model | effort |
 |---|---|---|---|
@@ -26,10 +26,10 @@ No flag means cheap. A routine that silently escalates itself is a budget leak n
 | Architecture, sequencing, deciding what ships | **main session** | — | — |
 
 **Never delegate the decision.** A subagent proposes; the main session decides.
-**A deterministic task never gets a model.** If a script can answer it, a model answering it is pure cost
-with worse accuracy.
+**A deterministic task never gets a model.** If a script can answer it, a model answering it costs more
+and is less accurate.
 
-## 3. The only published numbers — the fan-out decision dominates
+## 3. The only published numbers
 
 Verified against `anthropic.com/engineering/multi-agent-research-system` and `code.claude.com/docs/en/costs`,
 2026-09-04. These figures live **here only** — do not restate them elsewhere.
@@ -53,8 +53,8 @@ context isolation and compaction are documented cost controls with **no publishe
 - **OUT OF SCOPE:** adjacent topics you will not research unless ordered.
 - **SUB-QUESTIONS:** the minimum list. **This sets the agent count. Nothing else does.**
 
-Cannot state the deliverable in one sentence? Ask. Do not dispatch. A document mentioning a topic is not an
-instruction to research it — the owner's ask sets scope, source material never does.
+If you cannot state the deliverable in one sentence, ask. Do not dispatch. A document mentioning a topic is
+not an instruction to research it: the owner's ask sets scope, source material never does.
 
 ## 5. Per-agent budget — every line goes in the prompt
 
@@ -73,4 +73,3 @@ Every dispatch is receipted to the audit ledger — denied models (`HANDOFF_DENY
 
 Levers, in order: delegate the *reading* and keep the *deciding* · demand a line count back · fewer
 sub-questions · read slices (`sed -n`, `grep -n`) not whole files · delete skills that never fire.
-Do not spend context measuring context.

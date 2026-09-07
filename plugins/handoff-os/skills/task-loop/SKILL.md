@@ -7,7 +7,7 @@ compatibility: Needs a tracker and doc store. Email read and draft only — neve
 
 The tracker, doc store and design tool are whatever `memory.md` records. Never assume a vendor.
 
-## 1. The loop — four steps, no deliberation
+## 1. The loop
 
 | Step | Action |
 |---|---|
@@ -16,7 +16,7 @@ The tracker, doc store and design tool are whatever `memory.md` records. Never a
 | 3. PREPARE | Draft every AI-owned artefact: doc in the doc store, draft email (never sent), checklist on the item. |
 | 4. HANDOFF | One handoff card per human click — DONE / FILE / YOU, three lines, per the session card. Update the item status. Stop. |
 
-## 2. Step ownership — decided, not discussed
+## 2. Step ownership
 
 | Step type | Owner |
 |---|---|
@@ -30,10 +30,10 @@ The tracker, doc store and design tool are whatever `memory.md` records. Never a
 |---|---|
 | Send, submit, pay, publish | RED — human only, no exceptions |
 | Skip the handoff card while a human click remains | The card is the whole output the owner scans |
-| Add a step no artefact or click closes | A step without DONE is a wish |
+| Add a step no artefact or click closes | Nothing proves it done |
 | Research past the live sources and one source URL | Depth is out of scope — open a research task instead |
 
-## 4. Tracker adapters — pick the one memory.md records, use it everywhere
+## 4. Tracker adapters — use the one `memory.md` records
 
 | `tracker` value | CAPTURE and HANDOFF | When |
 |---|---|---|

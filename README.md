@@ -1,138 +1,82 @@
-# Handoff OS
+# handoff-os
 
-Your agent does the work. You keep every outward action.
-
-A Claude Code plugin for people paying one flat subscription and feeling it. Deterministic hooks —
-no model, no API key, no telemetry, no dependencies — that cut token waste and stop the agent one
-step before anything irreversible.
+A Claude Code plugin that blocks tool calls. Hooks run before and after each call and can stop it.
+No model calls, no API keys, no telemetry, no runtime dependencies. Requires Node.js 22 or later.
 
 [![verify](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml)
 [![license: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-## Why
+## What it blocks
 
-Long agent sessions fail in three boring ways, over and over.
-
-- **They re-read.** The same file, unchanged, four times in one session — each time at full price.
-- **They over-hire.** Ten subagents at once, each on the expensive model, each reading the same tree.
-- **They over-reach.** "Done" with nothing run behind it, or a draft that turns into a sent email.
-
-None of that needs judgement to catch. It needs a rule that runs before the tool call. That is the
-whole product.
-
-## Use cases
-
-| You have hit this | What now happens |
+| Rule | Blocked |
 |---|---|
-| A 40KB file read whole, six times, one line needed | Second read refused — take an `offset`/`limit` slice |
-| Ten subagents launched in one breath | Wave capped at 3, you read the returns before the next wave |
-| A one-line lookup dispatched to the most expensive model | Dispatch refused unless the prompt earns it |
-| "All done!" — and the suite was red | The turn will not end until a real run passes |
-| A drafted email that quietly got sent | Send blocked; you get a three-line card naming the click |
-| A merge run on the wrong branch at 1am | Merges and deletes never leave your hands |
-| A scraped page landing whole in context | Routed to a cheap scout that returns cited lines |
+| Egress | Shell commands and connector calls that send, publish, pay or deploy. |
+| Delete | Git merges, deletions and history rewrites. Shell `rm` and `Remove-Item`. |
+| Secrets | API keys, OAuth tokens and account numbers written to tracked files, including via shell redirect. |
+| Read budget | Re-reads of unchanged files, whole-file reads over 24 KB, reads past a 500 KB session ceiling. |
+| Query budget | A Grep or Glob already answered this session. |
+| Fan-out | A fourth subagent in one wave. |
+| Dispatch | A subagent dispatch that names no model tier. |
+| Verify | A claim that work is done when no verification command ran this turn. |
+
+A blocked call exits 2 and prints the reason on stderr, which Claude reads and can act on. Nothing
+else is intercepted. At the end of a turn the session prints one line, for example
+`HANDOFF OS · ~10.0k tok saved · 11 guard actions`.
 
 ## Install
-
-Node.js 22+. In Claude Code:
 
 ```text
 /plugin marketplace add serio-ngo/handoff-os
 /plugin install handoff-os@serio-ngo
 ```
 
-Restart. That is the whole setup — the hooks ship inside the plugin and start working on the next
-session. Nothing to configure, no file to edit, no key to paste. Per-session state lands in your
-project's `.claude/`, receipts in `audit/YYYY-MM.jsonl`.
+Restart Claude Code. The hooks load on the next session.
 
-To try it for one session without installing, from a clone:
+## Configuration
 
-```bash
-claude --plugin-dir plugins/handoff-os
-```
+Optional environment variables, set in `~/.claude/settings.json` under `env` or in the shell:
 
-## What it enforces
-
-One hook runs before guarded tool calls and can refuse them. Nothing here is advice.
-
-| Guard | What it stops |
+| Variable | Effect |
 |---|---|
-| Egress lock | Send, pay, submit, publish, deploy — in the shell, in an interpreter one-liner, and on every connector |
-| Delete lock | Merges, deletions and history rewrites, in git and in the shell |
-| Secret lock | Writing a metered credential or a bank account number, or touching env files, keys and brand assets — via `Write` **or** a shell redirect |
-| Read budget | Re-reading a file unchanged since this session read it, via `Read` or a bare `cat` |
-| Whole-file limit | A file over 24KB read without `offset`/`limit`; 500KB total per session |
-| Query budget | An identical Grep/Glob already answered, or a content Grep with no `head_limit` |
-| Fan-out cap | A fourth subagent in one wave |
-| Dispatch budget | A subagent naming no model, or opus without a `QUALITY:` flag |
-| Scout contract | A subagent return with no `file:line`, URL or `UNVERIFIED` tag |
-| Verify gate | A "done" claim with no run behind it |
+| `HANDOFF_STATS=1` | Print the summary line after every reply. |
+| `HANDOFF_LOCK_GIT=1` | Block all state-changing git commands, including commits. |
+| `HANDOFF_MCP_ALLOW=action,action` | Allow named connector actions that the egress lock would block. |
+| `HANDOFF_DENY_SUBAGENT_MODELS=model,model` | Deny these model tiers for subagents. Default: `opus,fable`. |
+| `HANDOFF_OS_DIR=/path` | Store session state and audit files outside the project directory. |
 
-`SessionStart` prints a ≤20-line operating card, so no session has to read a document first.
+The plugin also ships three skills (`task-loop`, `research-budget`, `plan-session`) and one read-only
+subagent (`scout`). User facts are stored in `config/memory.md`, which is gitignored.
 
-## What you get back
+## Commands
 
-When a turn ends having kept anything out of context, you get one line — and nothing at all when
-there is nothing to report:
+Clone the repository to get these. Permission rules cannot ship inside a plugin, so `settings/policy.json`
+holds one `deny` list and `sync` projects it into three layers: `user` (`~/.claude/settings.json`, plus
+`ask` and subscription login), `project` (a repository's `.claude/settings.json`) and `managed` (the
+administrator path, plus `disableBypassPermissionsMode`).
 
-```text
-HANDOFF OS · ~10.0k tok saved · 11 guard actions
-```
-
-| Figure | Means |
+| Command | Effect |
 |---|---|
-| `tok saved` | bytes the refused re-reads and forced slices would have put back into context, over four |
-| `guard actions` | every intervention this session, cumulative: blocks, refused re-reads, forced slices, subagents sent to read elsewhere |
+| `npm run setup` | Personalise `config/memory.md` and project the policy into all three layers. |
+| `npm run sync` | Re-project the policy. Removes the git lock if it was set. |
+| `npm run sync -- --lock git` | Add the `lock.git` deny bundle and set `HANDOFF_LOCK_GIT=1`. |
+| `npm run sync -- --without <token>` | Drop every policy rule containing that token, for connectors you do not use. |
+| `npm run install:plugin` | Install this checkout into the plugin cache at its declared version. |
+| `npm run doctor` | Check that the installed copy is this checkout and that its guard still blocks. |
+| `npm test` | Run the suite. |
+| `npm run upkeep` | Regenerate `docs/MANIFEST.md`, the version and the content stamp. |
+| `npm run release patch "note"` | Suite, version bump, manifest, changelog. |
+| `npm run benchmark` | Token usage report across this project's transcripts. |
 
-`npm run benchmark` prints the week from your transcripts: main context vs subagents, the delegation
-ratio, and what the guard kept out.
-
-## Options
-
-All optional. Set them in `~/.claude/settings.json` under `env`, or in your shell.
-
-| Set | To get |
-|---|---|
-| `HANDOFF_STATS=1` | the running total pinned to the end of every reply, not just the terminal |
-| `HANDOFF_LOCK_GIT=1` | no git write at all — reads still work |
-| `HANDOFF_MCP_ALLOW=action,action` | admit named connector actions the verb lock trips on, and nothing else |
-| `HANDOFF_DENY_SUBAGENT_MODELS=model,model` | deny those tiers as subagents, default `opus,fable` — the main session model is never judged; empty opens the gate |
-| `HANDOFF_OS_DIR=/path` | keep the ledger, receipts and `config/memory.md` somewhere other than the project |
-
-**Merges and deletes are never delegated, in any mode.** They destroy work nobody can get back, so
-they stay with you. Near-misses stay open: listing merges, listing branches, a soft reset and a dry-run
-clean all still work.
-
-## Tiers
-
-| Tier | Action | Agent behaviour |
-|---|---|---|
-| GREEN | reversible, inside the repo | act |
-| YELLOW | writes outside the repo, reversible | act, append one audit line |
-| RED | sends, pays, submits, publishes, or is irreversible | stop, emit a handoff card |
-
-Anything built on untrusted input — a fetched page, an email body, a connector payload — escalates
-one tier.
-
-## Skills
-
-| Skill | Answers |
-|---|---|
-| `/handoff-os:task-loop` | "Turn this into a tracked item, prepare the artefacts, name the approval clicks" |
-| `/handoff-os:research-budget` | The cheapest sufficient actor, from a table, before any fan-out |
-| `/handoff-os:plan-session` | The document contract — one decided path per row, each external claim sourced |
-
-Your own facts live in `config/memory.md` — plain free text the agent reads and writes itself, no
-schema, gitignored, empty is valid. Full load inventory: [docs/MANIFEST.md](docs/MANIFEST.md).
+Merge and delete stay denied in both git modes. Security rules go in `deny`, never `allow`, because
+`allow` does not apply before the workspace trust dialog.
 
 ## Limits
 
-A policy gate on tool calls, not a sandbox. It does not confine already-written code, spawned
-processes, or a connector's own network calls. Shell matching is pattern-based, and patterns lose to
-a determined shell. Run it *with* OS permissions and `deny` rules, not instead of them —
-[SECURITY.md](SECURITY.md).
+This is a policy gate on tool calls, not a sandbox. Shell matching is pattern-based and can be
+evaded. Use it alongside operating system permissions and Claude Code `permissions.deny` rules, not
+instead of them. Scope and known gaps: [SECURITY.md](SECURITY.md).
 
-## Contributing
+## License
 
-[CONTRIBUTING.md](CONTRIBUTING.md). Maintained by Serio NGO, Poland. No telemetry, no paid tier, no
-accounts. Licensed under [Apache-2.0](LICENSE).
+[Apache-2.0](LICENSE). Maintained by Serio NGO, Poland. Contributions:
+[CONTRIBUTING.md](CONTRIBUTING.md).

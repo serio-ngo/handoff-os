@@ -1,60 +1,35 @@
 # Contributing
 
-Every skill description sits in context permanently, in every session, in every repository. Every hook
-runs shell code on another operator's machine. Placement and verification outrank novelty.
+## Scope
 
-## Does it belong here?
+Changes must apply to every repository the plugin runs in. Codebase-specific rules belong in that
+codebase's own `CLAUDE.md`, not here. Check Claude Code built-ins and public plugins before adding
+anything; promote a pattern to a skill only on its second occurrence.
 
-> **Does it bind every repository?**
+## Budgets
 
-| Answer | Location |
-|---|---|
-| Yes — it governs all work, everywhere | this repository |
-| No — it governs one codebase | that codebase's own `CLAUDE.md` |
-| No — it governs one craft | a separate plugin, or `~/.claude/skills/` |
-| No — it is a fact, not a rule | its home system, never a file here |
-
-Check the built-ins (`Explore`, `Plan`, bundled skills) and public plugins first. Promote a pattern to a
-skill on its **second** occurrence, never its first.
-
-## Budgets, enforced by `npm test`
-
-| Budget | Limit |
-|---|---|
-| Skills | 3 — adding one means deleting one |
-| Subagents | 1 |
-| Skill description | 800 chars each, 4,000 total |
-| Skill body | 160 lines |
-| Session card | 20 lines |
+At most 3 skills, 1 subagent, and 800 characters per skill description. `npm run upkeep` prints the
+current figures into `docs/MANIFEST.md`.
 
 ## Code
 
 - No runtime dependencies. Node standard library only.
-- No explanatory comments, no change narration.
-- Anything a script can decide, a script decides — deterministic work never gets a model.
-- Fail open on parse errors, closed on ambiguity.
-- Match on command position, not substring.
+- No explanatory comments in code.
+- Deterministic work is done by scripts, not models.
 
 ## Tests
 
-`test/*.test.mjs` on Node's built-in runner. One `it` per behaviour group, cases looped inside with the
-case in the assert message. A test name states a behaviour: `blocks a re-read of the same unchanged
-bytes`, never `test read budget 2`.
+The suite is one file, `test/guard.test.mjs`, on Node's built-in runner (`npm test`). Do not add
+another test file or a helper module. It asserts blocking and failure cases only. A change to a
+guard rule adds one case to an existing list and must prove the rule blocks.
 
-| Change | Test it must arrive with |
-|---|---|
-| A new guard branch | one case that blocks and one that allows |
-| A new egress pattern | the string it must catch, **and a near-miss it must not** |
-| A new permission rule | a projection case in `test/cli.test.mjs` |
-| A new skill | it passes the context budget, and it deletes another skill |
-
-## Releasing
+## Releases
 
 ```bash
-npm run release patch "one-line note that becomes the changelog entry"
+npm run release patch "one-line note"
 ```
 
-Suite, version bump, manifest, content stamp, `CHANGELOG.md`. CI fails on drift.
+This runs the suite, bumps the version, regenerates the manifest and updates the changelog.
 
-No organisation data in git — no identifiers, no secrets, no vendor names inside the product. Personalise
-with `npm run setup`, never by editing a tracked file. Security reports: [SECURITY.md](SECURITY.md).
+Do not commit organisation data, secrets or identifiers. Personalise with `npm run setup`.
+Security reports go through [SECURITY.md](SECURITY.md).

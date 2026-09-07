@@ -19,7 +19,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "^(Edit|Write|mcp__(?!.*[_-](search|list|read|get|help|resolve)(_|-|$)))",
+        "matcher": "^(Bash|PowerShell|Edit|Write|mcp__(?!.*[_-](search|list|read|get|help|resolve)(_|-|$)))",
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/audit.mjs\"", "timeout": 10, "statusMessage": "Audit receipt" }]
       }
     ],

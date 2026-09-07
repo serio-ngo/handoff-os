@@ -22,9 +22,9 @@ Never import another repo's format into this plan.
 | "what do we do, in what order" | **plan** | §3 |
 | "what is true, what is binding" | **spec** — PRD, ADR, content model, architecture | §4 |
 
-A file may hold both. It may not blur them: a spec section states law, a plan section states work.
+A file may hold both, but never blurred: a spec section states law, a plan section states work.
 
-## 3. The plan task row — the only shape
+## 3. The plan task row
 
 | Column | Rule |
 |---|---|
@@ -36,7 +36,7 @@ A file may hold both. It may not blur them: a spec section states law, a plan se
 
 State net LOC intent per section — "+40/-10 net +30" — so size can be vetoed before writing.
 
-## 4. The spec row — the only shape
+## 4. The spec row
 
 | Column | Rule |
 |---|---|
@@ -49,9 +49,9 @@ State net LOC intent per section — "+40/-10 net +30" — so size can be vetoed
 A spec table stating an external fact with no SOURCE column is malformed. Delete it or source it.
 
 Every technical choice additionally carries: **what was picked · what was rejected · custom LOC · client kB ·
-SOURCE**. A choice with no rejected alternative was not a choice.
+SOURCE**.
 
-## 5. Evidence law — where facts may come from
+## 5. Where facts may come from
 
 | Claim is about | Only acceptable source |
 |---|---|
@@ -85,7 +85,7 @@ package or built-in that does this **with its docs URL**, or why none fits, in o
 | Improve in place | edit the existing file — never a parallel `_v2` or `_new` |
 | No speculative abstraction | no config layer the document does not need today |
 | Scope | name which stated goal each row serves. Inferred-but-unasked work goes in an out-of-scope note |
-| Length | a paragraph over two lines is a table that has not been written yet |
+| Length | more than two lines of prose becomes a table |
 | Banned | first person · options surveys · thinking-process sections · closing summaries · hedge words · rhetorical questions · emoji |
 
 ## 9. Closing ledger — mandatory, one line per task, last thing in the document

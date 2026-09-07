@@ -1,10 +1,10 @@
 ## What changes
 
-<!-- One imperative line per change. -->
+<!-- One line per change. -->
 
 ## Checks
 
-- [ ] It binds every repository — see CONTRIBUTING.md.
-- [ ] No organisation data, secret, identifier or vendor name added to the product.
-- [ ] A new guard branch ships with a blocking case **and** an allowing near-miss.
-- [ ] `npm test` is green.
+- [ ] The change applies to every repository the plugin runs in (see CONTRIBUTING.md).
+- [ ] No organisation data, secret or identifier added to tracked files.
+- [ ] Guard rule changes include a test case proving the rule blocks.
+- [ ] `npm test` passes.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.12 — 2026-09-07
+
+- narrow guard false positives, audit shell calls, one test file
+
 ## 1.5.6 — 2026-09-07
 
 - subagent gate over every spawn tool plus HANDOFF_DENY_SUBAGENT_MODELS (default opus,fable); main model stays free choice

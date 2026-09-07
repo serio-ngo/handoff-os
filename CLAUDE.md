@@ -1,45 +1,51 @@
-# handoff-os — repo law
+# CLAUDE.md
 
-This repository is **Handoff OS**: agent operating rules for small teams. Instructions and scripts only —
-never organisation data. It ships one plugin installed by every repository and every Claude account.
-
-The decision procedure arrives as a **session card**, printed by the `SessionStart` hook — planes, tiers,
-the never-list, memory status.
-
-## Standing orders
-
-1. Owner context lives in gitignored `config/memory.md`, written by the agent itself. Read it when needed; empty is valid.
-2. **One home per fact. Crossing a plane is a sync, never a copy.** TRUTH=memory.md · STATE=tracker · BUILD=git · BRAND=design tool · HUMAN=the owner.
-3. **Never** send, pay, submit or publish — those are human acts, and RED stops with the three-line handoff card. Git writes are allowed; `git merge` and every delete (`rm`, `branch -D`, `tag -d`, `push --delete/--force`, `remote remove`, `stash drop`, `clean -f`, `reset --hard`) are not. The git lock is **off by default**; `npm run sync -- --lock git` (or `HANDOFF_LOCK_GIT=1`) bans every git write instead.
-4. **Never** set `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` or `apiKeyHelper`. Subscription auth only.
-5. **No organisation data in git — ever.** No identifiers, no secrets, no mirrors. Memory lives in gitignored `config/memory.md` and is never copied into a tracked file.
-6. Before researching Claude Code or any connected system, read [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md). An identifier reaches a deliverable with its doc URL, or tagged **UNVERIFIED**.
-7. **Fan-out law:** scope gate first — DELIVERABLE / OUT OF SCOPE / SUB-QUESTIONS — then max 3 subagents per wave, sequential waves, read between waves. Enforced by `PreToolUse` on the `Agent` tool; procedure in `/handoff-os:research-budget`.
-8. **Cheapest sufficient actor, from a table.** `script > haiku > sonnet > opus`. Deterministic work never gets a model. Every dispatch states model, effort, and caps on web calls, tool calls and output lines.
-9. Tables and short imperative lines. No essays, no thinking dumps, no options surveys.
-10. Partial completion is valid. Silent failure is not.
-11. **No explanatory comments and no change narration inside code.** A line needing a sentence of justification needs a better name. Changelog entries belong in `CHANGELOG.md`, written by `npm run release`.
+Instructions for agents working in this repository. handoff-os is a Claude Code plugin: hooks and
+scripts only, never organisation data.
 
 ## Layout
 
-| Path | Holds | Changed |
-|---|---|---|
-| `plugins/handoff-os/` | 3 skills, 1 scout agent, 6 hooks, 6 scripts — the product | on owner order |
-| `settings/policy.json` | the one deny/ask list; rules cannot ship inside a plugin | on owner order |
-| `scripts/` | `handoff.mjs` (the CLI), `generate.mjs` (pure generators), `benchmark.mjs` (token report) | on owner order |
-| `test/` | behaviour specs on Node's built-in runner | with every change |
-| `docs/` | verified identifiers and the generated manifest | `MANIFEST.md` is generated |
-| `config/` | `memory.md`, gitignored, agent-kept | never by hand |
-| `audit/` | `YYYY-MM.jsonl`, append-only | **hook only** |
+| Path | Contents |
+|---|---|
+| `plugins/handoff-os/` | The plugin: 3 skills, 1 agent, 6 hooks, 6 scripts. |
+| `scripts/` | CLI (`handoff.mjs`), generators (`generate.mjs`), benchmark report. |
+| `settings/policy.json` | Permission rules, one `deny` list. Rules cannot ship inside a plugin. |
+| `test/` | One file, `guard.test.mjs`. Node built-in runner. |
+| `docs/` | Generated manifest, Claude Code reference. |
+| `audit/` | `YYYY-MM.jsonl`, one object per line, fields in `scripts/audit.mjs` as `FIELDS`. Gitignored, append-only. |
 
-## Working here
+## Commands
 
 ```bash
-npm test                                # full behaviour suite
-npm run upkeep -- --install             # format, regenerate, bump, reinstall (the Stop hook does this)
-claude --plugin-dir plugins/handoff-os  # load this checkout for one session, no install
-npm run release patch "one-line note"   # suite, version bump, manifest, changelog, stamp
+npm test                                # run the test suite
+claude --plugin-dir plugins/handoff-os  # run this checkout as the plugin for one session
 ```
 
-Upkeep runs itself at the end of every turn: formatting, `docs/MANIFEST.md`, the version and the content
-stamp are never hand-maintained. Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
+Every other command is in [README.md](README.md#commands).
+
+A session loads the plugin once, at start. Edits to this checkout reach a running session only after
+it is restarted.
+
+`npm run upkeep` runs at the end of every turn and regenerates `docs/MANIFEST.md`, the version and
+the content stamp. Do not edit those by hand.
+
+## Rules
+
+1. Each fact has one home. Do not duplicate facts between files.
+2. Never send, publish, pay or submit. Never run `git merge` or any git delete command. The human
+   does these.
+3. Do not commit organisation data, secrets or identifiers. User memory lives in `config/memory.md`,
+   which is gitignored.
+4. Use the cheapest sufficient actor: script, then haiku, sonnet, opus. Deterministic work is done by
+   scripts, not models.
+5. Write in tables and short imperative sentences. Partial completion is acceptable; silent failure
+   is not.
+6. No explanatory comments in code. No runtime dependencies.
+7. The suite is one file, `test/guard.test.mjs`. Do not add a test file. Do not add a test helper.
+   Assertions are blocking and failure cases only — no happy path, no CLI, no repo hygiene, no
+   budget or hygiene assertions that prove nothing. A new guard rule adds one case to an existing
+   list, not a new `describe`.
+8. Before working with Claude Code identifiers (hooks, permissions, plugin layout), read
+   [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md).
+
+Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).

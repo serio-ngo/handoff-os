@@ -55,22 +55,22 @@ const zero = () => Object.fromEntries(COUNTERS.map((key) => [key, 0]));
 const stops = (t) => Number(t.blocked || 0) + Number(t.rereads || 0) + Number(t.slices || 0);
 const actions = (t) => stops(t) + Number(t.agents || 0);
 
-export function bank(state) {
+function lifetime(state) {
   const life = { ...zero(), ...(state.lifetime || {}) };
   for (const key of COUNTERS) life[key] += Number(state.saved[key] || 0);
-  state.lifetime = life;
   return life;
 }
 
-export function lifetimeLine(state) {
-  const life = { ...zero(), ...(state.lifetime || {}) };
-  for (const key of COUNTERS) life[key] += Number(state.saved[key] || 0);
-  return savingsLine({ ...life, tokens: Math.round(life.bytes / 4) });
+export function bank(state) {
+  state.lifetime = lifetime(state);
+  return state.lifetime;
 }
 
-function savingsLine(t) {
+export function lifetimeLine(state) {
+  const life = lifetime(state);
+  const tokens = Math.round(life.bytes / 4) + Number(life.cache || 0);
   const parts = [];
-  if (t.tokens || t.cache) parts.push(`~${compact(Number(t.tokens || 0) + Number(t.cache || 0))} tok saved`);
-  if (actions(t)) parts.push(`${num(actions(t))} guard actions`);
+  if (tokens) parts.push(`~${compact(tokens)} tok saved`);
+  if (actions(life)) parts.push(`${num(actions(life))} guard actions`);
   return parts.length ? `HANDOFF OS · ${parts.join(' · ')}` : '';
 }

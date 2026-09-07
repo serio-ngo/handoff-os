@@ -115,9 +115,10 @@ function gate() {
   const command = stepsToCommand(resolveSteps(scripts));
   if (!command) announce(note);
 
-  const session = String(payload.session_id || 'unknown').replace(/[^A-Za-z0-9_-]/g, '');
-  const marker = `${root}/.claude/.verified-${session}`;
-  const counter = `${root}/.claude/.verify-gate-count-${session}`;
+  const session = sessionOf(payload);
+  const state = rootOf(payload);
+  const marker = `${state}/.claude/.verified-${session}`;
+  const counter = `${state}/.claude/.verify-gate-count-${session}`;
 
   if (existsSync(marker)) {
     try {
@@ -133,7 +134,7 @@ function gate() {
   }
 
   try {
-    mkdirSync(`${root}/.claude`, { recursive: true });
+    mkdirSync(`${state}/.claude`, { recursive: true });
     writeFileSync(counter, String(blocks + 1), 'utf8');
   } catch { }
 
@@ -160,8 +161,9 @@ function runner(session, root) {
       process.exit(result.status || 1);
     }
   }
-  mkdirSync(`${root}/.claude`, { recursive: true });
-  writeFileSync(`${root}/.claude/.verified-${session}`, `${new Date().toISOString()} ${steps.join(' && ')}\n`, 'utf8');
+  const state = process.env.HANDOFF_OS_DIR || root;
+  mkdirSync(`${state}/.claude`, { recursive: true });
+  writeFileSync(`${state}/.claude/.verified-${session}`, `${new Date().toISOString()} ${steps.join(' && ')}\n`, 'utf8');
   console.log(`verify: PASSED ${stepsToCommand(steps)} — marker written.`);
 }
 

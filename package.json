@@ -1,6 +1,6 @@
 {
   "name": "handoff-os",
-  "version": "1.5.1",
+  "version": "1.5.6",
   "description": "Budget and focus controls for Claude Code on a flat subscription: less token waste, sharper agent focus, and no send, pay, submit or publish without the founder.",
   "license": "Apache-2.0",
   "private": true,
@@ -16,7 +16,7 @@
   "engines": {
     "node": ">=22"
   },
-  "contentHash": "2ab0662418e017da",
+  "contentHash": "985bd6213f63294a",
   "scripts": {
     "test": "node --test",
     "verify": "node --test",

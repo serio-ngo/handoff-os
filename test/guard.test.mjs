@@ -365,6 +365,99 @@ describe('every dispatch states its model', () => {
   });
 });
 
+describe('every spawn tool reaches the gate, whatever this build calls it', () => {
+  const spawnAt = (workspace, tool_name, tool_input) => fire(GUARD,
+    { cwd: workspace, session_id: 'spawn', tool_name, tool_input },
+    { ...process.env, HANDOFF_OS_DIR: workspace });
+  const each = (tool_name, tool_input) => spawnAt(sandbox('spawn-'), tool_name, tool_input).status;
+
+  it('judges Task and Agent alike, because only the name differs between builds', () => {
+    for (const tool of ['Agent', 'Task']) {
+      assert.equal(each(tool, { prompt: 'audit the repo', description: 'Audit', subagent_type: 'Explore' }), BLOCKED, `${tool} no model`);
+      assert.equal(each(tool, { model: 'opus', prompt: 'review the diff' }), BLOCKED, `${tool} opus review`);
+      assert.equal(each(tool, { model: 'sonnet', prompt: 'review the diff' }), ALLOWED, `${tool} sonnet review`);
+    }
+  });
+
+  it('never lets opus review, not even behind a QUALITY flag', () => {
+    assert.equal(each('Agent', { model: 'opus', prompt: 'QUALITY: writing — review the diff' }), BLOCKED);
+  });
+
+  it('reads the subagent type and the description too, not just the prompt', () => {
+    assert.equal(each('Agent', { model: 'opus', subagent_type: 'code-reviewer', prompt: 'QUALITY: writing — check it' }), BLOCKED);
+    assert.equal(each('Agent', { model: 'opus', description: 'Audit the config', prompt: 'QUALITY: writing — check it' }), BLOCKED);
+  });
+
+  it('lets a spawn tool that cannot name a model through, instead of demanding one it has no field for', () => {
+    assert.equal(each('Workflow', { script: "export const meta = { name: 'sweep', description: 'summarise three docs' }" }), ALLOWED);
+    assert.equal(each('TaskCreate', { description: 'analyse the config', subject: 'config', activeForm: 'Analysing' }), ALLOWED);
+  });
+
+  it('still finds opus inside the payload of a tool that carries no model field', () => {
+    assert.equal(each('Workflow', { script: "agent(d.prompt, { model: 'opus' }) // review each dimension" }), BLOCKED);
+    assert.equal(each('Workflow', { script: "agent(d.prompt, { model: 'opus' }) // draft the narrative" }), BLOCKED);
+  });
+
+  it('denies fable by default, but allows its prose like opus', () => {
+    assert.equal(each('Agent', { model: 'fable', prompt: 'search the web' }), BLOCKED);
+    assert.equal(each('Agent', { model: 'fable', prompt: 'QUALITY: writing — draft the narrative' }), ALLOWED);
+  });
+
+  it('ignores a denied name inside another word', () => {
+    assert.equal(each('Workflow', { script: "export const meta = { name: 'octopus facts' }" }), ALLOWED);
+  });
+
+  it('names all four tiers when the model names none', () => {
+    const { status, stderr } = spawnAt(sandbox('tier-'), 'Agent', { model: 'cheapest', prompt: 'x' });
+    assert.equal(status, BLOCKED);
+    assert.match(stderr, /fable/);
+  });
+
+  it('lets the owner shrink the deny list to none', () => {
+    const workspace = sandbox('deny-var-');
+    let n = 0;
+    const open = (value, tool_input) => fire(GUARD, { cwd: workspace, session_id: `deny-${n++}`, tool_name: 'Agent', tool_input },
+      { ...process.env, HANDOFF_OS_DIR: workspace, HANDOFF_DENY_SUBAGENT_MODELS: value }).status;
+    for (const value of ['none', '']) {
+      assert.equal(open(value, { model: 'opus', prompt: 'search the web' }), ALLOWED, JSON.stringify(value));
+      assert.equal(open(value, { model: 'opus', prompt: 'QUALITY: writing — draft the narrative' }), ALLOWED, JSON.stringify(value));
+    }
+    assert.equal(open('Opus', { model: 'opus', prompt: 'search the web' }), BLOCKED, 'case-insensitive like HANDOFF_MCP_ALLOW');
+  });
+
+  it('counts a teammate spawn against the wave cap, model or no model', () => {
+    const workspace = sandbox('spawn-cap-');
+    const spawn = () => spawnAt(workspace, 'TaskCreate', { description: 'analyse', subject: 'x' }).status;
+    assert.deepEqual([1, 2, 3, 4].map(spawn), [ALLOWED, ALLOWED, ALLOWED, BLOCKED]);
+  });
+
+  it('fails closed on an unparseable payload from any spawn tool', () => {
+    for (const tool of ['Agent', 'Task', 'TaskCreate', 'Workflow']) {
+      assert.equal(fire(GUARD, `{"tool_name": "${tool}", "tool_input": `).status, BLOCKED, tool);
+    }
+  });
+
+  it('receipts what it let through, and leaves no receipt for what it refused', () => {
+    const workspace = sandbox('spawn-receipt-');
+    spawnAt(workspace, 'Agent', { model: 'sonnet', subagent_type: 'general-purpose', prompt: 'sweep' });
+    spawnAt(workspace, 'Agent', { model: 'opus', prompt: 'review the diff' });
+    const month = new Date().toISOString().slice(0, 7);
+    const lines = readFileSync(path.join(workspace, 'audit', `${month}.jsonl`), 'utf8').trim().split('\n');
+    assert.equal(lines.length, 1);
+    const only = JSON.parse(lines[0]);
+    assert.equal(only.action, 'Agent');
+    assert.equal(only.target, 'sonnet:general-purpose');
+  });
+
+  it('names the tier it inherited when the tool could not state one', () => {
+    const workspace = sandbox('spawn-inherit-');
+    spawnAt(workspace, 'TaskCreate', { description: 'analyse the config', subject: 'config' });
+    const month = new Date().toISOString().slice(0, 7);
+    const only = JSON.parse(readFileSync(path.join(workspace, 'audit', `${month}.jsonl`), 'utf8').trim());
+    assert.equal(only.target, 'inherit:analyse the config');
+  });
+});
+
 describe('the session ledger', () => {
   const workspace = sandbox('ledger-');
   const launch = (payload) => fire(GUARD, { cwd: workspace, ...payload }, { ...process.env, HANDOFF_OS_DIR: workspace });

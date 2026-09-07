@@ -96,6 +96,7 @@ All optional. Set them in `~/.claude/settings.json` under `env`, or in your shel
 | `HANDOFF_STATS=1` | the running total pinned to the end of every reply, not just the terminal |
 | `HANDOFF_LOCK_GIT=1` | no git write at all — reads still work |
 | `HANDOFF_MCP_ALLOW=action,action` | admit named connector actions the verb lock trips on, and nothing else |
+| `HANDOFF_DENY_SUBAGENT_MODELS=model,model` | deny those tiers as subagents, default `opus,fable` — the main session model is never judged; empty opens the gate |
 | `HANDOFF_OS_DIR=/path` | keep the ledger, receipts and `config/memory.md` somewhere other than the project |
 
 **Merges and deletes are never delegated, in any mode.** They destroy work nobody can get back, so

@@ -178,3 +178,62 @@ describe('a healthy install reports healthy', () => {
     assert.deepEqual(readdirSync(cache).length, 1);
   });
 });
+
+describe('the registration Claude Code actually resolves', () => {
+  const config = sandbox('register-');
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: config };
+  const registry = () => read(path.join(config, 'plugins', 'installed_plugins.json'));
+  const entry = () => registry().plugins['handoff-os@serio-ngo'][0];
+  const declared = () => JSON.parse(readFileSync(path.join(REPO, 'plugins', 'handoff-os', '.claude-plugin', 'plugin.json'), 'utf8')).version;
+
+  it('writes an entry whose path is on disk — a path that is not there fails every hook open', () => {
+    run(CLI, ['install'], { env });
+    assert.equal(entry().version, declared());
+    assert.ok(existsSync(entry().installPath), entry().installPath);
+    assert.ok(existsSync(path.join(entry().installPath, 'scripts', 'guard.mjs')));
+  });
+
+  it('re-points a registration left behind on a pruned version', () => {
+    const file = path.join(config, 'plugins', 'installed_plugins.json');
+    const stale = path.join(config, 'plugins', 'cache', 'serio-ngo', 'handoff-os', '1.0.1');
+    writeFileSync(file, `${JSON.stringify({
+      version: 2,
+      plugins: { 'handoff-os@serio-ngo': [{ scope: 'user', installPath: stale, version: '1.0.1', installedAt: 'then' }] },
+    }, null, 2)}\n`, 'utf8');
+    assert.ok(!existsSync(stale));
+    run(CLI, ['install'], { env });
+    assert.equal(entry().version, declared());
+    assert.ok(existsSync(entry().installPath));
+  });
+
+  it('keeps the date the owner first installed, and moves the updated one', () => {
+    assert.equal(entry().installedAt, 'then');
+    assert.notEqual(entry().lastUpdated, 'then');
+  });
+
+  it('leaves any other plugin in the registry untouched', () => {
+    const file = path.join(config, 'plugins', 'installed_plugins.json');
+    const before = registry();
+    writeFileSync(file, `${JSON.stringify({
+      ...before,
+      plugins: { ...before.plugins, 'other@elsewhere': [{ scope: 'user', version: '9.9.9' }] },
+    }, null, 2)}\n`, 'utf8');
+    run(CLI, ['install'], { env });
+    assert.deepEqual(registry().plugins['other@elsewhere'], [{ scope: 'user', version: '9.9.9' }]);
+  });
+
+  it('reports the dead path instead of skipping the probes that would have caught it', () => {
+    const broken = sandbox('broken-');
+    const brokenEnv = { ...process.env, CLAUDE_CONFIG_DIR: broken };
+    const { stdout } = run(CLI, ['doctor'], { env: brokenEnv });
+    assert.match(stdout, /NO\s+the path Claude Code resolves exists/);
+    assert.match(stdout, /NO\s+the installed copy is on disk/);
+    assert.match(stdout, /NO\s+the installed guard blocks a merge/);
+  });
+
+  it('proves liveness by firing the registered copy, not the one it just wrote', () => {
+    run(CLI, ['install'], { env });
+    const { stdout } = run(CLI, ['doctor'], { env });
+    assert.match(stdout, /yes {2}the guard Claude Code resolves actually blocks/);
+  });
+});

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.6 — 2026-09-07
+
+- subagent gate over every spawn tool plus HANDOFF_DENY_SUBAGENT_MODELS (default opus,fable); main model stays free choice
+
 ## 1.5.1 — 2026-09-06
 
 - benchmark report now prints with every release; dependabot, funding and issue-template clutter removed

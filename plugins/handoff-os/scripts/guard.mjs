@@ -3,11 +3,13 @@ import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, stat
 import path from 'node:path';
 import {
   ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES,
-  GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS, OPUS,
-  OUTWARD, OUTWARD_PREFIX, PROTECTED_NAMES, PROTECTED_PATHS, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
-  RESTORATIVE, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED, SHELL_WRITE_TARGET, SHELLS,
+  GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
+  DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, PROTECTED_NAMES, PROTECTED_PATHS, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
+  MODEL_BEARING, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
+  SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
   SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_READ, WRITE_VERBS,
 } from './patterns.mjs';
+import { append } from './audit.mjs';
 import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
 
 let current = {};
@@ -228,18 +230,29 @@ export function judgeWrite(file, content, how = 'a write') {
   return null;
 }
 
-export function dispatchBudget(input) {
-  const model = String(input.model || '').trim();
-  if (!model) {
-    return 'blocked a subagent dispatch that names no model (law 8). State one: haiku for lookups, sonnet for research and review, opus only for prose you publish';
-  }
-  if (!MODEL_TIERS.test(model)) {
-    return `blocked a subagent dispatch whose model "${model}" names no tier (law 8). Say haiku, sonnet or opus`;
-  }
-  if (OPUS.test(model) && !QUALITY.test(String(input.prompt || ''))) {
-    return 'blocked an opus subagent (law 8). Web research and review go to sonnet; opus needs QUALITY: writing|creative|legal|security in the prompt';
+function deniedVerdict(text, hit) {
+  if (REVIEW.test(text)) return `blocked a ${hit} review (law 8). Review goes to sonnet; ${hit} is prose you publish`;
+  if (!QUALITY.test(text)) {
+    return `blocked a ${hit} subagent (law 8). Web research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`;
   }
   return null;
+}
+
+export function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(process.env.HANDOFF_DENY_SUBAGENT_MODELS ?? DENY_SUBAGENT_DEFAULT)) {
+  const model = String(input.model || '').trim();
+  const text = SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
+  if (!model) {
+    if (!MODEL_BEARING.includes(tool)) {
+      const hit = (text.match(denied) || [])[0]?.toLowerCase();
+      return hit ? deniedVerdict(text, hit) : null;
+    }
+    return 'blocked a subagent dispatch that names no model (law 8). State one: haiku for lookups, sonnet for research and review, opus or fable only for prose you publish';
+  }
+  if (!MODEL_TIERS.test(model)) {
+    return `blocked a subagent dispatch whose model "${model}" names no tier (law 8). Say haiku, sonnet, opus or fable`;
+  }
+  const hit = (model.match(denied) || [])[0]?.toLowerCase();
+  return hit ? deniedVerdict(text, hit) : null;
 }
 
 function fanOutCap(payload) {
@@ -251,13 +264,23 @@ function fanOutCap(payload) {
   }
 }
 
+function receipt(payload, input, tool) {
+  const model = String(input.model || '').trim().toLowerCase() || 'inherit';
+  const kind = String(input.subagent_type || input.description || input.subject || input.name || '').slice(0, 80);
+  append(rootOf(payload), {
+    actor: payload.agent_type || 'main', tier: 'GREEN', action: tool,
+    target: `${model}:${kind}`, result: 'ok',
+  });
+}
+
 let raw = '';
 try { raw = readFileSync(0, 'utf8'); } catch { raw = ''; }
 let payload;
 try {
   payload = JSON.parse(raw);
 } catch {
-  if (/"tool_name"\s*:\s*"(?:Bash|PowerShell)"/.test(raw)) deny('blocked a shell call whose payload could not be parsed');
+  const spawnOrShell = new RegExp(`"tool_name"\\s*:\\s*"(?:Bash|PowerShell|${SPAWN_TOOLS.join('|')})"`);
+  if (spawnOrShell.test(raw)) deny('blocked a subagent or shell call whose payload could not be parsed');
   process.exit(0);
 }
 
@@ -267,11 +290,12 @@ current = payload;
 
 if (tool === 'Read') readBudget(payload, input);
 else if (tool === 'Grep' || tool === 'Glob') queryBudget(payload, input, tool);
-else if (tool === 'Agent') {
-  const verdict = dispatchBudget(input);
+else if (SPAWN_TOOLS.includes(tool)) {
+  const verdict = dispatchBudget(input, tool);
   if (verdict) deny(verdict);
   fanOutCap(payload);
   bump(payload, 'agents');
+  receipt(payload, input, tool);
 }
 else if (tool === 'Bash' || tool === 'PowerShell') {
   if ('command' in input && typeof input.command !== 'string') deny('blocked a shell call whose command was not a string');

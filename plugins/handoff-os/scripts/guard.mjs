@@ -5,7 +5,7 @@ import {
   ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES,
   THINK_ESCALATION, WORKFLOW_AGENT_CALL, UNBOUNDED_FANOUT,
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
-  DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, PROTECTED_NAMES, PROTECTED_PATHS, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
+  DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
   MODEL_BEARING, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
   SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_READ, WRITE_VERBS,
@@ -54,6 +54,14 @@ function unwrap(segment) {
   return out;
 }
 
+function onlyDisposable(segment) {
+  const operands = segment.split(/\s+/).slice(1)
+    .filter((token) => !/^-|^\/[A-Za-z]$|^\d+$/.test(token))
+    .map((token) => token.replace(/^['"]|['"]$/g, ''))
+    .filter(Boolean);
+  return operands.length > 0 && operands.every((token) => DISPOSABLE.test(token));
+}
+
 function judgeShell(command, depth = 0) {
   const lockGit = process.env.HANDOFF_LOCK_GIT === '1';
   for (const rx of ANYWHERE) if (rx.test(command)) return `blocked a metered-credential assignment (${rx.source.slice(0, 40)})`;
@@ -63,7 +71,9 @@ function judgeShell(command, depth = 0) {
       if (rx.test(segment)) return `${quoted} — git merge and git delete are human-only`;
     }
     for (const rx of SHELL_DESTRUCTIVE) {
-      if (rx.test(segment)) return `${quoted} — delete is human-only. Move the path aside instead`;
+      if (rx.test(segment) && !onlyDisposable(segment)) {
+        return `${quoted} — delete is human-only outside build and temp paths. Move it aside instead`;
+      }
     }
     if (lockGit) {
       for (const rx of GIT_WRITE) {
@@ -200,10 +210,13 @@ function claimSlot(dir, bucket, cap) {
 
 function judgeWrite(file, content, how = 'a write') {
   const base = file.split(/[/\\]/).pop() || '';
-  if (PROTECTED_PATHS.some((rx) => rx.test(file)) || PROTECTED_NAMES.some((rx) => rx.test(base))) {
-    return `blocked ${how} to ${file} — brand-locked or secret-bearing`;
+  if (SECRET_PATHS.some((rx) => rx.test(file)) || SECRET_NAMES.some((rx) => rx.test(base))) {
+    return `blocked ${how} to ${file} — secret-bearing`;
   }
   const exempt = /(^|[/\\])memory\.md$/i.test(file) || FIXTURES.some((rx) => rx.test(file));
+  if (!exempt && (ORG_PATHS.some((rx) => rx.test(file)) || ORG_NAMES.some((rx) => rx.test(base)))) {
+    return `blocked ${how} to ${file} — brand-locked or organisation data`;
+  }
   if (!exempt && ACCOUNT_NUMBER.test(String(content ?? ''))) {
     return `blocked an account number in ${how} to ${file} — keep it in memory.md, never in git`;
   }

@@ -79,6 +79,8 @@ export const SHELL_DESTRUCTIVE = [
   /^Remove-Item\b/i,
 ];
 
+export const DISPOSABLE = /(?:^|[/\\])(?:node_modules|dist|build|out|coverage|target|vendor|tmp|temp|scratchpad|\.next|\.nuxt|\.turbo|\.cache|\.venv|\.pytest_cache|__pycache__)(?:[/\\]|$)|\.(?:log|tmp|pyc|o|class|tsbuildinfo)$/i;
+
 export const GH_MUTATION = /^gh\s+api\b[^\n]*(?:\s-[fF]\b|--field|--raw-field|\bgraphql\b[^\n]*mutation)/i;
 
 export const INTERPRETER_EGRESS = /^(?:python[\d.]*|node|deno|bun|ruby|perl|php)\b[^\n]*\s--?(?:c|e|eval)\b[\s\S]*(?:requests\.(?:post|put|patch|delete)|urllib\.request|http\.client|fetch\s*\(|axios|smtplib|Net::HTTP|curl_exec)/i;
@@ -89,9 +91,10 @@ export const SHELL_WRITE_TARGET = [
   /\bsed\b[^\n]*\s-i\S*\s+(?:-\S+\s+)*(?:'[^']*'\s+|"[^"]*"\s+)?['"]?([^'"\s]+)/,
 ];
 
+const CREDENTIALS = 'ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper';
 export const ANYWHERE = [
-  /(?:ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper)["']?\s*[=:]/i,
-  /\b(?:setx|set|export|env|\$env:)\b[^\n]{0,40}(?:ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper)/i,
+  new RegExp(`(?:${CREDENTIALS})["']?\\s*[=:]`, 'i'),
+  new RegExp(`\\b(?:setx|export|\\$env:)\\b[^\\n]{0,40}(?:${CREDENTIALS})\\b\\s*[=:]?\\s*\\S`, 'i'),
 ];
 
 export const OUTWARD = ['send', 'email', 'mail', 'publish', 'publication', 'post', 'tweet', 'invite',
@@ -111,16 +114,21 @@ export const CONNECTOR_ALLOW = [
   /(?:^|[-_])remove[-_](?:background|bg)(?:[-_]|$)/,
 ];
 
-export const PROTECTED_PATHS = [
-  /\.env(\.[^/\\]*)?$/i,
+export const SECRET_PATHS = [
+  /\.env$/i,
+  /\.env\.(?!example|sample|template|dist|schema)[^/\\]*$/i,
   /(^|[/\\])secrets?[/\\]/i,
 ];
-export const PROTECTED_NAMES = [
-  /^(?:org|brands|systems|facts|beneficiar\w*|contacts)\.(?:json|ya?ml|csv|tsv)$/i,
-  /^(?:logo|favicon|og-image|brand-kit|brandmark)/i,
-  /credential/i,
+export const SECRET_NAMES = [
+  /^credentials?\.(?:json|ya?ml|csv|txt|ini)$/i,
   /\.(?:pem|key|p12|pfx)$/i,
   /^id_(?:rsa|ed25519|ecdsa)/i,
+];
+export const ORG_PATHS = [
+  /(^|[/\\])(?:brand|brand-kit|brand_assets)[/\\]/i,
+];
+export const ORG_NAMES = [
+  /^(?:org|beneficiar\w*|contacts|donors)\.(?:json|ya?ml|csv|tsv)$/i,
 ];
 export const FIXTURES = [
   /(^|[/\\])(?:tests?|__tests__|fixtures?)[/\\]/i,

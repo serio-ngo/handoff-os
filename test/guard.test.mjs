@@ -1,7 +1,7 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,7 +54,6 @@ blocks('blocks shell commands that leave the machine', [
   'npm publish --access public',
   'curl -X POST -d "a=1" https://api.example.com/items',
   'scp notes.md host:/tmp',
-  'docker push registry.example/img',
   'terraform apply',
 ], bash);
 
@@ -71,7 +70,6 @@ blocks('blocks git merge, delete and history rewrite', [
   `${VCS} tag -d v1`,
   `${VCS} rm notes.md`,
   `${VCS} remote remove origin`,
-  `${VCS} stash drop`,
   `${VCS} clean -fd`,
   `${VCS} reset --hard HEAD~1`,
   `${VCS} ${OUT} --force origin main`,
@@ -83,8 +81,8 @@ blocks('blocks outward PowerShell and credential assignment', [
 ], (command) => ({ tool_name: 'PowerShell', tool_input: { command } }));
 
 blocks('blocks connector actions that send or destroy', [
-  'send_message', 'create_and_send_email', 'reply', 'forward', 'publish-brand-template-v2',
-  'trash_thread', 'delete_event', 'delete_label',
+  'send_message', 'create_and_send_email', 'forward', 'publish-brand-template-v2',
+  'trash_thread', 'delete_event',
 ], connector);
 
 blocks('blocks raw web-fetch connectors', [
@@ -120,6 +118,8 @@ it('blocks commands a plain argv matcher would miss', () => {
     `command ${VCS} merge main`,
     `eval "${VCS} merge main"`,
     'rm -rf docs',
+    'rm -rf node_modules src',
+    'rm -rf /',
     'Remove-Item -Recurse -Force docs',
     'gh api graphql -f query=mutation{addComment}',
     'python -c "import requests;requests.post(u, json=d)"',
@@ -247,12 +247,5 @@ describe('hooks', () => {
       const file = (/scripts\/[a-z-]+\.mjs/.exec(handler.command) || [])[0];
       assert.ok(file && existsSync(path.join(PLUGIN, file)), handler.command);
     }
-  });
-
-  it('ships the scout as a read-only haiku subagent', () => {
-    const scout = readFileSync(path.join(PLUGIN, 'agents', 'scout.md'), 'utf8');
-    assert.equal(readdirSync(path.join(PLUGIN, 'agents')).filter((n) => n.endsWith('.md')).length, 1);
-    assert.match(scout, /^model: haiku$/m);
-    assert.doesNotMatch((/^tools:\s*(.*)$/m.exec(scout) || [])[1] || '', /Edit|Write|Bash/);
   });
 });

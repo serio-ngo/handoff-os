@@ -3,6 +3,7 @@ import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, stat
 import path from 'node:path';
 import {
   ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES,
+  THINK_ESCALATION, WORKFLOW_AGENT_CALL, UNBOUNDED_FANOUT,
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
   DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, PROTECTED_NAMES, PROTECTED_PATHS, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
   MODEL_BEARING, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
@@ -255,9 +256,26 @@ export function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(
   return hit ? deniedVerdict(text, hit) : null;
 }
 
-function fanOutCap(payload) {
+export function costBudget(input, tool) {
+  const text = SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
+  if (QUALITY.test(text)) return null;
+  const think = (text.match(THINK_ESCALATION) || [])[0];
+  if (think) return `blocked a dispatch asking for "${think}" (law 8). Thinking is the dearest knob there is — cut it, or name QUALITY: writing|creative|legal|security`;
+  const fan = tool === 'Workflow' ? (String(input.script ?? '').match(UNBOUNDED_FANOUT) || [])[0] : null;
+  return fan
+    ? `blocked a workflow fanning out through "${fan.trim()}" (law 7) — the script never says how many agents. Write them out, ${MAX_PER_WAVE} to a wave`
+    : null;
+}
+
+export const agentsRequested = (input, tool) => (tool === 'Workflow'
+  ? Math.max(1, (String(input.script ?? '').match(WORKFLOW_AGENT_CALL) || []).length)
+  : 1);
+
+function fanOutCap(payload, count = 1) {
   const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
-  const slot = claimSlot(dir, Math.floor(Date.now() / WAVE_MS), MAX_PER_WAVE);
+  const bucket = Math.floor(Date.now() / WAVE_MS);
+  let slot = 0;
+  for (let n = 0; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
   if (slot > MAX_PER_WAVE) {
     process.stderr.write(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE} (law 7). Read the returns, then relaunch via /handoff-os:research-budget.\n`);
     process.exit(2);
@@ -291,10 +309,11 @@ current = payload;
 if (tool === 'Read') readBudget(payload, input);
 else if (tool === 'Grep' || tool === 'Glob') queryBudget(payload, input, tool);
 else if (SPAWN_TOOLS.includes(tool)) {
-  const verdict = dispatchBudget(input, tool);
+  const verdict = dispatchBudget(input, tool) || costBudget(input, tool);
   if (verdict) deny(verdict);
-  fanOutCap(payload);
-  bump(payload, 'agents');
+  const count = agentsRequested(input, tool);
+  fanOutCap(payload, count);
+  bump(payload, 'agents', count);
   receipt(payload, input, tool);
 }
 else if (tool === 'Bash' || tool === 'PowerShell') {

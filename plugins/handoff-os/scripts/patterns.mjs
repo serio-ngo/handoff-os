@@ -1,5 +1,8 @@
 export const MAX_PER_WAVE = 3;
 export const WAVE_MS = 90 * 1000;
+export const THINK_ESCALATION = /\b(?:ultrathink|megathink|think\s+(?:hard(?:er)?|deeply)|(?:reasoning[-_ ]?)?effort\s*[=:]\s*(?:high|xhigh|max))\b/i;
+export const WORKFLOW_AGENT_CALL = /(?<![.\w$])agent\s*\(/g;
+export const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)\s*\(|\.\s*(?:flat)?map\s*\(/;
 export const BIG_FILE_BYTES = 24 * 1024;
 export const READ_CEILING_BYTES = 500 * 1024;
 export const DENY_SUBAGENT_DEFAULT = 'opus,fable';
@@ -23,7 +26,7 @@ const GIT = String.raw`^git\b(?:\s+(?:-[Cc]\s+\S+|--\S+(?:[=\s]\S+)?))*\s+`;
 const git = (tail) => new RegExp(GIT + tail, 'i');
 
 export const GIT_DESTRUCTIVE = [
-  git(String.raw`merge\b`),
+  git(String.raw`merge(?![-\w])`),
   git(String.raw`rm\b`),
   git(String.raw`(?:branch|tag)\b[^\n]*\s-(?:[dD]|-delete)\b`),
   git(String.raw`push\b[^\n]*\s(?:--delete|-d|--force|-f)\b`),
@@ -87,7 +90,7 @@ export const SHELL_WRITE_TARGET = [
 ];
 
 export const ANYWHERE = [
-  /(?:ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper)\s*[=:]/i,
+  /(?:ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper)["']?\s*[=:]/i,
   /\b(?:setx|set|export|env|\$env:)\b[^\n]{0,40}(?:ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|apiKeyHelper)/i,
 ];
 

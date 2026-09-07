@@ -70,7 +70,7 @@ export function lifetimeLine(state) {
 
 function savingsLine(t) {
   const parts = [];
-  if (t.tokens) parts.push(`~${compact(t.tokens)} tok saved`);
+  if (t.tokens || t.cache) parts.push(`~${compact(Number(t.tokens || 0) + Number(t.cache || 0))} tok saved`);
   if (actions(t)) parts.push(`${num(actions(t))} guard actions`);
   return parts.length ? `HANDOFF OS · ${parts.join(' · ')}` : '';
 }

@@ -143,8 +143,8 @@ describe('the savings line the operator sees', () => {
     const { status, stdout } = finish(root);
     assert.equal(status, ALLOWED);
     const { systemMessage } = JSON.parse(stdout);
-    assert.match(systemMessage, /HANDOFF OS · ~10.0k tok saved · 11 guard actions/);
-    assert.doesNotMatch(systemMessage, /cache|re-reads|sliced/);
+    assert.match(systemMessage, /HANDOFF OS · ~61.0k tok saved · 11 guard actions/);
+    assert.doesNotMatch(systemMessage, /re-reads|sliced/);
   });
 
   it('says nothing at all when nothing was saved', () => {

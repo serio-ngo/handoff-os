@@ -69,6 +69,7 @@ instruction to research it — the owner's ask sets scope, source material never
 Waves are sequential: launch → read → decide if another wave earns its cost. Scopes are disjoint — name each
 agent's sources and say what the others own. Add a verifier only when the recommendation changes if the claim
 is wrong. After any wave, one line: agents, model split, tokens, usable results.
+Every dispatch is receipted to the audit ledger — denied models (`HANDOFF_DENY_SUBAGENT_MODELS`, default `opus,fable`) never review, review is sonnet.
 
 Levers, in order: delegate the *reading* and keep the *deciding* · demand a line count back · fewer
 sub-questions · read slices (`sed -n`, `grep -n`) not whole files · delete skills that never fire.

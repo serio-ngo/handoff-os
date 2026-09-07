@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
+import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
 import { PLUGIN, REPO, manifest, policyFor, readJson, stamp, walk } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
@@ -134,6 +135,30 @@ function sync(args) {
 }
 
 const cacheRoot = () => path.join(CONFIG_DIR, 'plugins', 'cache', marketplace.name, PLUGIN_NAME);
+const registryPath = () => path.join(CONFIG_DIR, 'plugins', 'installed_plugins.json');
+const registryKey = () => `${PLUGIN_NAME}@${marketplace.name}`;
+
+export function registration() {
+  const entries = readJsonFile(registryPath(), {}).plugins?.[registryKey()];
+  return Array.isArray(entries) ? entries[0] : undefined;
+}
+
+function register(version) {
+  const file = registryPath();
+  const registry = readJsonFile(file, {});
+  const now = new Date().toISOString();
+  const previous = registration() ?? {};
+  const entry = {
+    ...previous,
+    scope: previous.scope || 'user',
+    installPath: path.join(cacheRoot(), version),
+    version,
+    installedAt: previous.installedAt || now,
+    lastUpdated: now,
+  };
+  writeJson(file, { ...registry, version: registry.version ?? 2, plugins: { ...registry.plugins, [registryKey()]: [entry] } });
+  return entry;
+}
 
 function installTargets() {
   const declared = readJson('plugins', PLUGIN_NAME, '.claude-plugin', 'plugin.json').version;
@@ -148,9 +173,6 @@ function install() {
   const wanted = walk(PLUGIN);
   const memory = path.join(REPO, 'config', 'memory.md');
   let pruned = 0;
-  for (const version of stale) {
-    rmSync(path.join(cacheRoot(), version), { recursive: true, force: true });
-  }
   for (const version of targets) {
     const dest = path.join(cacheRoot(), version);
     for (const rel of wanted) {
@@ -164,7 +186,12 @@ function install() {
     }
     if (existsSync(memory)) copyFileSync(memory, path.join(dest, 'memory.md'));
   }
+  const entry = register(declared);
+  for (const version of stale) {
+    rmSync(path.join(cacheRoot(), version), { recursive: true, force: true });
+  }
   row('plugin', `${PLUGIN_NAME} ${declared} (${wanted.length} files, ${pruned} file(s) and ${stale.length} old version(s) pruned)`);
+  row('registered', `${entry.installPath}`);
   return { declared, targets };
 }
 
@@ -266,6 +293,7 @@ function doctor() {
   const check = (question, ok, detail = '') => {
     checks.push(ok);
     console.log(`  ${ok ? 'yes' : 'NO '}  ${question}${detail ? ` — ${detail}` : ''}`);
+    return ok;
   };
 
   check('the plugin is enabled', settings.enabledPlugins?.[`${PLUGIN_NAME}@${marketplace.name}`] === true);
@@ -283,17 +311,46 @@ function doctor() {
   };
   const installed = check('every installed copy is this checkout', targets.every(current),
     `${targets.length} version(s): ${targets.join(', ')}`);
+  check('the installed copy is on disk', existsSync(cache), cache);
 
-  if (existsSync(cache)) {
-    const fire = (script, payload, env) => spawnSync(process.execPath, [path.join(cache, 'scripts', script)], {
-      input: JSON.stringify(payload), encoding: 'utf8', env: { ...process.env, ...env },
-    }).status;
-    const shell = (command, env) => fire('guard.mjs', { hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command } }, env);
-    check('the installed guard blocks a merge', shell('git merge main') === BLOCKED);
-    if (!openGit) check('the installed guard blocks a push', shell('git push origin main', { HANDOFF_LOCK_GIT: '1' }) === BLOCKED);
-    check('the installed guard blocks an outward connector call', fire('guard.mjs', { hook_event_name: 'PreToolUse', tool_name: 'mcp__x__send_message', tool_input: {} }) === BLOCKED);
-    check('the installed card prints', spawnSync(process.execPath, [path.join(cache, 'scripts', 'card.mjs')], { encoding: 'utf8' }).stdout.trim().length > 0);
+  const entry = registration();
+  const root = entry ? String(entry.installPath || '') : '';
+  check('the plugin registration names a path', Boolean(root), root || 'no entry in installed_plugins.json');
+  check('the path Claude Code resolves exists', Boolean(root) && existsSync(root), root || '—');
+  check('the registered version is the declared one', entry?.version === declared,
+    `registered ${entry?.version ?? 'none'} vs declared ${declared}`);
+
+  const probe = mkdtempSync(path.join(tmpdir(), 'handoff-doctor-'));
+  const at = (dir, script, payload, env) => spawnSync(process.execPath, [path.join(dir, 'scripts', script)], {
+    input: JSON.stringify(payload), encoding: 'utf8',
+    env: { ...process.env, HANDOFF_OS_DIR: probe, ...env },
+  });
+  const session = () => `doctor-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const pre = (tool_name, tool_input) => ({ hook_event_name: 'PreToolUse', session_id: session(), cwd: probe, tool_name, tool_input });
+
+  if (root) {
+    check('the guard Claude Code resolves actually blocks',
+      at(root, 'guard.mjs', pre('Bash', { command: 'git merge main' })).status === BLOCKED,
+      'live hook path, not the cache');
   }
+
+  const fire = (payload, env) => at(cache, 'guard.mjs', payload, env).status;
+  const shell = (command, env) => fire(pre('Bash', { command }), env);
+  check('the installed guard blocks a merge', shell('git merge main') === BLOCKED);
+  if (!openGit) check('the installed guard blocks a push', shell('git push origin main', { HANDOFF_LOCK_GIT: '1' }) === BLOCKED);
+  check('the installed guard blocks an outward connector call', fire(pre('mcp__x__send_message', {})) === BLOCKED);
+  check('the installed guard blocks an opus review, whatever the spawn tool',
+    SPAWN_TOOLS.every((tool) => fire(pre(tool, { model: 'opus', prompt: 'review the diff' })) === BLOCKED),
+    SPAWN_TOOLS.join(', '));
+  check('the installed guard blocks a dispatch that names no model', fire(pre('Agent', { prompt: 'audit the repo' })) === BLOCKED);
+  check('the installed guard lets a sonnet review through', fire(pre('Agent', { model: 'sonnet', prompt: 'review the diff' })) === 0);
+  check('the installed guard lets a teammate spawn through, which cannot name a model',
+    fire(pre('TaskCreate', { description: 'analyse the config', subject: 'config' })) === 0);
+  check('the installed card prints', spawnSync(process.execPath, [path.join(cache, 'scripts', 'card.mjs')], { encoding: 'utf8' }).stdout.trim().length > 0);
+  const month = new Date().toISOString().slice(0, 7);
+  check('every probe receipt landed in the throwaway root, not the repo ledger',
+    existsSync(path.join(probe, 'audit', `${month}.jsonl`)), probe);
+
   const failed = checks.filter((ok) => !ok).length;
   console.log(`  ${checks.length - failed} of ${checks.length} yes`);
   return { failed, installed };

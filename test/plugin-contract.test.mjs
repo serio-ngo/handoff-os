@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
 const PLUGIN = path.join(REPO, 'plugins', 'handoff-os');
@@ -75,7 +76,7 @@ describe('hook wiring', () => {
 
   it('routes every guarded tool into it', () => {
     const matcher = new RegExp(hooks.PreToolUse[0].matcher);
-    for (const tool of ['Read', 'Bash', 'PowerShell', 'Edit', 'Write', 'Agent', 'Grep', 'Glob', 'mcp__server__send']) {
+    for (const tool of ['Read', 'Bash', 'PowerShell', 'Edit', 'Write', 'Task', 'Agent', 'Workflow', 'Grep', 'Glob', 'mcp__server__send']) {
       assert.ok(matcher.test(tool), tool);
     }
   });
@@ -88,6 +89,17 @@ describe('hook wiring', () => {
   it('caps fan-out on PreToolUse, the event that can actually block', () => {
     assert.ok(!hooks.SubagentStart);
     assert.match(new RegExp(hooks.PreToolUse[0].matcher).source, /Agent/);
+  });
+
+  it('routes every spawn tool the guard judges — a name the matcher misses is a silent bypass', () => {
+    const matcher = new RegExp(hooks.PreToolUse[0].matcher);
+    for (const tool of SPAWN_TOOLS) assert.ok(matcher.test(tool), tool);
+  });
+
+  it('judges every spawn tool the matcher routes, so nothing arrives and falls through', () => {
+    const guard = readFileSync(path.join(PLUGIN, 'scripts', 'guard.mjs'), 'utf8');
+    assert.match(guard, /SPAWN_TOOLS\.includes\(tool\)/);
+    assert.doesNotMatch(guard, /tool === 'Task'/);
   });
 
   it('appends the audit receipt after the tool ran, never before', () => {

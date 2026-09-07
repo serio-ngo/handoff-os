@@ -2,8 +2,18 @@ export const MAX_PER_WAVE = 3;
 export const WAVE_MS = 90 * 1000;
 export const BIG_FILE_BYTES = 24 * 1024;
 export const READ_CEILING_BYTES = 500 * 1024;
-export const OPUS = /opus/i;
+export const DENY_SUBAGENT_DEFAULT = 'opus,fable';
+export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
+  const names = String(raw ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  if (!names.length) return /(?!)/;
+  const esc = names.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  return new RegExp(`\\b(?:${esc})\\b`, 'i');
+}
 export const QUALITY = /\bQUALITY:\s*(?:writing|creative|legal|security)\b/;
+export const REVIEW = /\b(?:review|audit)(?:s|ed|ing|er|ers|or|ors)?\b/i;
+export const SPAWN_TOOLS = ['Agent', 'Task', 'TaskCreate', 'Workflow'];
+export const MODEL_BEARING = ['Agent', 'Task'];
+export const SPAWN_TEXT = ['prompt', 'description', 'subagent_type', 'subject', 'script', 'name', 'title'];
 export const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
 export const SHELL_INNER = /(?:^|\s)-(?:-command|[a-z]*c)\s+(['"])([\s\S]*)\1\s*$/i;
 export const SHELL_PREFIX = /^(?:eval|command|exec|builtin|nohup|time|nice|stdbuf|xargs)\b(?:\s+-\S+)*\s+/i;

@@ -1,7 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'bytes', 'deferred', 'read'];
+export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps',
+  'bytes', 'deferred', 'offload', 'read'];
+
+export const BYTE_COUNTERS = ['bytes', 'deferred', 'offload'];
 
 const zero = () => Object.fromEntries(COUNTERS.map((key) => [key, 0]));
 const EMPTY = () => ({ reads: {}, saved: zero() });
@@ -45,21 +48,27 @@ export function bump(payload, field, amount = 1) {
 
 export const tok = (bytes) => Math.round(Number(bytes || 0) / 4);
 
+export const kept = (t) => BYTE_COUNTERS.reduce((sum, key) => sum + Number(t[key] || 0), 0);
+
+export const volume = (t) => kept(t) + Number(t.read || 0);
+
+export const keptPct = (t) => (volume(t) ? Math.round((kept(t) / volume(t)) * 100) : 0);
+
 export function dedupePct(t) {
-  const volume = Number(t.bytes || 0) + Number(t.read || 0);
-  return volume ? Math.round((Number(t.bytes || 0) / volume) * 100) : 0;
+  const total = volume(t);
+  return total ? Math.round((Number(t.bytes || 0) / total) * 100) : 0;
 }
 
 export function savings(state) {
   const s = state.saved;
   if (!COUNTERS.some((key) => s[key])) return null;
-  return { ...s, tokens: tok(s.bytes) };
+  return { ...s, tokens: tok(kept(s)) };
 }
 
 const num = (value) => Number(value || 0).toLocaleString('en-US');
 const compact = (value) => (value >= 10000 ? `${(value / 1000).toFixed(1)}k` : num(value));
 
-const actions = (t) => ['blocked', 'rereads', 'slices', 'agents']
+const actions = (t) => ['blocked', 'rereads', 'slices', 'queries', 'caps', 'agents']
   .reduce((total, key) => total + Number(t[key] || 0), 0);
 
 function lifetime(state) {
@@ -76,8 +85,7 @@ export function bank(state) {
 export function lifetimeLine(state) {
   const life = lifetime(state);
   const parts = [];
-  if (life.bytes) parts.push(`~${compact(tok(life.bytes))} tok deduped, ${dedupePct(life)}% of file reads`);
-  if (life.deferred) parts.push(`~${compact(tok(life.deferred))} tok deferred to slices or scout`);
+  if (kept(life)) parts.push(`~${compact(tok(kept(life)))} tok kept out, ${keptPct(life)}% of read volume`);
   if (actions(life)) parts.push(`${num(actions(life))} guard actions`);
   return parts.length ? `HANDOFF OS · ${parts.join(' · ')}` : '';
 }

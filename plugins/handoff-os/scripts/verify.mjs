@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { COUNTERS, bank, lifetimeLine, load, rootOf, save, savings, sessionOf, tok } from './ledger.mjs';
+import { COUNTERS, bank, kept, keptPct, lifetimeLine, load, rootOf, save, savings, sessionOf, tok, volume } from './ledger.mjs';
 
 const DONE_CLAIM = /\b(?:done|complete|completed|finished|works now|fixed|ready|shipped)\b/i;
 const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*YOU\b.*$/gm;
@@ -39,6 +39,25 @@ function lastAssistantText(file) {
   return '';
 }
 
+export function usage(file) {
+  const empty = { fresh: 0, cacheRead: 0, turns: 0 };
+  if (!file || !existsSync(file)) return empty;
+  let lines;
+  try { lines = readFileSync(file, 'utf8').split(/\r?\n/); } catch { return empty; }
+  const out = { ...empty };
+  for (const line of lines) {
+    if (!line) continue;
+    let entry;
+    try { entry = JSON.parse(line); } catch { continue; }
+    const u = entry.message?.usage;
+    if (!u) continue;
+    out.turns += 1;
+    out.fresh += (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_creation_input_tokens || 0);
+    out.cacheRead += u.cache_read_input_tokens || 0;
+  }
+  return out;
+}
+
 function uncited(message) {
   const text = String(message || '').trim();
   return text.length >= MIN_CLAIM_CHARS && !CITED.test(text);
@@ -57,12 +76,16 @@ function report(payload) {
   const total = savings(state);
   const line = total ? lifetimeLine(state) : null;
   if (!line) return null;
+  const real = usage(payload.transcript_path);
   append(root, {
     actor: 'main',
     tier: 'GREEN',
     action: 'read-budget',
-    target: `${total.agents} agents, ${total.blocked} blocked, ${total.rereads} re-reads, ${total.slices} slices`,
-    result: `~${total.tokens} tok deduped, ${tok(total.deferred)} tok deferred, ${tok(total.read)} tok read`,
+    target: `${total.agents} agents, ${total.blocked} blocked, ${total.rereads} re-reads, `
+      + `${total.slices} slices, ${total.queries} queries, ${total.caps} caps`,
+    result: `kept ${tok(kept(total))} tok of ${tok(volume(total))} (${keptPct(total)}%), `
+      + `dedup ${tok(total.bytes)} tok, defer ${tok(total.deferred)} tok, offload ${tok(total.offload)} tok, `
+      + `admitted ${tok(total.read)} tok, fresh ${real.fresh} tok, cache-read ${real.cacheRead} tok`,
   });
   bank(state);
   for (const key of COUNTERS) state.saved[key] = 0;

@@ -7,6 +7,7 @@ import {
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
   DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
   MODEL_BEARING, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
+  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
   SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_READ, WRITE_VERBS,
 } from './patterns.mjs';
@@ -68,6 +69,7 @@ function judgeShell(command, depth = 0) {
   const lockGit = process.env.HANDOFF_LOCK_GIT === '1';
   for (const rx of ANYWHERE) if (rx.test(command)) return `blocked a metered-credential assignment (${rx.source.slice(0, 40)})`;
   for (const segment of segments(command).map(unwrap)) {
+    if (NO_OP_FLAG.test(segment.replace(/'[^']*'|"[^"]*"/g, ' '))) continue;
     const quoted = `blocked "${segment.slice(0, 80)}"`;
     for (const rx of GIT_DESTRUCTIVE) {
       if (rx.test(segment)) return `${quoted} — git merge and git delete are human-only`;
@@ -88,7 +90,10 @@ function judgeShell(command, depth = 0) {
     if (GH_MUTATION.test(segment)) return `${quoted} — a gh api call carrying fields writes, human-only`;
     if (INTERPRETER_EGRESS.test(segment)) return `${quoted} — an interpreter one-liner posting over the network, human-only`;
     if (depth < 2 && SHELLS.test(segment)) {
-      const inner = (SHELL_INNER.exec(segment) || [])[2];
+      const encoded = (ENCODED_CMD.exec(segment) || [])[1];
+      const inner = encoded
+        ? Buffer.from(encoded, 'base64').toString('utf16le')
+        : (SHELL_INNER.exec(segment) || SHELL_INNER_BARE.exec(segment) || [])[2];
       if (inner) {
         const verdict = judgeShell(inner, depth + 1);
         if (verdict) return verdict;
@@ -159,7 +164,9 @@ function readBudget(payload, input) {
   if (!sliced) {
     state.reads[key] = fingerprint;
     state.read_bytes = (state.read_bytes || 0) + stats.size;
-    state.saved.read += stats.size;
+    // A subagent's read never lands in the main thread, so it is context kept out, not admitted.
+    if (actorOf(payload) === 'main') state.saved.read += stats.size;
+    else state.saved.offload += stats.size;
   }
   save(root, session, state);
 }
@@ -182,13 +189,13 @@ function queryBudget(payload, input, tool) {
   const state = load(root, session);
   const key = `${actorOf(payload)}|q:${tool}:${JSON.stringify(input)}`;
   if (state.reads[key]) {
-    state.saved.rereads += 1;
+    state.saved.queries += 1;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: this exact ${tool} already ran and nothing has been written since. Change the query, or read the file you are checking.\n`);
     process.exit(2);
   }
   if (tool === 'Grep' && input.output_mode === 'content' && input.head_limit === undefined) {
-    state.saved.slices += 1;
+    state.saved.caps += 1;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: set head_limit on a content-mode Grep so the match list cannot run away (30 is plenty).\n`);
     process.exit(2);

@@ -37,6 +37,7 @@ const OUT = ['p', 'u', 's', 'h'].join('');
 const KEY = ['ANTHROPIC', 'API', 'KEY'].join('_');
 const HELPER = ['api', 'Key', 'Helper'].join('');
 const ACCOUNT = 'PL10000000000000000000000000';
+const ENC = Buffer.from([VCS, 'merge', 'main'].join(' '), 'utf16le').toString('base64');
 
 const box = sandbox('guard-');
 const guard = (payload, env) => fire(script('guard.mjs'), payload, env);
@@ -82,7 +83,7 @@ blocks('blocks outward PowerShell and credential assignment', [
 
 blocks('blocks connector actions that send or destroy', [
   'send_message', 'create_and_send_email', 'forward', 'publish-brand-template-v2',
-  'trash_thread', 'delete_event',
+  'trash_thread', 'delete_event', 'run_workflow', 'trigger_build', 'approve_expense',
 ], connector);
 
 blocks('blocks raw web-fetch connectors', [
@@ -126,6 +127,12 @@ it('blocks commands a plain argv matcher would miss', () => {
     'gh api graphql -f query=mutation{addComment}',
     'python -c "import requests;requests.post(u, json=d)"',
     'echo k > .env',
+    `cmd /c ${VCS} merge main`,
+    `powershell -Command ${VCS} merge main`,
+    `bash -c ${VCS} merge main`,
+    `pwsh -NoProfile -Command rm -rf docs`,
+    `powershell -EncodedCommand ${ENC}`,
+    'curl -X POST -d "q=--help" https://api.example.com/items',
   ]) assert.equal(sh('bp', command), BLOCKED, command);
 });
 
@@ -176,6 +183,22 @@ describe('read and query budgets', () => {
     assert.equal(at('sx', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED);
     at('sx', { agent_type: 'scout', tool_name: 'Grep', tool_input: { pattern: 'scoped' } });
     assert.equal(at('sx', { tool_name: 'Grep', tool_input: { pattern: 'scoped' } }), ALLOWED);
+  });
+  it('books a subagent read as offloaded, not admitted to the main thread', () => {
+    const file = path.join(box, 'offload.txt');
+    writeFileSync(file, 'z'.repeat(2048));
+    at('of', { agent_type: 'handoff-os:scout', tool_name: 'Read', tool_input: { file_path: file } });
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-of.json'), 'utf8'));
+    assert.equal(state.saved.offload, 2048);
+    assert.equal(state.saved.read, 0);
+  });
+  it('books a repeat query apart from a file re-read, so byte totals stay honest', () => {
+    at('rq', { tool_name: 'Grep', tool_input: { pattern: 'apart' } });
+    assert.equal(at('rq', { tool_name: 'Grep', tool_input: { pattern: 'apart' } }), BLOCKED);
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-rq.json'), 'utf8'));
+    assert.equal(state.saved.queries, 1);
+    assert.equal(state.saved.rereads, 0);
+    assert.equal(state.saved.bytes, 0);
   });
   it('books a ceiling block as deferred, not deduped', () => {
     const file = path.join(box, 'ceil-small.txt');

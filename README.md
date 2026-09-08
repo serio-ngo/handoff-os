@@ -1,35 +1,108 @@
 # handoff-os
 
-Stops the agent before it wastes your context: nothing sent, paid, submitted or published without you,
-no opus reviews or runaway subagents, no re-reading files it already has. Deterministic hooks,
-one audit trail, no model calls, no API keys, no telemetry. Requires Node.js 22 or later.
+Claude Code re-reads files it already has, greps the same pattern twice, and pulls a 40 KB file into
+context to answer one question about line 12. Context is re-sent on every turn, so a byte admitted
+early keeps being billed — measured across this repo's own ten sessions, **every fresh token was
+re-read from cache more than 30 times**. handoff-os refuses those reads at the hook, before they
+enter the thread, and books what it refused. Every number below is generated from that ledger and
+this machine's session transcripts, not written by hand.
 
+[![kept out](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.keptPct&suffix=%25%20of%20read%20volume&label=kept%20out&color=brightgreen)](docs/BENCHMARK.md)
+[![re-send ratio](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.resendRatio&suffix=x&label=context%20re-send&color=blue)](docs/BENCHMARK.md)
+[![guard caught](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.recall&suffix=%25&label=guard%20caught&color=brightgreen)](docs/BENCHMARK.md)
+[![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic)](plugins/handoff-os/scripts)
+[![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.dependencies&label=dependencies&color=brightgreen)](package.json)
 [![verify](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml)
-[![license: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version)](plugins/handoff-os/.claude-plugin/plugin.json)
+[![license](https://img.shields.io/github/license/serio-ngo/handoff-os)](LICENSE)
 
-## What it blocks
+![handoff-os refusing a 38KB read, a fourth subagent and a send](docs/demo.svg)
 
-| Rule | Blocked |
-|---|---|
-| Egress | Shell commands and connector calls that send, publish, pay or deploy. |
-| Delete | Git merges, deletions and history rewrites. Shell `rm` and `Remove-Item`. |
-| Secrets | API keys, OAuth tokens and account numbers written to tracked files, including via shell redirect. |
-| Read budget | Re-reads of unchanged files, whole-file reads over 24 KB, reads past a 500 KB session ceiling. |
-| Query budget | A Grep or Glob already answered this session. |
-| Fan-out | A fourth subagent in one wave. |
-| Dispatch | A subagent dispatch that names no model tier. |
-| Verify | A claim that work is done when no verification command ran this turn. |
-
-A blocked call exits 2 and prints the reason on stderr, which Claude reads and can act on. Nothing
-else is intercepted. At the end of a turn the session prints one line, for example
-`HANDOFF OS · ~10.0k tok saved · 11 guard actions`.
-
-## Observed
+## What it saved
 
 <!-- handoff-stats -->
-Measured over 35 recorded turns. Token figures start accumulating from the next turn.
-Guard actions: 67 — 19 re-reads dropped, 6 large files deferred, 23 denies, 19 subagents dispatched. Token counts are file bytes / 4, an estimate. Source: this repository's own audit ledger, no session transcripts.
+| Measured over 39 turns | Tokens | Share |
+|---|---|---|
+| Read volume the session asked for | ~74.2k | 100% |
+| **Kept out** | **~49.7k** | **67%** |
+| — re-read dedup | ~49.7k | 67% |
+| — whole-file cap | ~0 | 0% |
+| — moved to a subagent | ~0 | 0% |
+| Admitted to the main thread | ~24.4k | 33% |
+
+| Measured billing, 10 session transcripts | Tokens |
+|---|---|
+| Fresh — input + output + cache write | 13,219,852 |
+| Cache-read | 463,306,825 |
+| **Context re-send ratio** | **35.0×** |
+| Cache-read avoided, kept × ratio | ~1.7M |
+
+Guard actions: 77. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 <!-- /handoff-stats -->
+
+## Where the savings come from
+
+| Rule | Refuses | Credited as saved |
+|---|---|---|
+| Re-read dedup | a file already in context, byte-identical | the whole file |
+| Whole-file cap | a read over 24 KB | the whole file |
+| Subagent offload | nothing — routes the read to a scout | bytes the scout read, never in this thread |
+| Session ceiling | whole-file reads past 500 KB | the refused file |
+| Repeat query | a Grep or Glob already answered this session | counted, no tokens credited |
+| Runaway query cap | a content Grep with no `head_limit` | counted, no tokens credited |
+
+## How the numbers are produced
+
+Every block writes bytes to `.claude/.session-*.json`, the Stop hook folds that into `audit/*.jsonl`
+next to real `input`/`output`/`cache_read` counts read out of the session transcript, and
+`npm run benchmark` sums it.
+
+| Figure | Source |
+|---|---|
+| Kept out of context, admitted, share | file bytes / 4 — an estimate, never billing |
+| Fresh and cache-read tokens | measured, from the transcript `usage` blocks |
+| Cache-read avoided | kept tokens × the measured re-send ratio — an extrapolation |
+
+## Read it yourself
+
+```bash
+npm run benchmark
+```
+
+## The guard
+
+Sends, payments, publishes, merges, deletes and credential writes exit 2 before they run, and a
+done-claim with no verification run behind it is refused.
+
+<!-- guard-scores -->
+| Guard | Caught | Wrongly blocked | F1 |
+|---|---|---|---|
+| no guard, permission prompts only | 0% | 0% | 0.00 |
+| Claude Code permissions.deny globs | 23% | 7% | 0.36 |
+| a pattern-list PreToolUse hook | 46% | 15% | 0.58 |
+| block every tool call | 100% | 100% | 0.72 |
+| **handoff-os** | 100% | 0% | 1.00 |
+
+66 cases, 2026-09-08; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code. [Method](docs/BENCHMARK.md).
+<!-- /guard-scores -->
+
+Shell wrappers are unwrapped first, so `powershell -Command`, `cmd /c`, `bash -c` and
+`-EncodedCommand` get no free pass; four evasions still do, and they are listed in
+[SECURITY.md](SECURITY.md).
+
+## What ships
+
+<!-- inventory -->
+| What ships | Count |
+|---|---|
+| Guard logic | **925** lines of Node across 6 scripts (816 non-blank) |
+| Pattern rules | **47** |
+| Hooks | **6** handlers on 6 events |
+| Skills | **3** |
+| Subagents | **2** |
+| Runtime dependencies | **0** |
+| Network calls, API keys, model calls | **0** |
+<!-- /inventory -->
 
 ## Install
 
@@ -38,35 +111,35 @@ Guard actions: 67 — 19 re-reads dropped, 6 large files deferred, 23 denies, 19
 /plugin install handoff-os@serio-ngo
 ```
 
-Restart Claude Code. The hooks load on the next session.
+Restart Claude Code, because hooks load at session start and a running session keeps the version it
+started with.
 
 ## Configuration
 
-Optional environment variables, set in `~/.claude/settings.json` under `env` or in the shell:
-
 | Variable | Effect |
 |---|---|
-| `HANDOFF_STATS=1` | Print the summary line after every reply. |
+| `HANDOFF_STATS=1` | Print the saved-tokens line after every reply. |
 | `HANDOFF_LOCK_GIT=1` | Block all state-changing git commands, including commits. |
-| `HANDOFF_MCP_ALLOW=action,action` | Allow named connector actions that the egress lock would block. |
-| `HANDOFF_DENY_SUBAGENT_MODELS=model,model` | Deny these model tiers for subagents. Default: `opus,fable`. |
-| `HANDOFF_OS_DIR=/path` | Store session state and audit files outside the project directory. |
+| `HANDOFF_MCP_ALLOW=action,action` | Allow named connector actions the egress lock would block. |
+| `HANDOFF_DENY_SUBAGENT_MODELS=model,model` | Deny these model tiers for subagents. Default `opus,fable`. |
+| `HANDOFF_OS_DIR=/path` | Store session state and audit files outside the project. |
 
-The plugin also ships three skills (`task-loop`, `research-budget`, `plan-session`) and one read-only
-subagent (`scout`). User facts are stored in `config/memory.md`, which is gitignored.
-
-Local setup, policy sync and release tooling live in the checkout: see
-[CONTRIBUTING.md](CONTRIBUTING.md#commands). Permission rules cannot ship inside a plugin, so
-`settings/policy.json` holds one `deny` list. Security rules go in `deny`, never `allow`, because
-`allow` does not apply before the workspace trust dialog.
+Node 22 or later, and `settings/policy.json` holds the `deny` list because permission rules cannot
+ship inside a plugin.
 
 ## Limits
 
-This is a policy gate on tool calls, not a sandbox. Shell matching is pattern-based and can be
-evaded. Use it alongside operating system permissions and Claude Code `permissions.deny` rules, not
-instead of them. Scope and known gaps: [SECURITY.md](SECURITY.md).
+| Limit | Rule |
+|---|---|
+| Token counts | Bytes / 4 is an estimate; only the billing figures are measured. |
+| Counterfactual | The ledger records what was refused, not a paired session proving the bill fell. |
+| Surface | Only where Claude Code runs plugin hooks. |
+| Matching | Pattern-based shell matching can be evaded; run it alongside OS permissions. |
+| Reproduction | Self-measured on one machine, and nobody has independently reproduced it. |
 
 ## License
 
-[Apache-2.0](LICENSE). Maintained by Serio NGO, Poland. Contributions:
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[Apache-2.0](LICENSE), maintained by serio-ngo.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) ·
+[docs/BENCHMARK.md](docs/BENCHMARK.md) · [docs/MANIFEST.md](docs/MANIFEST.md)

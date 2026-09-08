@@ -6,7 +6,6 @@ Changes must apply to every repository the plugin runs in. Codebase-specific rul
 codebase's own `CLAUDE.md`, not here. Check Claude Code built-ins and public plugins before adding
 anything; promote a pattern to a skill only on its second occurrence.
 
-
 ## Code
 
 - No runtime dependencies. Node standard library only.
@@ -15,7 +14,7 @@ anything; promote a pattern to a skill only on its second occurrence.
 
 ## Tests
 
-The suite is one file, `test/guard.test.mjs`, on Node's built-in runner (`npm test`). 
+The suite is one file, `test/guard.test.mjs`, on Node's built-in runner (`npm test`).
 
 ## Releases
 
@@ -27,7 +26,6 @@ This runs the suite, bumps the version, regenerates the manifest and updates the
 
 Do not commit organisation data, secrets or identifiers. Personalise with `npm run setup`.
 Security reports go through [SECURITY.md](SECURITY.md).
-
 
 Merge and delete stay denied in both git modes. The `--without` token matches `Bash`, `Read`
 and `Edit` rules only. No connector rule ships, so a connector token matches nothing.

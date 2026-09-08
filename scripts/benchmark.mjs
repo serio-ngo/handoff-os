@@ -225,7 +225,7 @@ for (const file of ledgers) {
       const old = /~(\d+) tok deduped, (\d+) tok deferred, (\d+) tok read/.exec(result);
       if (old) { t.deduped += +old[1]; t.deferred += +old[2]; t.read += +old[3]; }
       const older = /~(\d+) tokens saved, (\d+) cache-read/.exec(result);
-      if (older) { t.deferred += +older[1]; t.cacheRead += +older[2]; }
+      if (older) { t.deduped += +older[1]; t.cacheRead += +older[2]; }
     }
   }
 }
@@ -266,7 +266,7 @@ console.log(`\nhandoff-os — context kept out of the main thread, ${window}`);
 console.log(`  source: audit/*.jsonl, ${t.turns} recorded turn(s)\n`);
 
 row('read volume the session asked for', `~${tokc(readVolume)}`, 'tok');
-row('kept out of context', `~${tokc(kept)}`, `tok   ${keptPct}% of read volume`);
+row('kept out', `~${tokc(kept)}`, `tok   ${keptPct}% of read volume`);
 row('  re-read dedup', `~${tokc(t.deduped)}`, 'tok   file was already in context, unchanged');
 row('  whole-file cap', `~${tokc(t.deferred)}`, 'tok   over 24KB, a slice or scout instead');
 row('  moved to a subagent', `~${tokc(t.offload)}`, 'tok   read under a scout, never in this thread');
@@ -298,7 +298,7 @@ const statsBlock = () => {
     `| Measured over ${num(t.turns)} turns | Tokens | Share |`,
     '|---|---|---|',
     `| Read volume the session asked for | ~${tokc(readVolume)} | 100% |`,
-    `| **Kept out of context** | **~${tokc(kept)}** | **${keptPct}%** |`,
+    `| **Kept out** | **~${tokc(kept)}** | **${keptPct}%** |`,
     `| — re-read dedup | ~${tokc(t.deduped)} | ${share(t.deduped, readVolume)}% |`,
     `| — whole-file cap | ~${tokc(t.deferred)} | ${share(t.deferred, readVolume)}% |`,
     `| — moved to a subagent | ~${tokc(t.offload)} | ${share(t.offload, readVolume)}% |`,

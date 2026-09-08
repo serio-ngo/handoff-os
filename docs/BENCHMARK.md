@@ -6,8 +6,8 @@ whether the guard blocks what it claims to. Track B is the paired-session counte
 
 ## Context savings — what `npm run benchmark` prints
 
-`read volume` is every byte the session asked to put in the main thread. `kept out of context` is
-the part the guard refused, and the headline share is `kept / read volume`.
+`read volume` is every byte the session asked to put in the main thread. `kept out` is
+the part the guard refused before it entered the thread, and the headline share is `kept / read volume`.
 
 | Line | Counter | Credited |
 |---|---|---|

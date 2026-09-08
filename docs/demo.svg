@@ -1,50 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 531" width="880" height="531" role="img" aria-label="handoff-os blocking a git merge, an outward email and an unproven done-claim, then printing a handoff card">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 600" width="880" height="600" role="img" aria-label="handoff-os refusing a large read, a fourth subagent and an outward email, then printing a handoff card">
   <style>
-    text{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;font-size:13.5px;white-space:pre}
-    @keyframes r0{0%,2.50%{opacity:0}3.90%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r1{0%,7.75%{opacity:0}9.15%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r2{0%,13.00%{opacity:0}14.40%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r3{0%,18.25%{opacity:0}19.65%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r4{0%,23.50%{opacity:0}24.90%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r5{0%,28.75%{opacity:0}30.15%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r6{0%,34.00%{opacity:0}35.40%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r7{0%,39.25%{opacity:0}40.65%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r8{0%,44.50%{opacity:0}45.90%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r9{0%,49.75%{opacity:0}51.15%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r10{0%,55.00%{opacity:0}56.40%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r11{0%,60.25%{opacity:0}61.65%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r12{0%,65.50%{opacity:0}66.90%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r13{0%,70.75%{opacity:0}72.15%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r14{0%,76.00%{opacity:0}77.40%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r15{0%,81.25%{opacity:0}82.65%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r16{0%,86.50%{opacity:0}87.90%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r17{0%,91.75%{opacity:0}93.15%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r18{0%,97.00%{opacity:0}98.40%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r19{0%,102.25%{opacity:0}103.65%,93%{opacity:1}100%{opacity:0}}
-    @keyframes r20{0%,107.50%{opacity:0}108.90%,93%{opacity:1}100%{opacity:0}}
-    .r0{animation:r0 20s infinite}.r1{animation:r1 20s infinite}.r2{animation:r2 20s infinite}.r3{animation:r3 20s infinite}.r4{animation:r4 20s infinite}.r5{animation:r5 20s infinite}.r6{animation:r6 20s infinite}.r7{animation:r7 20s infinite}.r8{animation:r8 20s infinite}.r9{animation:r9 20s infinite}.r10{animation:r10 20s infinite}.r11{animation:r11 20s infinite}.r12{animation:r12 20s infinite}.r13{animation:r13 20s infinite}.r14{animation:r14 20s infinite}.r15{animation:r15 20s infinite}.r16{animation:r16 20s infinite}.r17{animation:r17 20s infinite}.r18{animation:r18 20s infinite}.r19{animation:r19 20s infinite}.r20{animation:r20 20s infinite}
+    text{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;font-size:15px;white-space:pre}
+    @keyframes r0{0%,2.00%{opacity:0}3.20%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r1{0%,8.30%{opacity:0}9.50%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r2{0%,14.60%{opacity:0}15.80%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r3{0%,20.90%{opacity:0}22.10%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r4{0%,27.20%{opacity:0}28.40%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r5{0%,33.50%{opacity:0}34.70%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r6{0%,39.80%{opacity:0}41.00%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r7{0%,46.10%{opacity:0}47.30%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r8{0%,52.40%{opacity:0}53.60%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r9{0%,58.70%{opacity:0}59.90%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r10{0%,65.00%{opacity:0}66.20%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r11{0%,71.30%{opacity:0}72.50%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r12{0%,77.60%{opacity:0}78.80%,93%{opacity:1}100%{opacity:0}}
+    @keyframes r13{0%,83.90%{opacity:0}85.10%,93%{opacity:1}100%{opacity:0}}
+    .r0{animation:r0 36s infinite}.r1{animation:r1 36s infinite}.r2{animation:r2 36s infinite}.r3{animation:r3 36s infinite}.r4{animation:r4 36s infinite}.r5{animation:r5 36s infinite}.r6{animation:r6 36s infinite}.r7{animation:r7 36s infinite}.r8{animation:r8 36s infinite}.r9{animation:r9 36s infinite}.r10{animation:r10 36s infinite}.r11{animation:r11 36s infinite}.r12{animation:r12 36s infinite}.r13{animation:r13 36s infinite}
   </style>
-  <rect x="0" y="0" width="880" height="531" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <rect x="0" y="0" width="880" height="600" rx="10" fill="#0d1117" stroke="#30363d"/>
   <path d="M0 34 H880 M0 10 a10 10 0 0 1 10 -10 h860 a10 10 0 0 1 10 10 v24 H0 Z" fill="#161b22" stroke="#30363d"/>
   <circle cx="20" cy="17" r="5" fill="#ff5f57"/><circle cx="38" cy="17" r="5" fill="#febc2e"/><circle cx="56" cy="17" r="5" fill="#28c840"/>
-  <text x="440" y="22" fill="#7d8590" text-anchor="middle" font-size="12">handoff-os — session</text>
-  <text class="r0" x="22" y="70" fill="#7d8590" font-weight="400">$ claude</text>
-  <text class="r1" x="22" y="91" fill="#d2a8ff" font-weight="600">&gt; audit the guard, then merge the branch and email the board the summary</text>
-  <text class="r3" x="22" y="133" fill="#79c0ff" font-weight="400">⏺  Read(plugins/handoff-os/scripts/guard.mjs)</text>
-  <text class="r4" x="22" y="154" fill="#ff7b72" font-weight="400">   ⨯ READ BUDGET   38KB, over the 24KB whole-file limit — slice it or send scout</text>
-  <text class="r5" x="22" y="175" fill="#79c0ff" font-weight="400">⏺  scout(haiku) reads it instead</text>
-  <text class="r6" x="22" y="196" fill="#3fb950" font-weight="400">   ✓ answered off the main thread — 9.5k tok never entered this context</text>
-  <text class="r7" x="22" y="217" fill="#79c0ff" font-weight="400">⏺  Grep(&quot;merge&quot;, content)</text>
-  <text class="r8" x="22" y="238" fill="#ff7b72" font-weight="400">   ⨯ READ BUDGET   this exact Grep already ran, nothing written since</text>
-  <text class="r9" x="22" y="259" fill="#79c0ff" font-weight="400">⏺  Agent ×4  scout · scout · scout · scout</text>
-  <text class="r10" x="22" y="280" fill="#ff7b72" font-weight="400">   ⨯ FAN-OUT CAP   subagent 4, wave capped at 3 — read the returns first</text>
-  <text class="r11" x="22" y="301" fill="#79c0ff" font-weight="400">⏺  Bash(git merge main)</text>
-  <text class="r12" x="22" y="322" fill="#ff7b72" font-weight="400">   ⨯ EGRESS LOCK   git merge is human-only</text>
-  <text class="r13" x="22" y="343" fill="#79c0ff" font-weight="400">⏺  gmail · send_message</text>
-  <text class="r14" x="22" y="364" fill="#ff7b72" font-weight="400">   ⨯ EGRESS LOCK   matched &quot;send&quot;: leaves the org</text>
-  <text class="r16" x="22" y="406" fill="#e3b341" font-weight="600">DONE  merge staged, board summary drafted</text>
-  <text class="r17" x="22" y="427" fill="#e3b341" font-weight="600">FILE  docs/board-summary.md</text>
-  <text class="r18" x="22" y="448" fill="#e3b341" font-weight="600">YOU   merge -&gt; main -&gt; today · send -&gt; board -&gt; Friday</text>
-  <text class="r20" x="22" y="490" fill="#3fb950" font-weight="400">this turn: ~9.5k tok kept out of context · 5 refusals · 0 model calls</text>
-  <text x="22" y="518" fill="#7d8590" font-size="11.5">a scripted demo · every message is the string the guard actually prints</text>
+  <text x="440" y="22" fill="#7d8590" text-anchor="middle" font-size="12.5">handoff-os — session</text>
+  <text class="r0" x="24" y="72" fill="#7d8590" font-weight="400">$ claude</text>
+  <text class="r1" x="24" y="106" fill="#d2a8ff" font-weight="600">&gt; audit the guard, then email the board</text>
+  <text class="r2" x="24" y="154" fill="#79c0ff" font-weight="400">⏺  Read guard.mjs</text>
+  <text class="r3" x="24" y="188" fill="#ff7b72" font-weight="600">⨯  READ BUDGET · 38KB over the 24KB limit</text>
+  <text class="r4" x="24" y="228" fill="#79c0ff" font-weight="400">⏺  Agent scout reads it instead</text>
+  <text class="r5" x="24" y="262" fill="#3fb950" font-weight="400">✓  scout answered · 9.5k never entered context</text>
+  <text class="r6" x="24" y="302" fill="#79c0ff" font-weight="400">⏺  Agent ×4 scouts</text>
+  <text class="r7" x="24" y="336" fill="#ff7b72" font-weight="600">⨯  FAN-OUT CAP · 4th scout blocked, 3 per wave</text>
+  <text class="r8" x="24" y="376" fill="#79c0ff" font-weight="400">⏺  gmail send_message</text>
+  <text class="r9" x="24" y="410" fill="#ff7b72" font-weight="600">⨯  EGRESS LOCK · send blocked, human-only</text>
+  <text class="r10" x="24" y="458" fill="#e3b341" font-weight="600">DONE  board summary drafted</text>
+  <text class="r11" x="24" y="490" fill="#e3b341" font-weight="600">FILE  docs/board-summary.md</text>
+  <text class="r12" x="24" y="522" fill="#e3b341" font-weight="600">YOU  send -&gt; board -&gt; Friday</text>
+  <text class="r13" x="24" y="568" fill="#3fb950" font-weight="600">HANDOFF OS · ~9.5k kept out · 67% · 3 guard actions</text>
 </svg>

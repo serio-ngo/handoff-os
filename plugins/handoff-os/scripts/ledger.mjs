@@ -62,7 +62,7 @@ export function dedupePct(t) {
 export function savings(state) {
   const s = state.saved;
   if (!COUNTERS.some((key) => s[key])) return null;
-  return { ...s, tokens: tok(s.bytes) };
+  return { ...s, tokens: tok(kept(s)) };
 }
 
 const num = (value) => Number(value || 0).toLocaleString('en-US');
@@ -85,8 +85,7 @@ export function bank(state) {
 export function lifetimeLine(state) {
   const life = lifetime(state);
   const parts = [];
-  if (kept(life)) parts.push(`~${compact(tok(kept(life)))} tok kept out of context, ${keptPct(life)}% of read volume`);
-  if (life.offload) parts.push(`~${compact(tok(life.offload))} tok read by subagents instead`);
+  if (kept(life)) parts.push(`~${compact(tok(kept(life)))} tok kept out, ${keptPct(life)}% of read volume`);
   if (actions(life)) parts.push(`${num(actions(life))} guard actions`);
   return parts.length ? `HANDOFF OS · ${parts.join(' · ')}` : '';
 }

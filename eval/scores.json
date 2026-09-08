@@ -45,6 +45,6 @@
   "keptTokens": 49731,
   "readVolumeTokens": 74162,
   "offloadTokens": 0,
-  "resendRatio": 34.9,
+  "resendRatio": 35,
   "ledgerTurns": 39
 }

@@ -7,7 +7,7 @@ re-read from cache more than 30 times**. handoff-os refuses those reads at the h
 enter the thread, and books what it refused. Every number below is generated from that ledger and
 this machine's session transcripts, not written by hand.
 
-[![kept out of context](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.keptPct&suffix=%25%20of%20read%20volume&label=kept%20out%20of%20context&color=brightgreen)](docs/BENCHMARK.md)
+[![kept out](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.keptPct&suffix=%25%20of%20read%20volume&label=kept%20out&color=brightgreen)](docs/BENCHMARK.md)
 [![re-send ratio](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.resendRatio&suffix=x&label=context%20re-send&color=blue)](docs/BENCHMARK.md)
 [![guard caught](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.recall&suffix=%25&label=guard%20caught&color=brightgreen)](docs/BENCHMARK.md)
 [![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic)](plugins/handoff-os/scripts)
@@ -16,7 +16,7 @@ this machine's session transcripts, not written by hand.
 [![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version)](plugins/handoff-os/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/github/license/serio-ngo/handoff-os)](LICENSE)
 
-![handoff-os refusing a 38KB read, a repeat grep, a fourth subagent, a merge and a send](docs/demo.svg)
+![handoff-os refusing a 38KB read, a fourth subagent and a send](docs/demo.svg)
 
 ## What it saved
 
@@ -24,17 +24,17 @@ this machine's session transcripts, not written by hand.
 | Measured over 39 turns | Tokens | Share |
 |---|---|---|
 | Read volume the session asked for | ~74.2k | 100% |
-| **Kept out of context** | **~49.7k** | **67%** |
-| — re-read dedup | ~0 | 0% |
-| — whole-file cap | ~49.7k | 67% |
+| **Kept out** | **~49.7k** | **67%** |
+| — re-read dedup | ~49.7k | 67% |
+| — whole-file cap | ~0 | 0% |
 | — moved to a subagent | ~0 | 0% |
 | Admitted to the main thread | ~24.4k | 33% |
 
 | Measured billing, 10 session transcripts | Tokens |
 |---|---|
-| Fresh — input + output + cache write | 13,195,835 |
-| Cache-read | 460,320,159 |
-| **Context re-send ratio** | **34.9×** |
+| Fresh — input + output + cache write | 13,219,852 |
+| Cache-read | 463,306,825 |
+| **Context re-send ratio** | **35.0×** |
 | Cache-read avoided, kept × ratio | ~1.7M |
 
 Guard actions: 77. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
@@ -95,7 +95,7 @@ Shell wrappers are unwrapped first, so `powershell -Command`, `cmd /c`, `bash -c
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **926** lines of Node across 6 scripts (817 non-blank) |
+| Guard logic | **925** lines of Node across 6 scripts (816 non-blank) |
 | Pattern rules | **47** |
 | Hooks | **6** handlers on 6 events |
 | Skills | **3** |

@@ -54,15 +54,9 @@ export const volume = (t) => kept(t) + Number(t.read || 0);
 
 export const keptPct = (t) => (volume(t) ? Math.round((kept(t) / volume(t)) * 100) : 0);
 
-export function dedupePct(t) {
-  const total = volume(t);
-  return total ? Math.round((Number(t.bytes || 0) / total) * 100) : 0;
-}
-
 export function savings(state) {
   const s = state.saved;
-  if (!COUNTERS.some((key) => s[key])) return null;
-  return { ...s, tokens: tok(kept(s)) };
+  return COUNTERS.some((key) => s[key]) ? { ...s } : null;
 }
 
 const num = (value) => Number(value || 0).toLocaleString('en-US');

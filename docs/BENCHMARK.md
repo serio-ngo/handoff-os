@@ -1,8 +1,13 @@
 # Benchmark
 
-Three things get measured here. Context savings, below, is what the plugin is for. Track A is
-whether the guard blocks what it claims to. Track B is the paired-session counterfactual, and it is
-**not run**.
+Four things get measured here.
+
+| Track | Question | Status |
+|---|---|---|
+| Ledger | what the guard refused in live sessions | runs on every Stop hook |
+| Replay | what the guard would refuse on recorded real traffic | `npm run benchmark:replay` |
+| Track A | does the guard block what it claims to | `npm run benchmark:eval`, gated in CI |
+| Track B | does the bill actually fall | **not run** |
 
 ## Context savings — what `npm run benchmark` prints
 
@@ -17,26 +22,56 @@ the part the guard refused before it entered the thread, and the headline share 
 | admitted | `read` | bytes the guard let into the main thread |
 | repeat query, runaway cap | `queries`, `caps` | counted only; the output size is unknown at `PreToolUse` |
 
-Two things that keep the share honest. `queries` and `caps` are deliberately *not* credited any
-tokens, because the guard cannot know how large a Grep result would have been — an earlier version
-folded them into `rereads` and `slices`, which is why action counts looked busy while the token
-totals sat at zero. And after a whole-file cap the agent reads a slice or dispatches scout instead;
-that follow-up read is counted as `admitted` or `offload`, so it lands in the denominator.
+Three rules keep the share honest.
+
+| Rule | Why |
+|---|---|
+| `queries` and `caps` earn no tokens | the guard cannot know how large a `Grep` result would have been |
+| a retried refusal is credited once | the ledger stamps `actor + path + mtime:size + rule` on the first refusal and skips the byte credit on any repeat, so a stuck retry loop cannot inflate the total |
+| the follow-up read lands in the denominator | after a whole-file cap the agent reads a slice or dispatches scout, and that read is counted as `admitted` or `offload` |
+
+Only the current ledger format is parsed. Lines written by a format that no longer exists are
+skipped, not guessed at.
 
 Byte counts are file bytes / 4. That is an estimate of tokens and is never a billing figure.
+
+The denominator is honest about its own edge: `read` counts unsliced main-thread `Read` calls and
+the whole-file reads the guard spots inside shell commands. Slices, Grep output, Bash output and a
+subagent's return text are context too, and none of them are in it. Read `kept out` as a share of
+whole-file read volume, not of everything that reaches the window.
 
 ## Billing — measured, not estimated
 
 The Stop hook reads `transcript_path` and sums the `usage` blocks: `input_tokens`, `output_tokens`,
 `cache_creation_input_tokens` as **fresh**, and `cache_read_input_tokens` as **cache-read**. These
-are Claude Code's own counts, not an estimate. When the ledger has no billing recorded — lines
-written by an older version — the benchmark falls back to every transcript for the project under
-`~/.claude/projects/<slug>/`.
+are Claude Code's own counts, not an estimate. When no ledger line carries billing, the benchmark
+falls back to every transcript for the project under `~/.claude/projects/<slug>/`.
 
-`context re-send ratio` is `cache-read / fresh`: how many times an average fresh token was re-read
-from cache. `cache-read avoided` multiplies the kept tokens by that ratio. That last figure is an
-extrapolation, not a measurement — it assumes a refused read would have been admitted at a typical
-point in the session. The honest counterfactual is Track B below, which is still not run.
+`context re-send ratio` is `cache-read / fresh`: how many times an average fresh token was read back
+from cache. It measures the mechanism the plugin exploits, not the plugin.
+
+`re-sends removed` is the one figure that joins the two halves. Every ledger line carries the turn it
+was written on, so a refusal at turn 5 of a session that reached turn 40 is credited
+`kept bytes × 35`. Turn counts restart per session, and a drop in the count is what closes one
+session and opens the next. Summed over every stamped line, this is measured arithmetic on measured
+inputs. It is still not a bill: those re-sends would have been cache-read tokens, priced well below
+input.
+
+## Replay — the guard against recorded traffic
+
+`npm run benchmark:replay` reads this project's Claude Code transcripts under
+`~/.claude/projects/<slug>/` and re-feeds every `Read`, `Grep`, `Glob` and `Bash` call to the guard
+in recorded order, one sandbox ledger per session.
+
+| Property | Value |
+|---|---|
+| Input | real tool calls from real sessions, not fixtures |
+| Isolation | one temp `HANDOFF_OS_DIR` per session, so dedup state matches that session |
+| Loop | open — a refusal cannot change what the agent did next |
+| Reads it misses | anything issued through a shell pipeline or `$(...)`, which the read budget cannot size |
+| Bias | sessions already guarded produce fewer hits, so the count is a floor |
+
+It answers "what does this guard catch on this stream". It does not answer Track B.
 
 ## Track A
 

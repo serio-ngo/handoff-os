@@ -85,7 +85,8 @@ function report(payload) {
       + `${total.slices} slices, ${total.queries} queries, ${total.caps} caps`,
     result: `kept ${tok(kept(total))} tok of ${tok(volume(total))} (${keptPct(total)}%), `
       + `dedup ${tok(total.bytes)} tok, defer ${tok(total.deferred)} tok, offload ${tok(total.offload)} tok, `
-      + `admitted ${tok(total.read)} tok, fresh ${real.fresh} tok, cache-read ${real.cacheRead} tok`,
+      + `admitted ${tok(total.read)} tok, fresh ${real.fresh} tok, cache-read ${real.cacheRead} tok, `
+      + `turn ${real.turns}`,
   });
   bank(state);
   for (const key of COUNTERS) state.saved[key] = 0;

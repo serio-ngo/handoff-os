@@ -117,6 +117,8 @@ it('blocks commands a plain argv matcher would miss', () => {
   for (const command of [
     `command ${VCS} merge main`,
     `eval "${VCS} merge main"`,
+    `cmd /c "${VCS} merge main"`,
+    `powershell -Command "${VCS} merge main"`,
     'rm -rf docs',
     'rm -rf node_modules src',
     'rm -rf /',
@@ -161,6 +163,30 @@ describe('read and query budgets', () => {
   it('blocks the identical Grep a second time', () => {
     at('bq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } });
     assert.equal(at('bq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } }), BLOCKED);
+  });
+  it('forgets answered queries after a shell write', () => {
+    at('wq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } });
+    sh('wq', 'echo hi >> probe2.txt');
+    assert.equal(at('wq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ALLOWED);
+  });
+  it('scopes dedup to the acting agent', () => {
+    const file = path.join(box, 'shared.txt');
+    writeFileSync(file, 'shared');
+    at('sx', { agent_type: 'scout', tool_name: 'Read', tool_input: { file_path: file } });
+    assert.equal(at('sx', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED);
+    at('sx', { agent_type: 'scout', tool_name: 'Grep', tool_input: { pattern: 'scoped' } });
+    assert.equal(at('sx', { tool_name: 'Grep', tool_input: { pattern: 'scoped' } }), ALLOWED);
+  });
+  it('books a ceiling block as deferred, not deduped', () => {
+    const file = path.join(box, 'ceil-small.txt');
+    writeFileSync(file, 'y'.repeat(1024));
+    mkdirSync(path.join(box, '.claude'), { recursive: true });
+    writeFileSync(path.join(box, '.claude', '.session-cl.json'),
+      JSON.stringify({ reads: {}, read_bytes: 600000, saved: {} }), 'utf8');
+    assert.equal(at('cl', { tool_name: 'Read', tool_input: { file_path: file } }), BLOCKED);
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-cl.json'), 'utf8'));
+    assert.equal(state.saved.deferred, 1024);
+    assert.equal(state.saved.bytes, 0);
   });
 });
 
@@ -214,6 +240,17 @@ describe('hooks', () => {
     assert.equal(fire(script('audit.mjs'), '{not json', env), ALLOWED);
     assert.equal(fire(script('audit.mjs'), {}, env), ALLOWED);
     assert.ok(!existsSync(path.join(root, 'audit')));
+  });
+
+  it('tiers shell calls yellow and inside file reads green', () => {
+    const root = sandbox('audit-');
+    const env = { ...process.env, HANDOFF_OS_DIR: root };
+    const month = new Date().toISOString().slice(0, 7);
+    assert.equal(fire(script('audit.mjs'), { tool_name: 'Bash', tool_input: { command: 'ls' } }, env), ALLOWED);
+    assert.equal(fire(script('audit.mjs'), { tool_name: 'Read', tool_input: { file_path: path.join(root, 'notes.md') } }, env), ALLOWED);
+    const lines = readFileSync(path.join(root, 'audit', `${month}.jsonl`), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    assert.equal(lines[0].tier, 'YELLOW');
+    assert.equal(lines[1].tier, 'GREEN');
   });
 
   it('releases the read ceiling on compact and clear, keeps it on startup and resume', () => {

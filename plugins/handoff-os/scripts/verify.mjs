@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { COUNTERS, bank, lifetimeLine, load, rootOf, save, savings, sessionOf } from './ledger.mjs';
+import { COUNTERS, bank, lifetimeLine, load, rootOf, save, savings, sessionOf, tok } from './ledger.mjs';
 
 const DONE_CLAIM = /\b(?:done|complete|completed|finished|works now|fixed|ready|shipped)\b/i;
 const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*YOU\b.*$/gm;
@@ -50,36 +50,19 @@ function citationGate(message) {
   process.exit(2);
 }
 
-export function cacheTokens(file, from) {
-  if (!file || !existsSync(file)) return { sum: 0, cursor: from };
-  let lines;
-  try { lines = readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean); } catch { return { sum: 0, cursor: from }; }
-  let sum = 0;
-  for (let i = from; i < lines.length; i += 1) {
-    let entry;
-    try { entry = JSON.parse(lines[i]); } catch { continue; }
-    const usage = entry.message && entry.message.usage;
-    if (usage) sum += Number(usage.cache_read_input_tokens || 0);
-  }
-  return { sum, cursor: lines.length };
-}
-
 function report(payload) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
-  const { sum, cursor } = cacheTokens(payload.transcript_path, state.cursor || 0);
-  state.saved.cache += sum;
-  state.cursor = cursor;
   const total = savings(state);
-  const line = total ? lifetimeLine(state) : '';
-  if (!line) { save(root, session, state); return null; }
+  const line = total ? lifetimeLine(state) : null;
+  if (!line) return null;
   append(root, {
     actor: 'main',
     tier: 'GREEN',
     action: 'read-budget',
     target: `${total.agents} agents, ${total.blocked} blocked, ${total.rereads} re-reads, ${total.slices} slices`,
-    result: `~${total.tokens} tokens saved, ${total.cache} cache-read`,
+    result: `~${total.tokens} tok deduped, ${tok(total.deferred)} tok deferred, ${tok(total.read)} tok read`,
   });
   bank(state);
   for (const key of COUNTERS) state.saved[key] = 0;

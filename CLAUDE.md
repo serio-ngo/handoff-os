@@ -7,7 +7,7 @@ scripts only, never organisation data.
 
 | Path | Contents |
 |---|---|
-| `plugins/handoff-os/` | The plugin: 3 skills, 1 agent, 6 hooks, 6 scripts. |
+| `plugins/handoff-os/` | The plugin: 3 skills, 2 agents, 6 hooks, 6 scripts. |
 | `scripts/` | CLI (`handoff.mjs`), generators (`generate.mjs`), benchmark report. |
 | `settings/policy.json` | Permission rules, one `deny` list. Rules cannot ship inside a plugin. |
 | `test/` | One file, `guard.test.mjs`. Node built-in runner. |
@@ -20,24 +20,21 @@ scripts only, never organisation data.
 npm test                                # run the test suite
 claude --plugin-dir plugins/handoff-os  # run this checkout as the plugin for one session
 ```
-
-Every other command is in [README.md](README.md#commands).
-
+ 
 A session loads the plugin once, at start. Edits to this checkout reach a running session only after
 it is restarted.
 
 `npm run upkeep` runs at the end of every turn and regenerates `docs/MANIFEST.md`, the version and
 the content stamp. Do not edit those by hand.
 
+
 ## Rules
 
 1. Each fact has one home. Do not duplicate facts between files.
-2. Never send, publish, pay or submit. Never run `git merge` or any git delete command. The human
-   does these.
+2. Never send, publish, pay or submit.
 3. Do not commit organisation data, secrets or identifiers. User memory lives in `config/memory.md`,
    which is gitignored.
-4. Use the cheapest sufficient actor: script, then haiku, sonnet, opus. Deterministic work is done by
-   scripts, not models.
+4. Use the cheapest sufficient actor: script, then haiku, sonnet, opus.
 5. Write in tables and short imperative sentences. Partial completion is acceptable; silent failure
    is not.
 6. No explanatory comments in code. No runtime dependencies.

@@ -18,7 +18,7 @@ export const SPAWN_TOOLS = ['Agent', 'Task', 'TaskCreate', 'Workflow'];
 export const MODEL_BEARING = ['Agent', 'Task'];
 export const SPAWN_TEXT = ['prompt', 'description', 'subagent_type', 'subject', 'script', 'name', 'title'];
 export const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
-export const SHELL_INNER = /(?:^|\s)-(?:-command|[a-z]*c)\s+(['"])([\s\S]*)\1\s*$/i;
+export const SHELL_INNER = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+(['"])([\s\S]*)\1\s*$/i;
 export const SHELL_PREFIX = /^(?:eval|command|exec|builtin|nohup|time|nice|stdbuf|xargs)\b(?:\s+-\S+)*\s+/i;
 export const SHELL_QUOTED = /^(['"])([\s\S]*)\1$/;
 

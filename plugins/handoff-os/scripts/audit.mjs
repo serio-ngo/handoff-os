@@ -12,7 +12,7 @@ function entry(payload, root) {
   const target = String(input.file_path || input.path
     || (typeof input.command === 'string' ? input.command.slice(0, 120) : '') || '');
 
-  const external = tool.startsWith('mcp__');
+  const external = tool.startsWith('mcp__') || tool === 'Bash' || tool === 'PowerShell';
   let inside = false;
   if (target && !external) {
     try {

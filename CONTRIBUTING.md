@@ -6,10 +6,6 @@ Changes must apply to every repository the plugin runs in. Codebase-specific rul
 codebase's own `CLAUDE.md`, not here. Check Claude Code built-ins and public plugins before adding
 anything; promote a pattern to a skill only on its second occurrence.
 
-## Budgets
-
-At most 3 skills, 1 subagent, and 800 characters per skill description. `npm run upkeep` prints the
-current figures into `docs/MANIFEST.md`.
 
 ## Code
 
@@ -19,9 +15,7 @@ current figures into `docs/MANIFEST.md`.
 
 ## Tests
 
-The suite is one file, `test/guard.test.mjs`, on Node's built-in runner (`npm test`). Do not add
-another test file or a helper module. It asserts blocking and failure cases only. A change to a
-guard rule adds one case to an existing list and must prove the rule blocks.
+The suite is one file, `test/guard.test.mjs`, on Node's built-in runner (`npm test`). 
 
 ## Releases
 
@@ -33,3 +27,7 @@ This runs the suite, bumps the version, regenerates the manifest and updates the
 
 Do not commit organisation data, secrets or identifiers. Personalise with `npm run setup`.
 Security reports go through [SECURITY.md](SECURITY.md).
+
+
+Merge and delete stay denied in both git modes. The `--without` token matches `Bash`, `Read`
+and `Edit` rules only. No connector rule ships, so a connector token matches nothing.

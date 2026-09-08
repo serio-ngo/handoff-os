@@ -385,7 +385,7 @@ function release(args) {
     'utf8');
   row('released', `${plugin.version} stamped ${pkg.contentHash}`);
   report();
-  spawnSync(process.execPath, [path.join(REPO, 'scripts', 'benchmark.mjs'), REPO], { stdio: 'inherit' });
+  spawnSync(process.execPath, [path.join(REPO, 'scripts', 'benchmark.mjs'), REPO, '--write'], { stdio: 'inherit' });
 }
 
 function setup(args) {

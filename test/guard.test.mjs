@@ -184,6 +184,22 @@ describe('read and query budgets', () => {
     at('sx', { agent_type: 'scout', tool_name: 'Grep', tool_input: { pattern: 'scoped' } });
     assert.equal(at('sx', { tool_name: 'Grep', tool_input: { pattern: 'scoped' } }), ALLOWED);
   });
+  it('books a subagent read as offloaded, not admitted to the main thread', () => {
+    const file = path.join(box, 'offload.txt');
+    writeFileSync(file, 'z'.repeat(2048));
+    at('of', { agent_type: 'handoff-os:scout', tool_name: 'Read', tool_input: { file_path: file } });
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-of.json'), 'utf8'));
+    assert.equal(state.saved.offload, 2048);
+    assert.equal(state.saved.read, 0);
+  });
+  it('books a repeat query apart from a file re-read, so byte totals stay honest', () => {
+    at('rq', { tool_name: 'Grep', tool_input: { pattern: 'apart' } });
+    assert.equal(at('rq', { tool_name: 'Grep', tool_input: { pattern: 'apart' } }), BLOCKED);
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-rq.json'), 'utf8'));
+    assert.equal(state.saved.queries, 1);
+    assert.equal(state.saved.rereads, 0);
+    assert.equal(state.saved.bytes, 0);
+  });
   it('books a ceiling block as deferred, not deduped', () => {
     const file = path.join(box, 'ceil-small.txt');
     writeFileSync(file, 'y'.repeat(1024));

@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { card } from '../plugins/handoff-os/scripts/card.mjs';
 
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const PLUGIN = path.join(REPO, 'plugins', 'handoff-os');
@@ -57,6 +58,87 @@ const table = (header, rows) => [
   `|${header.map(() => '---').join('|')}|`,
   ...rows,
 ].join('\n');
+
+export function writeBlock(file, open, close, lines) {
+  let text;
+  try { text = readFileSync(file, 'utf8'); } catch { return `no file at ${file}`; }
+  const all = text.split('\n');
+  const a = all.indexOf(open);
+  const z = all.indexOf(close);
+  if (a < 0 || z < a) return `no markers in ${file}`;
+  writeFileSync(file, `${[...all.slice(0, a + 1), ...lines, ...all.slice(z)].join('\n').replace(/\n+$/, '')}\n`, 'utf8');
+  return `refreshed ${path.basename(file)}`;
+}
+
+const frontmatter = (text, key) => {
+  const hit = new RegExp(`^${key}:\\s*([\\s\\S]*?)(?=^[a-z_]+:|^---)`, 'm').exec(text);
+  return (hit ? hit[1] : '').trim().replace(/^["']|["']$/g, '');
+};
+
+export function inventory(root = REPO) {
+  const plugin = path.join(root, 'plugins', 'handoff-os');
+  const scripts = readdirSync(path.join(plugin, 'scripts')).filter((f) => f.endsWith('.mjs'));
+  let lines = 0;
+  let code = 0;
+  for (const file of scripts) {
+    const text = readFileSync(path.join(plugin, 'scripts', file), 'utf8').split(/\r?\n/);
+    lines += text.length;
+    code += text.filter((line) => line.trim() && !line.trim().startsWith('//')).length;
+  }
+
+  const skills = readdirSync(path.join(plugin, 'skills'));
+  const skillChars = skills.reduce((sum, name) => sum
+    + frontmatter(readFileSync(path.join(plugin, 'skills', name, 'SKILL.md'), 'utf8'), 'description').length, 0);
+
+  const agents = readdirSync(path.join(plugin, 'agents')).filter((f) => f.endsWith('.md'));
+  const agentChars = agents.reduce((sum, name) => sum
+    + frontmatter(readFileSync(path.join(plugin, 'agents', name), 'utf8'), 'description').length, 0);
+
+  const events = Object.entries(JSON.parse(readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')).hooks);
+  const handlers = events.reduce((sum, [, group]) => sum
+    + group.reduce((n, entry) => n + entry.hooks.length, 0), 0);
+
+  const patterns = (readFileSync(path.join(plugin, 'scripts', 'patterns.mjs'), 'utf8').match(/^export const/gm) || []).length;
+  const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+  // The card grows when git is locked, so measure the shipped default or the count is env-dependent
+  // and `upkeep` stops being idempotent.
+  const lock = process.env.HANDOFF_LOCK_GIT;
+  delete process.env.HANDOFF_LOCK_GIT;
+  const cardChars = card('').length;
+  if (lock !== undefined) process.env.HANDOFF_LOCK_GIT = lock;
+  const contextChars = cardChars + skillChars + agentChars;
+
+  return {
+    skills: skills.length,
+    agents: agents.length,
+    hookEvents: events.length,
+    hookHandlers: handlers,
+    scripts: scripts.length,
+    logicLines: lines,
+    codeLines: code,
+    patterns,
+    dependencies: Object.keys(pkg.dependencies || {}).length,
+    cardChars,
+    skillChars,
+    agentChars,
+    contextChars,
+    contextTokens: Math.round(contextChars / 4),
+  };
+}
+
+export function inventoryBlock(inv = inventory()) {
+  return [
+    table(['What ships', 'Count'], [
+      `| Guard logic | **${inv.logicLines}** lines of Node across ${inv.scripts} scripts (${inv.codeLines} non-blank) |`,
+      `| Pattern rules | **${inv.patterns}** |`,
+      `| Hooks | **${inv.hookHandlers}** handlers on ${inv.hookEvents} events |`,
+      `| Skills | **${inv.skills}** |`,
+      `| Subagents | **${inv.agents}** |`,
+      `| Runtime dependencies | **${inv.dependencies}** |`,
+      `| Network calls, API keys, model calls | **0** |`,
+    ]),
+  ].join('\n').split('\n');
+}
 
 function skillRows() {
   const dir = path.join(PLUGIN, 'skills');

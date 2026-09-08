@@ -164,7 +164,9 @@ function readBudget(payload, input) {
   if (!sliced) {
     state.reads[key] = fingerprint;
     state.read_bytes = (state.read_bytes || 0) + stats.size;
-    state.saved.read += stats.size;
+    // A subagent's read never lands in the main thread, so it is context kept out, not admitted.
+    if (actorOf(payload) === 'main') state.saved.read += stats.size;
+    else state.saved.offload += stats.size;
   }
   save(root, session, state);
 }
@@ -187,13 +189,13 @@ function queryBudget(payload, input, tool) {
   const state = load(root, session);
   const key = `${actorOf(payload)}|q:${tool}:${JSON.stringify(input)}`;
   if (state.reads[key]) {
-    state.saved.rereads += 1;
+    state.saved.queries += 1;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: this exact ${tool} already ran and nothing has been written since. Change the query, or read the file you are checking.\n`);
     process.exit(2);
   }
   if (tool === 'Grep' && input.output_mode === 'content' && input.head_limit === undefined) {
-    state.saved.slices += 1;
+    state.saved.caps += 1;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: set head_limit on a content-mode Grep so the match list cannot run away (30 is plenty).\n`);
     process.exit(2);

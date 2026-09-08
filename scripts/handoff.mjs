@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdir
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
-import { PLUGIN, REPO, manifest, policyFor, readJson, stamp, walk } from './generate.mjs';
+import { PLUGIN, REPO, inventoryBlock, manifest, policyFor, readJson, stamp, walk, writeBlock } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
 const BANNED = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN'];
@@ -280,6 +280,7 @@ function upkeep() {
     bumped = `${plugin.version} (content changed)`;
   }
   writeFileSync(path.join(REPO, 'docs', 'MANIFEST.md'), manifest(), 'utf8');
+  writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock());
   row('formatted', `${touched} file(s)`);
   row('version', bumped);
 }
@@ -383,9 +384,12 @@ function release(args) {
   writeFileSync(changelog,
     `# Changelog\n\n## ${plugin.version} — ${args.date || new Date().toISOString().slice(0, 10)}\n\n- ${note}\n\n${previous.replace(/^\n+/, '')}`,
     'utf8');
+  writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock());
   row('released', `${plugin.version} stamped ${pkg.contentHash}`);
   report();
-  spawnSync(process.execPath, [path.join(REPO, 'scripts', 'benchmark.mjs'), REPO, '--write'], { stdio: 'inherit' });
+  const bench = (...args) => spawnSync(process.execPath, [path.join(REPO, 'scripts', 'benchmark.mjs'), REPO, ...args], { stdio: 'inherit' });
+  bench('--eval', '--compare', '--write');
+  bench('--write');
 }
 
 function setup(args) {

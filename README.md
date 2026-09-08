@@ -1,7 +1,8 @@
 # handoff-os
 
-A Claude Code plugin that blocks tool calls. Hooks run before and after each call and can stop it.
-No model calls, no API keys, no telemetry, no runtime dependencies. Requires Node.js 22 or later.
+Stops the agent before it costs you: nothing sent, paid, submitted or published without you,
+no opus reviews or runaway subagents, no re-reading files it already has. Deterministic hooks,
+one audit trail, no model calls, no API keys, no telemetry. Requires Node.js 22 or later.
 
 [![verify](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml)
 [![license: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
@@ -22,6 +23,13 @@ No model calls, no API keys, no telemetry, no runtime dependencies. Requires Nod
 A blocked call exits 2 and prints the reason on stderr, which Claude reads and can act on. Nothing
 else is intercepted. At the end of a turn the session prints one line, for example
 `HANDOFF OS · ~10.0k tok saved · 11 guard actions`.
+
+## Observed
+
+<!-- handoff-stats -->
+Last 30 days, 8 sessions: ~35.4k tok saved across 62 guard actions (22 blocked, 19 re-reads, 4 large reads sliced, 17 subagents dispatched).
+Cache reads in the same window: 461,278,255 (billed at reduced price, not counted as saved). Method: blocked whole-file bytes / 4.
+<!-- /handoff-stats -->
 
 ## Install
 
@@ -47,27 +55,9 @@ Optional environment variables, set in `~/.claude/settings.json` under `env` or 
 The plugin also ships three skills (`task-loop`, `research-budget`, `plan-session`) and one read-only
 subagent (`scout`). User facts are stored in `config/memory.md`, which is gitignored.
 
-## Commands
-
-Clone the repository to get these. Permission rules cannot ship inside a plugin, so `settings/policy.json`
-holds one `deny` list and `sync` projects it into three layers: `user` (`~/.claude/settings.json`, plus
-`ask` and subscription login), `project` (a repository's `.claude/settings.json`) and `managed` (the
-administrator path, plus `disableBypassPermissionsMode`).
-
-| Command | Effect |
-|---|---|
-| `npm run setup` | Personalise `config/memory.md` and project the policy into all three layers. |
-| `npm run sync` | Re-project the policy. Removes the git lock if it was set. |
-| `npm run sync -- --lock git` | Add the `lock.git` deny bundle and set `HANDOFF_LOCK_GIT=1`. |
-| `npm run sync -- --without <token>` | Drop every policy rule containing that token, for connectors you do not use. |
-| `npm run install:plugin` | Install this checkout into the plugin cache at its declared version. |
-| `npm run doctor` | Check that the installed copy is this checkout and that its guard still blocks. |
-| `npm test` | Run the suite. |
-| `npm run upkeep` | Regenerate `docs/MANIFEST.md`, the version and the content stamp. |
-| `npm run release patch "note"` | Suite, version bump, manifest, changelog. |
-| `npm run benchmark` | Token usage report across this project's transcripts. |
-
-Merge and delete stay denied in both git modes. Security rules go in `deny`, never `allow`, because
+Local setup, policy sync and release tooling live in the checkout: see
+[CONTRIBUTING.md](CONTRIBUTING.md#commands). Permission rules cannot ship inside a plugin, so
+`settings/policy.json` holds one `deny` list. Security rules go in `deny`, never `allow`, because
 `allow` does not apply before the workspace trust dialog.
 
 ## Limits

@@ -23,6 +23,7 @@ with operating system permissions and Claude Code `permissions.deny` rules, not 
 ## Known gaps
 
 - `powershell -EncodedCommand` payloads are not decoded.
+- Shell `-c` / `-Command` and `cmd /c` payloads without quotes are not unwrapped.
 - Connector actions whose names contain no outward verb are not classified.
 
 Re-run `npm test` after every Claude Code update. It fires every hook against a representative

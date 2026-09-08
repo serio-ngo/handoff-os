@@ -1,6 +1,6 @@
 # Manifest
 
-Everything the plugin loads, at version 1.5.12. Generated — `npm run upkeep` rewrites it.
+Everything the plugin loads, at version 1.5.20. Generated — `npm run upkeep` rewrites it.
 
 ## Skills
 
@@ -9,6 +9,13 @@ Everything the plugin loads, at version 1.5.12. Generated — `npm run upkeep` r
 | `plan-session` | 244 | 97 |
 | `research-budget` | 246 | 76 |
 | `task-loop` | 216 | 43 |
+
+## Agents
+
+| Agent | model | Tools |
+|---|---|---|
+| `runner` | haiku | Bash, Read, Grep, Glob |
+| `scout` | haiku | Read, Grep, Glob, WebFetch |
 
 ## Hooks
 

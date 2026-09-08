@@ -67,6 +67,15 @@ function skillRows() {
   });
 }
 
+function agentRows() {
+  const dir = path.join(PLUGIN, 'agents');
+  return readdirSync(dir).sort().map((name) => {
+    const text = readFileSync(path.join(dir, name), 'utf8');
+    const field = (key) => ((text.match(new RegExp('^' + key + ':(.*)$', 'm')) || [])[1] || '').trim();
+    return '| `' + name.replace('.md', '') + '` | ' + field('model') + ' | ' + cell(field('tools')) + ' |';
+  });
+}
+
 const cell = (value) => String(value).replace(/\|/g, '\\|');
 
 function hookRows() {
@@ -87,6 +96,8 @@ export function manifest() {
     '',
     '## Skills', '',
     table(['Skill', 'Description chars, always in context', 'Body lines, on use'], skillRows()), '',
+    '## Agents', '',
+    table(['Agent', 'model', 'Tools'], agentRows()), '',
     '## Hooks', '',
     table(['Event', 'Matcher', 'Script'], hookRows()), '',
   ].join('\n');

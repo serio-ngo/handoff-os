@@ -18,10 +18,13 @@ Plugin hooks: `<plugin-root>/hooks/hooks.json` — same object shape as the sett
   character makes it an unanchored JS RegExp** (`Edit.*` matches `NotebookEdit`).
 - Plain-text stdout reaches context on `UserPromptSubmit`, `SessionStart` and `PostModelSwitch` only.
 - Stdin: every event carries `session_id` `transcript_path` `cwd` `hook_event_name`; tool events add
-  `tool_name` `tool_input`. UserPromptSubmit: `user_prompt` (**not** `prompt`). Stop/SubagentStop:
+  `tool_name` `tool_input`, plus `agent_type` inside a subagent (absent on the main thread).
+  A subagent reuses the parent `session_id`, so per-agent state keys on `agent_type` (observed, not
+  documented upstream). UserPromptSubmit: `user_prompt` (**not** `prompt`). Stop/SubagentStop:
   `last_assistant_message`, **may be absent** — fall back to the transcript JSONL. Never use
   `tool_response` or `stop_hook_active`.
-- Exit `2` **blocks** on PreToolUse, UserPromptSubmit, Stop. PostToolUse cannot block. `stderr` is
+- Exit `2` **blocks** on PreToolUse, UserPromptSubmit, Stop and SubagentStop; no retry cap is
+  documented, so a block reason must name a remedy. PostToolUse cannot block. `stderr` is
   shown only as the exit-2 block reason. Exit `0`: stdout parsed as JSON when it starts `{`, ends `}`.
 - Env: `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT`. Kill switch: `"disableAllHooks": true`.
 

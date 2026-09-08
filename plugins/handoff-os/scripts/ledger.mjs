@@ -12,11 +12,14 @@ export const sessionOf = (payload = {}) => String(payload.session_id || 'unknown
 
 const ledgerPath = (root, session) => path.join(root, '.claude', `.session-${session}.json`);
 
+const legacy = (key) => !key.includes('|');
+
 export function load(root, session) {
   const blank = EMPTY();
   try {
     const stored = JSON.parse(readFileSync(ledgerPath(root, session), 'utf8'));
-    return { ...blank, ...stored, reads: { ...stored.reads }, saved: { ...blank.saved, ...stored.saved } };
+    const reads = Object.fromEntries(Object.entries(stored.reads ?? {}).filter(([key]) => !legacy(key)));
+    return { ...blank, ...stored, reads, saved: { ...blank.saved, ...stored.saved } };
   } catch {
     return blank;
   }
@@ -68,7 +71,7 @@ export function bank(state) {
 
 export function lifetimeLine(state) {
   const life = lifetime(state);
-  const tokens = Math.round(life.bytes / 4) + Number(life.cache || 0);
+  const tokens = Math.round(life.bytes / 4);
   const parts = [];
   if (tokens) parts.push(`~${compact(tokens)} tok saved`);
   if (actions(life)) parts.push(`${num(actions(life))} guard actions`);

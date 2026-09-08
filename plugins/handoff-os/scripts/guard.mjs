@@ -15,6 +15,8 @@ import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
 
 let current = {};
 
+const actorOf = (payload = {}) => String(payload.agent_type || 'main').replace(/[:|]/g, '');
+
 const deny = (reason, label = 'EGRESS LOCK') => {
   bump(current, 'blocked');
   process.stderr.write(`${label}: ${reason}\n`);
@@ -127,7 +129,7 @@ function readBudget(payload, input) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
-  const key = path.resolve(file);
+  const key = `${actorOf(payload)}|${path.resolve(file)}`;
   const fingerprint = `${stats.mtimeMs}:${stats.size}`;
 
   if (!sliced && state.reads[key] === fingerprint) {
@@ -148,6 +150,7 @@ function readBudget(payload, input) {
 
   if (!sliced && (state.read_bytes || 0) >= READ_CEILING_BYTES) {
     state.saved.blocked += 1;
+    state.saved.bytes += stats.size;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: ${Math.round((state.read_bytes || 0) / 1024)}KB of whole files read this session, over the ${READ_CEILING_BYTES / 1024}KB ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.\n`);
     process.exit(2);
@@ -165,8 +168,9 @@ function invalidateQueries(payload) {
   const session = sessionOf(payload);
   const state = load(root, session);
   let dropped = 0;
+  const scope = `${actorOf(payload)}|q:`;
   for (const key of Object.keys(state.reads)) {
-    if (key.startsWith('q:')) { delete state.reads[key]; dropped += 1; }
+    if (key.startsWith(scope)) { delete state.reads[key]; dropped += 1; }
   }
   if (dropped) save(root, session, state);
 }
@@ -175,7 +179,7 @@ function queryBudget(payload, input, tool) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
-  const key = `q:${tool}:${JSON.stringify(input)}`;
+  const key = `${actorOf(payload)}|q:${tool}:${JSON.stringify(input)}`;
   if (state.reads[key]) {
     state.saved.rereads += 1;
     save(root, session, state);
@@ -313,10 +317,12 @@ else if (tool === 'Bash' || tool === 'PowerShell') {
   const command = typeof input.command === 'string' ? input.command : '';
   const verdict = judgeShell(command);
   if (verdict) deny(verdict);
-  for (const target of shellWriteTargets(command)) {
+  const targets = shellWriteTargets(command);
+  for (const target of targets) {
     const reason = judgeWrite(target, command, 'a shell write');
     if (reason) deny(reason);
   }
+  if (targets.length) invalidateQueries(payload);
   for (const target of wholeFileReads(command)) {
     readBudget(payload, { file_path: path.resolve(payload.cwd || process.cwd(), target.replace(/^['"]|['"]$/g, '')) });
   }

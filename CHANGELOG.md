@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.20 — 2026-09-08
+
+- per-agent read and query dedup keyed `<agent>|<target>`; runner agent returns command verdicts instead of logs; manifest lists agents; tok saved counts blocked bytes only, cache reported separately; benchmark refreshes the README stats block on release; unwrap single-dash `-Command` so nested PowerShell is judged
+
 ## 1.5.12 — 2026-09-07
 
 - narrow guard false positives, audit shell calls, one test file

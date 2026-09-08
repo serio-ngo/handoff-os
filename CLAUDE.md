@@ -7,7 +7,7 @@ scripts only, never organisation data.
 
 | Path | Contents |
 |---|---|
-| `plugins/handoff-os/` | The plugin: 3 skills, 1 agent, 6 hooks, 6 scripts. |
+| `plugins/handoff-os/` | The plugin: 3 skills, 2 agents, 6 hooks, 6 scripts. |
 | `scripts/` | CLI (`handoff.mjs`), generators (`generate.mjs`), benchmark report. |
 | `settings/policy.json` | Permission rules, one `deny` list. Rules cannot ship inside a plugin. |
 | `test/` | One file, `guard.test.mjs`. Node built-in runner. |
@@ -21,13 +21,28 @@ npm test                                # run the test suite
 claude --plugin-dir plugins/handoff-os  # run this checkout as the plugin for one session
 ```
 
-Every other command is in [README.md](README.md#commands).
+Every other command is in [CONTRIBUTING.md](CONTRIBUTING.md#commands).
 
 A session loads the plugin once, at start. Edits to this checkout reach a running session only after
 it is restarted.
 
 `npm run upkeep` runs at the end of every turn and regenerates `docs/MANIFEST.md`, the version and
 the content stamp. Do not edit those by hand.
+
+## Contracts
+
+Breaks silently when these drift apart. Change both sides together.
+
+| Contract | Sides |
+|---|---|
+| Result string `~<n> tokens saved` | `verify.mjs` writes it, `benchmark.mjs` parses it |
+| Token math | headline is bytes/4 only; `cache` is billed telemetry, never savings; every blocked whole-file Read credits its bytes |
+| Counters | `blocked` counts every deny, `agents` counts allowed dispatches, only `bytes` feeds tokens |
+| Nested shells | `SHELL_INNER` must cover every `SHELLS` form that takes a command string |
+| Query dedup | every write path (`Edit`, `Write`, shell redirect) calls `invalidateQueries` |
+| Dedup scope | read and query keys are `<agent>|<target>`; one agent never blocks another, and a key carrying no `|` is pre-1.5.19 and dropped on load |
+| Audit tiers | shell and connector calls are YELLOW, inside-repo file ops are GREEN |
+| README stats block | `benchmark.mjs --write` owns everything between the markers; release runs it with `--days 30` |
 
 ## Rules
 

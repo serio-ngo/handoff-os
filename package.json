@@ -1,7 +1,7 @@
 {
   "name": "handoff-os",
-  "version": "1.5.21",
-  "description": "Budget and focus controls for Claude Code on a flat subscription: less token waste, sharper agent focus, and no send, pay, submit or publish without the founder.",
+  "version": "1.5.23",
+  "description": "An egress lock, a verification gate, an audit trail and budget caps for Claude Code. Sends, payments, publishes, merges, deletes and credential writes stop before they run. No model call, no API key, no telemetry, no dependencies.",
   "license": "Apache-2.0",
   "private": true,
   "homepage": "https://github.com/serio-ngo/handoff-os#readme",
@@ -16,7 +16,7 @@
   "engines": {
     "node": ">=22"
   },
-  "contentHash": "fd281622de807ed6",
+  "contentHash": "a483c106817c67cb",
   "scripts": {
     "test": "node --test",
     "verify": "node --test",
@@ -26,6 +26,7 @@
     "upkeep": "node scripts/handoff.mjs upkeep",
     "doctor": "node scripts/handoff.mjs doctor",
     "release": "node scripts/handoff.mjs release",
-    "benchmark": "node scripts/benchmark.mjs"
+    "benchmark": "node scripts/benchmark.mjs",
+    "benchmark:eval": "node scripts/benchmark.mjs --eval"
   }
 }

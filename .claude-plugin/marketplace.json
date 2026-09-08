@@ -5,12 +5,12 @@
     "name": "Serio NGO",
     "url": "https://serio.org.pl"
   },
-  "description": "Open-source cost and focus controls for Claude Code, from nonprofit org. Hooks and scripts only — no data, no telemetry, no dependencies.",
+  "description": "Open-source deterministic guardrails for Claude Code. Hooks and scripts only — no data, no telemetry, no dependencies.",
   "plugins": [
     {
       "name": "handoff-os",
       "source": "./plugins/handoff-os",
-      "description": "For solo founders and micro-startups on a tight subscription: an egress lock, an audit trail, a verification gate and budget caps. Less token waste, sharper agent focus, and nothing sent, paid, submitted or published without founder approval.",
+      "description": "An egress lock, a verification gate, an audit trail and budget caps for Claude Code. Sends, payments, publishes, merges, deletes and credential writes stop before they run. No model call, no API key, no telemetry, no dependencies.",
       "category": "workflow",
       "keywords": ["governance", "guardrails", "human-in-the-loop", "audit", "solo-founder", "nonprofit"]
     }

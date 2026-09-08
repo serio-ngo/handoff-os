@@ -19,6 +19,9 @@ export const MODEL_BEARING = ['Agent', 'Task'];
 export const SPAWN_TEXT = ['prompt', 'description', 'subagent_type', 'subject', 'script', 'name', 'title'];
 export const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
 export const SHELL_INNER = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+(['"])([\s\S]*)\1\s*$/i;
+export const SHELL_INNER_BARE = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+()(?!['"])([\s\S]+)$/i;
+export const ENCODED_CMD = /(?:^|\s)-e(?:c|nc(?:odedcommand)?)?\s+([A-Za-z0-9+/=]{16,})(?:\s|$)/i;
+export const NO_OP_FLAG = /(?:^|\s)(?:--help|--version|--dry-run|--dryrun|-WhatIf)(?:[=\s]|$)/i;
 export const SHELL_PREFIX = /^(?:eval|command|exec|builtin|nohup|time|nice|stdbuf|xargs)\b(?:\s+-\S+)*\s+/i;
 export const SHELL_QUOTED = /^(['"])([\s\S]*)\1$/;
 
@@ -106,7 +109,7 @@ export const STRONG = ['send', 'pay', 'charge', 'invoice', 'checkout', 'publish'
   'submission', 'deploy', 'tweet', 'broadcast', 'resend', ...DESTRUCTIVE, ...WRITE_VERBS];
 export const SQL_DESTRUCTIVE = /\b(?:drop\s+(?:table|database|index|schema)|truncate\s+table|delete\s+from|alter\s+table)\b/i;
 export const MODEL_TIERS = /\b(?:haiku|sonnet|opus|fable)\b/i;
-export const OUTWARD_PREFIX = /^request[-_]/;
+export const OUTWARD_PREFIX = /^(?:request|run|trigger|dispatch|approve)[-_]/;
 export const READ_PREFIX = /^(?:list|get|search|read|fetch|find|describe|count|preview|resolve|export)[-_]/;
 export const RESTORATIVE = /^un(?:trash|archive|delete|hide|mark)[-_]/;
 export const CONNECTOR_ALLOW = [

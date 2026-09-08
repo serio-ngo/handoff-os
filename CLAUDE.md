@@ -11,7 +11,8 @@ scripts only, never organisation data.
 | `scripts/` | CLI (`handoff.mjs`), generators (`generate.mjs`), benchmark report. |
 | `settings/policy.json` | Permission rules, one `deny` list. Rules cannot ship inside a plugin. |
 | `test/` | One file, `guard.test.mjs`. Node built-in runner. |
-| `docs/` | Generated manifest, Claude Code reference. |
+| `eval/` | `guard-corpus.jsonl`, the labelled benchmark corpus. Outside the suite, run by `npm run benchmark:eval`. |
+| `docs/` | Generated manifest, Claude Code reference, benchmark method. |
 | `audit/` | `YYYY-MM.jsonl`, one object per line, fields in `scripts/audit.mjs` as `FIELDS`. Gitignored, append-only. |
 
 ## Commands
@@ -20,13 +21,12 @@ scripts only, never organisation data.
 npm test                                # run the test suite
 claude --plugin-dir plugins/handoff-os  # run this checkout as the plugin for one session
 ```
- 
+
 A session loads the plugin once, at start. Edits to this checkout reach a running session only after
 it is restarted.
 
 `npm run upkeep` runs at the end of every turn and regenerates `docs/MANIFEST.md`, the version and
 the content stamp. Do not edit those by hand.
-
 
 ## Rules
 

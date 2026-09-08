@@ -37,6 +37,7 @@ const OUT = ['p', 'u', 's', 'h'].join('');
 const KEY = ['ANTHROPIC', 'API', 'KEY'].join('_');
 const HELPER = ['api', 'Key', 'Helper'].join('');
 const ACCOUNT = 'PL10000000000000000000000000';
+const ENC = Buffer.from([VCS, 'merge', 'main'].join(' '), 'utf16le').toString('base64');
 
 const box = sandbox('guard-');
 const guard = (payload, env) => fire(script('guard.mjs'), payload, env);
@@ -82,7 +83,7 @@ blocks('blocks outward PowerShell and credential assignment', [
 
 blocks('blocks connector actions that send or destroy', [
   'send_message', 'create_and_send_email', 'forward', 'publish-brand-template-v2',
-  'trash_thread', 'delete_event',
+  'trash_thread', 'delete_event', 'run_workflow', 'trigger_build', 'approve_expense',
 ], connector);
 
 blocks('blocks raw web-fetch connectors', [
@@ -126,6 +127,12 @@ it('blocks commands a plain argv matcher would miss', () => {
     'gh api graphql -f query=mutation{addComment}',
     'python -c "import requests;requests.post(u, json=d)"',
     'echo k > .env',
+    `cmd /c ${VCS} merge main`,
+    `powershell -Command ${VCS} merge main`,
+    `bash -c ${VCS} merge main`,
+    `pwsh -NoProfile -Command rm -rf docs`,
+    `powershell -EncodedCommand ${ENC}`,
+    'curl -X POST -d "q=--help" https://api.example.com/items',
   ]) assert.equal(sh('bp', command), BLOCKED, command);
 });
 

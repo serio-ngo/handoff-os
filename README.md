@@ -1,6 +1,6 @@
 # handoff-os
 
-Stops the agent before it costs you: nothing sent, paid, submitted or published without you,
+Stops the agent before it wastes your context: nothing sent, paid, submitted or published without you,
 no opus reviews or runaway subagents, no re-reading files it already has. Deterministic hooks,
 one audit trail, no model calls, no API keys, no telemetry. Requires Node.js 22 or later.
 
@@ -27,8 +27,8 @@ else is intercepted. At the end of a turn the session prints one line, for examp
 ## Observed
 
 <!-- handoff-stats -->
-Last 30 days, 8 sessions: ~35.4k tok saved across 62 guard actions (22 blocked, 19 re-reads, 4 large reads sliced, 17 subagents dispatched).
-Cache reads in the same window: 461,278,255 (billed at reduced price, not counted as saved). Method: blocked whole-file bytes / 4.
+Measured over 35 recorded turns. Token figures start accumulating from the next turn.
+Guard actions: 67 — 19 re-reads dropped, 6 large files deferred, 23 denies, 19 subagents dispatched. Token counts are file bytes / 4, an estimate. Source: this repository's own audit ledger, no session transcripts.
 <!-- /handoff-stats -->
 
 ## Install

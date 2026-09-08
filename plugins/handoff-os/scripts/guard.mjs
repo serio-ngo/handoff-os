@@ -142,7 +142,7 @@ function readBudget(payload, input) {
 
   if (!sliced && stats.size > BIG_FILE_BYTES) {
     state.saved.slices += 1;
-    state.saved.bytes += stats.size - BIG_FILE_BYTES;
+    state.saved.deferred += stats.size;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: ${path.basename(file)} is ${Math.round(stats.size / 1024)}KB, over the ${BIG_FILE_BYTES / 1024}KB whole-file limit. Read the region you need with offset/limit, or dispatch handoff-os:scout to answer from it.\n`);
     process.exit(2);
@@ -150,7 +150,7 @@ function readBudget(payload, input) {
 
   if (!sliced && (state.read_bytes || 0) >= READ_CEILING_BYTES) {
     state.saved.blocked += 1;
-    state.saved.bytes += stats.size;
+    state.saved.deferred += stats.size;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: ${Math.round((state.read_bytes || 0) / 1024)}KB of whole files read this session, over the ${READ_CEILING_BYTES / 1024}KB ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.\n`);
     process.exit(2);
@@ -159,6 +159,7 @@ function readBudget(payload, input) {
   if (!sliced) {
     state.reads[key] = fingerprint;
     state.read_bytes = (state.read_bytes || 0) + stats.size;
+    state.saved.read += stats.size;
   }
   save(root, session, state);
 }

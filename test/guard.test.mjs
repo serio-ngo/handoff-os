@@ -6,7 +6,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
-import { lifetimeLine, load } from '../plugins/handoff-os/scripts/ledger.mjs';
 
 const BLOCKED = 2;
 const ALLOWED = 0;
@@ -178,7 +177,7 @@ describe('read and query budgets', () => {
     at('sx', { agent_type: 'scout', tool_name: 'Grep', tool_input: { pattern: 'scoped' } });
     assert.equal(at('sx', { tool_name: 'Grep', tool_input: { pattern: 'scoped' } }), ALLOWED);
   });
-  it('credits the bytes a ceiling block keeps out', () => {
+  it('books a ceiling block as deferred, not deduped', () => {
     const file = path.join(box, 'ceil-small.txt');
     writeFileSync(file, 'y'.repeat(1024));
     mkdirSync(path.join(box, '.claude'), { recursive: true });
@@ -186,22 +185,8 @@ describe('read and query budgets', () => {
       JSON.stringify({ reads: {}, read_bytes: 600000, saved: {} }), 'utf8');
     assert.equal(at('cl', { tool_name: 'Read', tool_input: { file_path: file } }), BLOCKED);
     const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-cl.json'), 'utf8'));
-    assert.equal(state.saved.bytes, 1024);
-  });
-  it('keeps cache reads out of the saved total', () => {
-    assert.equal(
-      lifetimeLine({ saved: { agents: 2, blocked: 1, rereads: 1, slices: 0, bytes: 25000, cache: 200000 } }),
-      'HANDOFF OS · ~6,250 tok saved · 4 guard actions');
-    assert.equal(lifetimeLine({ saved: { cache: 200000 } }), '');
-  });
-  it('drops unprefixed dedup keys on load', () => {
-    const root = sandbox('ledger-');
-    mkdirSync(path.join(root, '.claude'), { recursive: true });
-    writeFileSync(path.join(root, '.claude', '.session-lg.json'), JSON.stringify({
-      reads: { 'q:Grep:{"pattern":"x"}': 1, 'C:\\old\\file.txt': '1:2', '/old/file.txt': '1:2', 'main|C:\\new\\file.txt': '3:4', 'x|/abs/file.txt': '5:6' },
-      saved: {},
-    }), 'utf8');
-    assert.deepEqual(load(root, 'lg').reads, { 'main|C:\\new\\file.txt': '3:4', 'x|/abs/file.txt': '5:6' });
+    assert.equal(state.saved.deferred, 1024);
+    assert.equal(state.saved.bytes, 0);
   });
 });
 

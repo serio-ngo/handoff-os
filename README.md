@@ -88,12 +88,12 @@ Guard actions: 2. Token counts are file bytes / 4 from this repo's own local led
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **940** lines of Node across 6 scripts (833 non-blank) |
+| Guard logic | **999** lines of Node across 7 scripts (884 non-blank) |
 | Pattern rules | **47** |
 | Hooks | **6** handlers on 6 events |
 | Skills | **3** |
 | Subagents | **2** |
-| Runtime dependencies | **0** |
+| Third-party packages | **0** |
 | Network calls, API keys, model calls | **0** |
 <!-- /inventory -->
 
@@ -113,6 +113,17 @@ Guard actions: 2. Token counts are file bytes / 4 from this repo's own local led
 | claude.ai chat, the API, any other harness | no — nothing loads `hooks.json`, so no rule fires |
 
 > Installed is not the same as enforcing. Confirm with `npm run doctor`.
+
+### OpenCode
+
+`.opencode/plugin/handoff-os.ts` loads on restart — same guards, same ledger, deny by throw.
+Tool names mapped (`read`→`Read`, `task`→`TaskCreate`, unknown tools pass through).
+Model-agnostic: dispatches are judged on content, never on provider or model. Session data
+lands in the repo ledger, where the benchmark picks it up.
+
+Install after merge: clone, point `plugin` at the loader, restart opencode:
+
+`"plugin": ["file:///path/to/handoff-os/.opencode/plugin/handoff-os.ts"]`
 
 ## Configuration
 

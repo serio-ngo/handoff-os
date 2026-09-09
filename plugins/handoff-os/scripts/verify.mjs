@@ -69,7 +69,7 @@ function citationGate(message) {
   process.exit(2);
 }
 
-function report(payload) {
+export function report(payload) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);

@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdir
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
-import { PLUGIN, REPO, inventoryBlock, manifest, markdown, policyFor, readJson, stamp, walk, writeBlock } from './generate.mjs';
+import { PLUGIN, REPO, inventory, inventoryBlock, manifest, markdown, policyFor, readJson, stamp, walk, writeBlock } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
 const BANNED = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN'];
@@ -298,6 +298,8 @@ function doctor() {
   const month = new Date().toISOString().slice(0, 7);
   check('every probe receipt landed in the throwaway root, not the repo ledger',
     existsSync(path.join(probe, 'audit', `${month}.jsonl`)), probe);
+  check(`the plugin costs ~${Math.round(inventory().contextChars / 4)} tok of context`, true,
+    'card plus skill and agent descriptions, always in context');
 
   const failed = checks.filter((ok) => !ok).length;
   console.log(`  ${checks.length - failed} of ${checks.length} yes`);

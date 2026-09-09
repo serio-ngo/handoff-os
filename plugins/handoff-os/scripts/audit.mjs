@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 export const FIELDS = ['ts', 'actor', 'tier', 'action', 'target', 'result'];
 
-function entry(payload, root) {
+export function entry(payload, root) {
   const tool = String(payload.tool_name || '');
   if (!tool) return null;
   const input = payload.tool_input || {};

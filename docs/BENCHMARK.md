@@ -112,6 +112,7 @@ npm run benchmark:compare
 - `eval/scores.json` written by the same run; feeds the README badges.
 - Cost is context tax: the plugin's own footprint against the rot it keeps out, per window, in the ledger report and the README stats block.
 - Spawn milliseconds print on `--latency` runs only; machine-specific, never published, never in `scores.json`.
+- Multiple roots aggregate: `node scripts/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
 Run 2026-09-09 · 68 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.

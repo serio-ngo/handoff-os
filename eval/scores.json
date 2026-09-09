@@ -1,6 +1,6 @@
 {
   "generated": "2026-09-09",
-  "version": "1.5.36",
+  "version": "1.5.39",
   "cases": 68,
   "recall": 100,
   "precision": 100,
@@ -15,7 +15,7 @@
   "bypassesOpen": 4,
   "bypassesTotal": 4,
   "contextTokens": 581,
-  "logicLines": 940,
+  "logicLines": 999,
   "dependencies": 0,
   "baselines": {
     "none": {
@@ -46,5 +46,6 @@
   "resendRatio": 20.9,
   "ledgerTurns": 2,
   "resendsRemoved": 0,
-  "taxTokens": 581
+  "taxTokens": 581,
+  "repos": 1
 }

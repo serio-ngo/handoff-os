@@ -10,6 +10,7 @@ import { inventory, inventoryBlock, writeBlock } from './generate.mjs';
 
 const flags = { write: false, days: 0, eval: false, compare: false, latency: false, json: false, replay: false };
 let REPO = process.cwd();
+const REPOS = [];
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i += 1) {
   if (argv[i] === '--write') flags.write = true;
@@ -19,9 +20,10 @@ for (let i = 0; i < argv.length; i += 1) {
   else if (argv[i] === '--replay') flags.replay = true;
   else if (argv[i] === '--json') flags.json = true;
   else if (argv[i] === '--days') flags.days = Number(argv[i += 1] || 0);
-  else if (!argv[i].startsWith('--')) REPO = argv[i];
+  else if (!argv[i].startsWith('--')) REPOS.push(path.resolve(argv[i]));
 }
-REPO = path.resolve(REPO);
+if (!REPOS.length) REPOS.push(REPO);
+REPO = REPOS[0];
 
 const num = (n) => Number(n || 0).toLocaleString('en-US');
 const tok4 = (bytes) => Math.round(bytes / 4);
@@ -282,43 +284,68 @@ function replay(root) {
   return out;
 }
 
-const auditDir = path.join(REPO, 'audit');
-const ledgers = existsSync(auditDir)
-  ? readdirSync(auditDir).filter((name) => /^\d{4}-\d{2}\.jsonl$/.test(name)).sort()
-    .map((name) => path.join(auditDir, name))
-  : [];
-
-const cutoff = flags.days ? Date.now() - flags.days * 864e5 : 0;
-const t = {
+const zeroT = () => ({
   agents: 0, denies: 0, rereads: 0, slices: 0, queries: 0, caps: 0,
   deduped: 0, deferred: 0, offload: 0, read: 0, fresh: 0, cacheRead: 0, turns: 0,
   scouts: 0, runners: 0,
-};
-const marks = [];
+});
 
-for (const file of ledgers) {
-  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
-    if (!line) continue;
-    let entry;
-    try { entry = JSON.parse(line); } catch { continue; }
-    if (entry.action !== 'read-budget') continue;
-    if (cutoff && entry.ts && Date.parse(entry.ts) < cutoff) continue;
-    const now = /dedup (\d+) tok, defer (\d+) tok, offload (\d+) tok, admitted (\d+) tok, fresh (\d+) tok, cache-read (\d+) tok, turn (\d+)/
-      .exec(entry.result || '');
-    if (!now) continue;
-    t.turns += 1;
-    const counts = /(\d+) agents, (\d+) blocked, (\d+) re-reads, (\d+) slices, (\d+) queries, (\d+) caps/
-      .exec(entry.target || '');
-    if (counts) {
-      t.agents += +counts[1]; t.denies += +counts[2]; t.rereads += +counts[3];
-      t.slices += +counts[4]; t.queries += +counts[5]; t.caps += +counts[6];
+function collect(root) {
+  const auditDir = path.join(root, 'audit');
+  const ledgers = existsSync(auditDir)
+    ? readdirSync(auditDir).filter((name) => /^\d{4}-\d{2}\.jsonl$/.test(name)).sort()
+      .map((name) => path.join(auditDir, name))
+    : [];
+
+  const cutoff = flags.days ? Date.now() - flags.days * 864e5 : 0;
+  const t = zeroT();
+  const marks = [];
+
+  for (const file of ledgers) {
+    for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
+      if (!line) continue;
+      let entry;
+      try { entry = JSON.parse(line); } catch { continue; }
+      if (entry.action !== 'read-budget') continue;
+      if (cutoff && entry.ts && Date.parse(entry.ts) < cutoff) continue;
+      const now = /dedup (\d+) tok, defer (\d+) tok, offload (\d+) tok, admitted (\d+) tok, fresh (\d+) tok, cache-read (\d+) tok, turn (\d+)/
+        .exec(entry.result || '');
+      if (!now) continue;
+      t.turns += 1;
+      const counts = /(\d+) agents, (\d+) blocked, (\d+) re-reads, (\d+) slices, (\d+) queries, (\d+) caps/
+        .exec(entry.target || '');
+      if (counts) {
+        t.agents += +counts[1]; t.denies += +counts[2]; t.rereads += +counts[3];
+        t.slices += +counts[4]; t.queries += +counts[5]; t.caps += +counts[6];
+      }
+      const used = /(\d+) scout, (\d+) runner/.exec(entry.target || '');
+      if (used) { t.scouts += +used[1]; t.runners += +used[2]; }
+      t.deduped += +now[1]; t.deferred += +now[2]; t.offload += +now[3];
+      t.read += +now[4]; t.fresh += +now[5]; t.cacheRead += +now[6];
+      marks.push({ turn: +now[7], kept: +now[1] + +now[2] + +now[3] });
     }
-    const used = /(\d+) scout, (\d+) runner/.exec(entry.target || '');
-    if (used) { t.scouts += +used[1]; t.runners += +used[2]; }
-    t.deduped += +now[1]; t.deferred += +now[2]; t.offload += +now[3];
-    t.read += +now[4]; t.fresh += +now[5]; t.cacheRead += +now[6];
-    marks.push({ turn: +now[7], kept: +now[1] + +now[2] + +now[3] });
   }
+
+  const billing = t.fresh
+    ? { fresh: t.fresh, cacheRead: t.cacheRead, sessions: 0 }
+    : fromTranscripts(root);
+  t.fresh = billing.fresh;
+  t.cacheRead = billing.cacheRead;
+  return { t, billing, notResent: resends(marks), stamped: marks.length };
+}
+
+const parts = REPOS.map(collect);
+const t = zeroT();
+const billing = { fresh: 0, cacheRead: 0, sessions: 0 };
+let notResent = 0;
+let stamped = 0;
+for (const part of parts) {
+  for (const key of Object.keys(t)) t[key] += part.t[key];
+  billing.fresh += part.billing.fresh;
+  billing.cacheRead += part.billing.cacheRead;
+  billing.sessions += part.billing.sessions;
+  notResent += part.notResent;
+  stamped += part.stamped;
 }
 
 // Ledger lines written before the Stop hook recorded billing carry no `fresh` count, so fall back to
@@ -337,10 +364,6 @@ function fromTranscripts(root) {
   }
   return out;
 }
-
-const billing = t.fresh ? { fresh: t.fresh, cacheRead: t.cacheRead, sessions: 0 } : fromTranscripts(REPO);
-t.fresh = billing.fresh;
-t.cacheRead = billing.cacheRead;
 
 const kept = t.deduped + t.deferred + t.offload;
 const readVolume = kept + t.read;
@@ -362,10 +385,9 @@ function resends(rows) {
   }
   return total;
 }
-const notResent = resends(marks);
 
 console.log(`\nhandoff-os — context kept out of the main thread, ${window}`);
-console.log(`  source: audit/*.jsonl, ${t.turns} recorded turn(s)\n`);
+console.log(`  source: ${REPOS.length > 1 ? `${REPOS.length} repos` : 'audit/*.jsonl'}, ${t.turns} recorded turn(s)\n`);
 
 row('read volume the session asked for', `~${tokc(readVolume)}`, 'tok');
 row('kept out', `~${tokc(kept)}`, `tok   ${keptPct}% of read volume`);
@@ -388,23 +410,32 @@ if (t.fresh) {
   row('context re-send ratio', `${resend.toFixed(1)}x`, 'every fresh token re-read this often');
 }
 console.log(`
-  re-sends the refusals removed${marks.length ? '' : ' — no turn-stamped ledger line yet'}`);
-if (marks.length) row('kept tok x turns that followed', `~${tokc(notResent)}`, 'tok   summed per block, per session');
+  re-sends the refusals removed${stamped ? '' : ' — no turn-stamped ledger line yet'}`);
+if (stamped) row('kept tok x turns that followed', `~${tokc(notResent)}`, 'tok   summed per block, per session');
 
 const REPLAY_OPEN = '<!-- handoff-replay -->';
 const REPLAY_CLOSE = '<!-- /handoff-replay -->';
 if (flags.replay) {
-  const r = replay(REPO);
+  const rs = REPOS.map((root) => replay(root));
+  const r = {
+    sessions: 0, calls: 0, judged: 0, blocked: 0, rules: {}, kept: 0, admitted: 0, fresh: 0, cacheRead: 0,
+  };
+  for (const one of rs) {
+    r.sessions += one.sessions; r.calls += one.calls; r.judged += one.judged; r.blocked += one.blocked;
+    r.kept += one.kept; r.admitted += one.admitted; r.fresh += one.fresh; r.cacheRead += one.cacheRead;
+    for (const [name, count] of Object.entries(one.rules)) r.rules[name] = (r.rules[name] || 0) + count;
+  }
   const pct = (part) => share(part, r.judged);
   const rules = Object.entries(r.rules).sort((a, b) => b[1] - a[1]);
-  console.log(`\n  trace replay — ${num(r.judged)} judged call(s) from ${r.sessions} real session(s)`);
+  const scope = REPOS.length > 1 ? ` across ${REPOS.length} repos` : '';
+  console.log(`\n  trace replay — ${num(r.judged)} judged call(s) from ${r.sessions} real session(s)${scope}`);
   row('refused', num(r.blocked), `${pct(r.blocked)}% of judged calls`);
   for (const [rule, count] of rules) row(`  ${rule}`, num(count), `${pct(count)}%`);
   row('bytes kept out', `~${tokc(tok4(r.kept))}`, 'tok');
   row('bytes admitted', `~${tokc(tok4(r.admitted))}`, 'tok');
   if (flags.write) {
     console.log(`  ${writeBlock(path.join(REPO, 'README.md'), REPLAY_OPEN, REPLAY_CLOSE, [
-      `| Replayed over ${num(r.sessions)} real sessions | Count | Share of judged |`,
+      `| Replayed over ${num(r.sessions)} real sessions${scope} | Count | Share of judged |`,
       '|---|---|---|',
       `| Tool calls recorded | ${num(r.calls)} | — |`,
       `| Judged by the guard | ${num(r.judged)} | 100% |`,
@@ -458,7 +489,7 @@ const statsBlock = () => {
       `| Fresh — input + output + cache write | ${num(t.fresh)} |`,
       `| Cache-read | ${num(t.cacheRead)} |`,
       `| **Context re-send ratio** | **${resend.toFixed(1)}×** |`,
-      ...(marks.length ? [`| Re-sends removed, kept × turns that followed | ~${tokc(notResent)} |`] : []),
+      ...(stamped ? [`| Re-sends removed, kept × turns that followed | ~${tokc(notResent)} |`] : []),
       '',
     ] : []),
     `Guard actions: ${num(actions)}${t.scouts || t.runners ? ` (used ${num(t.scouts)} scout, ${num(t.runners)} runner)` : ''}. Token counts are file bytes / 4 from this repo's own local `
@@ -474,6 +505,7 @@ if (flags.write) {
     readVolumeTokens: readVolume,
     offloadTokens: t.offload,
     taxTokens: tax.total,
+    repos: REPOS.length,
     resendRatio: Number(resend.toFixed(1)),
     resendsRemoved: notResent,
     ledgerTurns: t.turns,

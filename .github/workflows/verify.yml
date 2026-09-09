@@ -41,8 +41,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      - run: node scripts/handoff.mjs upkeep
-      - run: git diff --exit-code
+      - run: npm run upkeep:check
 
   docs:
     name: documentation

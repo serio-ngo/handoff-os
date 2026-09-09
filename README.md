@@ -1,43 +1,26 @@
 # handoff-os
 
-A Claude Code plugin that does three things at the `PreToolUse` hook: keeps bytes out of the context
-window, stops the same bytes being re-sent on every turn, and caps subagent waves before they fan
-out. Hooks and scripts only — no model calls, no network, no dependencies.
+Claude Code burns context on three things: whole files read for one line, the same bytes
+re-sent every turn, and subagent waves nobody can read back. handoff-os stops all three at the
+`PreToolUse` hook — before the tokens are spent.
 
-[![context re-send](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.resendRatio&suffix=x&label=context%20re-send&color=blue)](docs/BENCHMARK.md)
-[![guard caught](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.recall&suffix=%25&label=guard%20caught&color=brightgreen)](docs/BENCHMARK.md)
-[![wrongly blocked](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.fpRate&suffix=%25&label=wrongly%20blocked&color=brightgreen)](docs/BENCHMARK.md)
-[![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic)](plugins/handoff-os/scripts)
-[![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.dependencies&label=dependencies&color=brightgreen)](package.json)
-[![verify](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml)
-[![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version)](plugins/handoff-os/.claude-plugin/plugin.json)
-[![license](https://img.shields.io/github/license/serio-ngo/handoff-os)](LICENSE)
+Lightweight, zero dependencies, fully offline: pattern matching in Node. No model calls, no API
+keys, no network, no telemetry.
+
+[![context re-send](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.resendRatio&suffix=x&label=context%20re-send&color=blue)](docs/BENCHMARK.md) [![guard caught](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.recall&suffix=%25&label=guard%20caught&color=brightgreen)](docs/BENCHMARK.md) [![wrongly blocked](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.fpRate&suffix=%25&label=wrongly%20blocked&color=brightgreen)](docs/BENCHMARK.md)
+
+[![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic)](plugins/handoff-os/scripts) [![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.dependencies&label=dependencies&color=brightgreen)](package.json) [![verify](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml)
+
+[![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version)](plugins/handoff-os/.claude-plugin/plugin.json) [![license](https://img.shields.io/github/license/serio-ngo/handoff-os)](LICENSE)
 
 ![handoff-os admitting a small read, refusing a 38KB read, capping a 20-agent opus wave and blocking a send, then printing session totals](docs/demo.svg)
 
-## What it optimises
+## What changes for you
 
-| Target | Problem | Rule |
-|---|---|---|
-| Context window | a 40 KB file admitted to answer one question about line 12 | whole-file cap at 24 KB, session ceiling at 500 KB |
-| Cache | context is re-sent every turn, so an early byte is billed for the rest of the session | re-read dedup, repeat-query block |
-| Subagent waves | a fan-out spawns more agents than their returns can be read | 3 per wave, model tier per job, citation contract on return |
-| Irreversible acts | sends, payments, publishes, merges, deletes, credential writes | egress lock, exit 2 before the call runs |
-
-## Rules
-
-| Rule | Refuses | Credited |
-|---|---|---|
-| Re-read dedup | a file already in context, byte-identical | the whole file, once per refusal |
-| Whole-file cap | a read over 24 KB | the whole file, once per refusal |
-| Session ceiling | main-thread whole-file reads past 500 KB | the refused file |
-| Subagent offload | nothing — routes the read to a scout | bytes the scout read, never in this thread |
-| Repeat query | a `Grep` or `Glob` already answered this session | counted, no tokens credited |
-| Runaway query cap | a content `Grep` with no `head_limit` | counted, no tokens credited |
-| Fan-out cap | the 4th subagent in a 60 s wave | counted |
-| Dispatch budget | a subagent with no model, or `opus`/`fable` without `QUALITY:` | counted |
-| Egress lock | sends, payments, publishes, merges, deletes, credential writes | counted |
-| Verify gate | a done-claim with no verification run behind it | counted |
+- One question about one line no longer costs the whole file. Reads over 24 KB are refused, with a slice or a scout offered instead.
+- Nothing is billed twice. A file already in context, or a search already answered, is refused on repeat.
+- Subagent fan-outs stay readable. Three agents per wave, the cheapest model that can do the job.
+- Nothing irreversible happens by accident. Sends, payments, publishes, merges, deletes and credential writes stop before they run and wait for a human.
 
 ## Measured — replayed against real traffic
 
@@ -97,8 +80,8 @@ Guard actions: 2. Token counts are file bytes / 4 from this repo's own local led
 68 cases, 2026-09-09; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code. [Method](docs/BENCHMARK.md).
 <!-- /guard-scores -->
 
-Shell wrappers are unwrapped first, so `powershell -Command`, `cmd /c`, `bash -c` and
-`-EncodedCommand` get no free pass. Four evasions still do: [SECURITY.md](SECURITY.md).
+> Shell wrappers are unwrapped first, so `powershell -Command`, `cmd /c`, `bash -c` and
+> `-EncodedCommand` get no free pass. Four evasions still do: [SECURITY.md](SECURITY.md).
 
 ## What ships
 
@@ -121,15 +104,15 @@ Shell wrappers are unwrapped first, so `powershell -Command`, `cmd /c`, `bash -c
 /plugin install handoff-os@serio-ngo
 ```
 
-Hooks load at session start, so restart Claude Code — a running session keeps the version it started
-with.
+> Hooks load at session start, so restart Claude Code — a running session keeps the version it
+> started with.
 
 | Surface | Hooks run |
 |---|---|
 | Claude Code CLI, VS Code, JetBrains, desktop Code tab | yes |
 | claude.ai chat, the API, any other harness | no — nothing loads `hooks.json`, so no rule fires |
 
-Installed is not the same as enforcing. Confirm with `npm run doctor`.
+> Installed is not the same as enforcing. Confirm with `npm run doctor`.
 
 ## Configuration
 
@@ -141,8 +124,8 @@ Installed is not the same as enforcing. Confirm with `npm run doctor`.
 | `HANDOFF_DENY_SUBAGENT_MODELS=model,model` | Deny these model tiers for subagents. Default `opus,fable`. |
 | `HANDOFF_OS_DIR=/path` | Store session state and audit files outside the project. |
 
-Node 22 or later. `settings/policy.json` holds the `deny` list, because permission rules cannot ship
-inside a plugin.
+> Node 22 or later. `settings/policy.json` holds the `deny` list, because permission rules cannot
+> ship inside a plugin.
 
 ## Limits
 

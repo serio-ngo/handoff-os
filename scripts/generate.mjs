@@ -59,6 +59,57 @@ const table = (header, rows) => [
   ...rows,
 ].join('\n');
 
+const HEADING = /^#{1,6}\s/;
+const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s/;
+const FENCE = /^\s*(?:```|~~~)/;
+
+export function markdown(text) {
+  const lines = text.split('\n');
+  const out = [];
+  let fence = false;
+  let frontmatter = lines[0] === '---';
+
+  const blankBefore = () => {
+    if (out.length && out[out.length - 1].trim() !== '') out.push('');
+  };
+  const continues = (i) => {
+    const next = lines[i + 1];
+    return next !== undefined && (LIST_ITEM.test(next) || /^\s+\S/.test(next) || next.trim() === '');
+  };
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (frontmatter) {
+      out.push(line);
+      if (i > 0 && line === '---') frontmatter = false;
+      continue;
+    }
+    if (FENCE.test(line)) { fence = !fence; out.push(line); continue; }
+    if (fence) { out.push(line); continue; }
+
+    if (line.trim() === '') {
+      if (out.length && out[out.length - 1].trim() === '') continue;
+      out.push('');
+      continue;
+    }
+    if (HEADING.test(line)) {
+      blankBefore();
+      out.push(line);
+      if (lines[i + 1] !== undefined && lines[i + 1].trim() !== '') out.push('');
+      continue;
+    }
+    if (LIST_ITEM.test(line)) {
+      const previous = out[out.length - 1] ?? '';
+      if (previous.trim() !== '' && !LIST_ITEM.test(previous) && !/^\s+\S/.test(previous)) blankBefore();
+      out.push(line);
+      if (!continues(i)) out.push('');
+      continue;
+    }
+    out.push(line);
+  }
+  return `${out.join('\n').replace(/\n+$/, '')}\n`;
+}
+
 export function writeBlock(file, open, close, lines) {
   let text;
   try { text = readFileSync(file, 'utf8'); } catch { return `no file at ${file}`; }
@@ -66,7 +117,9 @@ export function writeBlock(file, open, close, lines) {
   const a = all.indexOf(open);
   const z = all.indexOf(close);
   if (a < 0 || z < a) return `no markers in ${file}`;
-  writeFileSync(file, `${[...all.slice(0, a + 1), ...lines, ...all.slice(z)].join('\n').replace(/\n+$/, '')}\n`, 'utf8');
+  let next = `${[...all.slice(0, a + 1), ...lines, ...all.slice(z)].join('\n').replace(/\n+$/, '')}\n`;
+  if (file.endsWith('.md')) next = markdown(next.replace(/\r\n/g, '\n'));
+  writeFileSync(file, next, 'utf8');
   return `refreshed ${path.basename(file)}`;
 }
 

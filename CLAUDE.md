@@ -23,7 +23,8 @@
 |---|---|
 | `npm test` | run the test suite |
 | `claude --plugin-dir plugins/handoff-os` | run this checkout as the plugin for one session |
-| `npm run upkeep` | regenerate `docs/MANIFEST.md`, README inventory, version, content stamp |
+| `npm run upkeep` | regenerate `docs/MANIFEST.md`, README inventory, content stamp |
+| `npm run upkeep:check` | upkeep, then fail when the tree differs — the CI gate, same command locally |
 | `npm run release` | upkeep plus benchmark rerun, README scores, `eval/scores.json` |
 
 | Fact | Value |
@@ -48,9 +49,10 @@
 8. Before working with Claude Code identifiers (hooks, permissions, plugin layout), read
    [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md).
 9. Docs carry data, not prose. `README.md` is the only exception.
-   Every other `*.md`: tables, lists, commands, data-comment lines only.
-   No paragraphs. No history. No decision narratives. No elaboration.
-   Keep names self-explanatory; one short comment per section max.
-   Never hand-edit generated blocks.
+
+> Every other `*.md`: tables, lists, commands, data-comment lines only.
+> No paragraphs. No history. No decision narratives. No elaboration.
+> Keep names self-explanatory; one short comment per section max.
+> Never hand-edit generated blocks.
 
 Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).

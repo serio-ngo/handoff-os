@@ -130,6 +130,7 @@ Confusion: TP 35 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
 - `evasion-02` open — payload decoded by a pipeline, not by a shell flag.
 - `evasion-03` open — an unquoted no-op flag used as a POST body excuses the segment.
 - `evasion-04` open — connector action whose name carries no classifiable verb.
+
 <!-- /eval-results -->
 
 ## Track B — protocol, not a result

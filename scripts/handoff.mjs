@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdir
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
-import { PLUGIN, REPO, inventoryBlock, manifest, policyFor, readJson, stamp, walk, writeBlock } from './generate.mjs';
+import { PLUGIN, REPO, inventoryBlock, manifest, markdown, policyFor, readJson, stamp, walk, writeBlock } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
 const BANNED = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN'];
@@ -195,57 +195,6 @@ function install() {
   return { declared, targets };
 }
 
-const HEADING = /^#{1,6}\s/;
-const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s/;
-const FENCE = /^\s*(?:```|~~~)/;
-
-export function markdown(text) {
-  const lines = text.split('\n');
-  const out = [];
-  let fence = false;
-  let frontmatter = lines[0] === '---';
-
-  const blankBefore = () => {
-    if (out.length && out[out.length - 1].trim() !== '') out.push('');
-  };
-  const continues = (i) => {
-    const next = lines[i + 1];
-    return next !== undefined && (LIST_ITEM.test(next) || /^\s+\S/.test(next) || next.trim() === '');
-  };
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (frontmatter) {
-      out.push(line);
-      if (i > 0 && line === '---') frontmatter = false;
-      continue;
-    }
-    if (FENCE.test(line)) { fence = !fence; out.push(line); continue; }
-    if (fence) { out.push(line); continue; }
-
-    if (line.trim() === '') {
-      if (out.length && out[out.length - 1].trim() === '') continue;
-      out.push('');
-      continue;
-    }
-    if (HEADING.test(line)) {
-      blankBefore();
-      out.push(line);
-      if (lines[i + 1] !== undefined && lines[i + 1].trim() !== '') out.push('');
-      continue;
-    }
-    if (LIST_ITEM.test(line)) {
-      const previous = out[out.length - 1] ?? '';
-      if (previous.trim() !== '' && !LIST_ITEM.test(previous) && !/^\s+\S/.test(previous)) blankBefore();
-      out.push(line);
-      if (!continues(i)) out.push('');
-      continue;
-    }
-    out.push(line);
-  }
-  return `${out.join('\n').replace(/\n+$/, '')}\n`;
-}
-
 function normalise() {
   const files = walk(REPO)
     .filter((file) => TEXT.test(file))
@@ -276,6 +225,11 @@ function upkeep() {
   writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock());
   row('formatted', `${touched} file(s)`);
   row('content', drift);
+}
+
+function check() {
+  const diff = spawnSync('git', ['diff', '--exit-code'], { cwd: REPO, stdio: 'inherit' });
+  if (diff.status !== 0) fail('generated artefacts are stale — review the diff, then commit it');
 }
 
 const BLOCKED = 2;
@@ -410,6 +364,6 @@ const command = ['sync', 'install', 'upkeep', 'doctor', 'release', 'setup'].incl
 if (command === 'setup') await setup(args);
 else if (command === 'sync') { sync(args); report(); }
 else if (command === 'install') { install(); report(); }
-else if (command === 'upkeep') { upkeep(); if (args.install) install(); report(); }
+else if (command === 'upkeep') { upkeep(); if (args.install) install(); report(); if (args.check) check(); }
 else if (command === 'doctor') process.exit(doctor().failed ? 1 : 0);
 else if (command === 'release') release(args);

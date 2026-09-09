@@ -4,6 +4,8 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.5.36 | 2026-09-09 | README intro states what the plugin does and why it is unique, chips grouped, prose framed as quotes |
+| 1.5.35 | 2026-09-09 | one markdown writer so upkeep is a no-op after release, upkeep:check gate shared with CI, README rewritten for humans |
 | 1.5.34 | 2026-09-09 | cost reframed as context tax: footprint vs kept-out net per window, spawn ms demoted to footnote |
 | 1.5.33 | 2026-09-09 | stats on by default (HANDOFF_STATS=0 to silence), verify gate prints lifetime totals, upkeep stops auto-bumping versions |
 | 1.5.32 | 2026-09-09 | changelog generator emits a table row, matching the file it writes; README states which surfaces run hooks; CONNECTOR_ALLOW covered by two corpus allow-cases (68 cases, 29 negatives); covers 1.5.22-1.5.31, bumped without a release row |

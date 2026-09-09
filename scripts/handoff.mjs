@@ -380,10 +380,13 @@ function release(args) {
   pkg.contentHash = stamp();
   writeJson(pkgPath, pkg);
   const changelog = path.join(REPO, 'CHANGELOG.md');
-  const previous = existsSync(changelog) ? readFileSync(changelog, 'utf8').replace(/^# Changelog\n/, '') : '';
-  writeFileSync(changelog,
-    `# Changelog\n\n## ${plugin.version} — ${args.date || new Date().toISOString().slice(0, 10)}\n\n- ${note}\n\n${previous.replace(/^\n+/, '')}`,
-    'utf8');
+  const head = '# Changelog\n\n<!-- one row per version; `npm run release` updates -->\n\n| Version | Date | Change |\n|---|---|---|\n';
+  const rows = existsSync(changelog)
+    ? readFileSync(changelog, 'utf8').split('\n').filter((line) => /^\| \d/.test(line))
+    : [];
+  const date = args.date || new Date().toISOString().slice(0, 10);
+  rows.unshift(`| ${plugin.version} | ${date} | ${note.replaceAll('|', '\\|')} |`);
+  writeFileSync(changelog, `${head}${rows.join('\n')}\n`, 'utf8');
   writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock());
   row('released', `${plugin.version} stamped ${pkg.contentHash}`);
   report();

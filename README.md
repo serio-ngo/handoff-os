@@ -107,7 +107,6 @@ Guard actions: 4. Token counts are file bytes / 4 from this repo's own local led
 > Hooks load at session start, so restart Claude Code — a running session keeps the version it
 > started with.
 
-
 > Installed is not the same as enforcing. Confirm with `npm run doctor`.
 
 ### OpenCode — supported
@@ -126,13 +125,11 @@ What is not covered here: connector (`mcp`) calls pass through unjudged, and the
 
 Why it is partial: skills, connectors, and subagents run in Cowork, but plugin command hooks (`PreToolUse`, `PostToolUse`) currently never fire there — the host spawns with `--setting-sources user`, which silently skips plugin scope (upstream issues `anthropics/claude-code#27398`, `#51281`, `#51904`).
 
-
 What still helps when hooks do run: the guard already judges `mcp__workspace__bash` payloads (`command` / `script` / `code`) for egress, destructive git, and secret writes, just like `Bash`.
 
 What to do until hooks fire: copy the `deny` list from `settings/policy.json` into user scope as a fallback, and read Cowork runs from `local-agent-mode-sessions/*/audit.jsonl` or the Compliance API instead of `audit/*.jsonl`, which `npm run benchmark` never sees.
 
 ## Configuration
-
 
 - `HANDOFF_STATS=0` silences the kept-out line once you trust the gate.
 - `HANDOFF_LOCK_GIT=1` blocks every state-changing git command, including commits, when merges must stay human.
@@ -144,7 +141,6 @@ What to do until hooks fire: copy the `deny` list from `settings/policy.json` in
 > ship inside a plugin.
 
 ## Limits
-
 
 - Token counts are bytes / 4 estimates; only the billing figures are measured, so never price from the estimate.
 - The ledger records what was refused, never a paired session proving the bill fell, so there is no counterfactual yet.

@@ -88,7 +88,7 @@ Guard actions: 2. Token counts are file bytes / 4 from this repo's own local led
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **999** lines of Node across 7 scripts (884 non-blank) |
+| Guard logic | **1012** lines of Node across 7 scripts (897 non-blank) |
 | Pattern rules | **47** |
 | Hooks | **6** handlers on 6 events |
 | Skills | **3** |
@@ -116,14 +116,15 @@ Guard actions: 2. Token counts are file bytes / 4 from this repo's own local led
 
 ### OpenCode
 
-`.opencode/plugin/handoff-os.ts` loads on restart — same guards, same ledger, deny by throw.
-Tool names mapped (`read`→`Read`, `task`→`TaskCreate`, unknown tools pass through).
-Model-agnostic: dispatches are judged on content, never on provider or model. Session data
-lands in the repo ledger, where the benchmark picks it up.
-
-Install after merge: clone, point `plugin` at the loader, restart opencode:
+Install: clone this repo, point `plugin` at the loader in `opencode.json`, restart opencode:
 
 `"plugin": ["file:///path/to/handoff-os/.opencode/plugin/handoff-os.ts"]`
+
+Every tool call runs the same guards. A refusal stops the call and tells the model why, and
+the reason lands in the repo audit log. Works with any model — dispatches are judged on
+content, never on provider or model name. Session data lands in the repo ledger, where
+`npm run benchmark` picks it up. Not covered on this harness: connector (`mcp`) calls pass
+through unjudged, and there is no blocking verify gate.
 
 ## Configuration
 

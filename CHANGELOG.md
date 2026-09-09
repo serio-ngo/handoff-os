@@ -4,6 +4,7 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.5.40 | 2026-09-09 | opencode reads and writes judged via arg aliases, denials land in audit, user-facing opencode notes |
 | 1.5.39 | 2026-09-09 | legacy ledger lines purged, opencode dispatches model-agnostic, post-merge opencode install notes |
 | 1.5.38 | 2026-09-09 | opencode bridge always on with install notes, params reviewed unchanged |
 | 1.5.37 | 2026-09-09 | core judges exported for reuse, opencode bridge feeds session data, actionlint and gitleaks gates, multi-repo benchmark, tax in doctor |

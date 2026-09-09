@@ -4,10 +4,14 @@ import { rootOf } from './ledger.mjs';
 import { report } from './verify.mjs';
 
 const TOOLS = { read: 'Read', edit: 'Edit', write: 'Write', bash: 'Bash', grep: 'Grep', glob: 'Glob', task: 'TaskCreate' };
+const ALIAS = { filePath: 'file_path', oldString: 'old_string', newString: 'new_string' };
 
 export function toPayload(tool, args = {}, sessionID = '', cwd = process.cwd()) {
   const name = String(tool || '').toLowerCase();
   const input = args && typeof args === 'object' ? { ...args } : {};
+  for (const [from, to] of Object.entries(ALIAS)) {
+    if (input[from] !== undefined && input[to] === undefined) input[to] = input[from];
+  }
   if (name === 'task') delete input.model;
   return {
     hook_event_name: 'PreToolUse',
@@ -20,12 +24,21 @@ export function toPayload(tool, args = {}, sessionID = '', cwd = process.cwd()) 
 }
 
 export function verdictFor(tool, args, sessionID, cwd) {
+  const payload = toPayload(tool, args, sessionID, cwd);
   try {
-    judge(toPayload(tool, args, sessionID, cwd));
+    judge(payload);
     return null;
   } catch (error) {
-    if (error instanceof Blocked) return error.message.trim();
-    throw error;
+    if (!(error instanceof Blocked)) throw error;
+    const reason = error.message.trim();
+    append(rootOf(payload), {
+      actor: 'main',
+      tier: 'YELLOW',
+      action: payload.tool_name,
+      target: String(payload.tool_input.command ?? payload.tool_input.file_path ?? payload.tool_input.pattern ?? '').slice(0, 120),
+      result: `blocked: ${reason}`,
+    });
+    return reason;
   }
 }
 

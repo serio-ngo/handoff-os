@@ -13,7 +13,7 @@ keys, no network, no telemetry.
 
 [![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version)](plugins/handoff-os/.claude-plugin/plugin.json) [![license](https://img.shields.io/github/license/serio-ngo/handoff-os)](LICENSE)
 
-![handoff-os admitting a small read, refusing a 38KB read, capping a 20-agent opus wave and blocking a send, then printing session totals](docs/demo.svg)
+![handoff-os refusing a 38KB read, capping a 20-agent ultrathink opus wave and blocking a send, then printing session totals](docs/demo.svg)
 
 ## What changes for you
 

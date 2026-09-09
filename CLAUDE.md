@@ -1,7 +1,9 @@
 # CLAUDE.md
 
-Instructions for agents working in this repository. handoff-os is a Claude Code plugin: hooks and
-scripts only, never organisation data.
+| Scope | Rule |
+|---|---|
+| Code | hooks and scripts only |
+| Data | never organisation data |
 
 ## Layout
 
@@ -17,18 +19,17 @@ scripts only, never organisation data.
 
 ## Commands
 
-```bash
-npm test                                # run the test suite
-claude --plugin-dir plugins/handoff-os  # run this checkout as the plugin for one session
-```
+| Command | Effect |
+|---|---|
+| `npm test` | run the test suite |
+| `claude --plugin-dir plugins/handoff-os` | run this checkout as the plugin for one session |
+| `npm run upkeep` | regenerate `docs/MANIFEST.md`, README inventory, version, content stamp |
+| `npm run release` | upkeep plus benchmark rerun, README scores, `eval/scores.json` |
 
-A session loads the plugin once, at start. Edits to this checkout reach a running session only after
-it is restarted.
-
-`npm run upkeep` runs at the end of every turn and regenerates `docs/MANIFEST.md`, the README
-inventory block, the version and the content stamp. `npm run release` additionally reruns the
-benchmark and rewrites the README score block and `eval/scores.json`. Do not edit generated blocks
-by hand — they sit between `<!-- name -->` markers.
+| Fact | Value |
+|---|---|
+| Session load | once, at start; restart to pick up edits |
+| Generated blocks | between `<!-- name -->` markers; never hand-edit |
 
 ## Rules
 
@@ -46,5 +47,10 @@ by hand — they sit between `<!-- name -->` markers.
    list, not a new `describe`.
 8. Before working with Claude Code identifiers (hooks, permissions, plugin layout), read
    [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md).
+9. Docs carry data, not prose. `README.md` is the only exception.
+   Every other `*.md`: tables, lists, commands, data-comment lines only.
+   No paragraphs. No history. No decision narratives. No elaboration.
+   Keep names self-explanatory; one short comment per section max.
+   Never hand-edit generated blocks.
 
 Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).

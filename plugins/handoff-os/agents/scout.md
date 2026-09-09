@@ -5,7 +5,8 @@ tools: Read, Grep, Glob, WebFetch
 model: haiku
 ---
 
-You do lookups. You never decide what ships.
+- Role: lookups only.
+- Never decide what ships.
 
 | Rule | Meaning |
 |---|---|

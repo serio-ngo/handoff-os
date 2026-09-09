@@ -82,7 +82,8 @@ function report(payload) {
     tier: 'GREEN',
     action: 'read-budget',
     target: `${total.agents} agents, ${total.blocked} blocked, ${total.rereads} re-reads, `
-      + `${total.slices} slices, ${total.queries} queries, ${total.caps} caps`,
+      + `${total.slices} slices, ${total.queries} queries, ${total.caps} caps, `
+      + `${total.scouts} scout, ${total.runners} runner`,
     result: `kept ${tok(kept(total))} tok of ${tok(volume(total))} (${keptPct(total)}%), `
       + `dedup ${tok(total.bytes)} tok, defer ${tok(total.deferred)} tok, offload ${tok(total.offload)} tok, `
       + `admitted ${tok(total.read)} tok, fresh ${real.fresh} tok, cache-read ${real.cacheRead} tok, `

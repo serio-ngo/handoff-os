@@ -13,7 +13,7 @@ compatibility: No external dependencies. Repo plans and repo specs only — not 
 | Any repo with its own `AGENTS.md`/`CLAUDE.md` planning section | that file — a repo-local contract always wins |
 | Repo plan or repo spec with no local contract | this skill |
 
-Never import another repo's format into this plan.
+- Never import another repo's format into this plan.
 
 ## 2. Pick the shape before the first line
 
@@ -22,7 +22,7 @@ Never import another repo's format into this plan.
 | "what do we do, in what order" | **plan** | §3 |
 | "what is true, what is binding" | **spec** — PRD, ADR, content model, architecture | §4 |
 
-A file may hold both, but never blurred: a spec section states law, a plan section states work.
+- A file may hold both, never blurred: spec sections state law, plan sections state work.
 
 ## 3. The plan task row
 
@@ -34,7 +34,7 @@ A file may hold both, but never blurred: a spec section states law, a plan secti
 | WHEN | a day, a week or a trigger. Never "soon" or "TBD" |
 | DONE | the exact check that proves it — runnable or greppable. Never "looks good" |
 
-State net LOC intent per section — "+40/-10 net +30" — so size can be vetoed before writing.
+- State net LOC intent per section (`+40/-10 net +30`); size veto before writing.
 
 ## 4. The spec row
 
@@ -46,10 +46,9 @@ State net LOC intent per section — "+40/-10 net +30" — so size can be vetoed
 | SOURCE | a repo path for internal law, a **URL + retrieval date** for anything external, or `UNVERIFIED` |
 | CHECK | how a reader proves the product still obeys it — greppable, runnable, or a named manual test |
 
-A spec table stating an external fact with no SOURCE column is malformed. Delete it or source it.
+- A spec table stating an external fact with no SOURCE column is malformed: delete or source it.
 
-Every technical choice additionally carries: **what was picked · what was rejected · custom LOC · client kB ·
-SOURCE**.
+- Every technical choice carries: picked · rejected · custom LOC · client kB · SOURCE.
 
 ## 5. Where facts may come from
 
@@ -60,8 +59,7 @@ SOURCE**.
 | The outside world — law, prices, APIs, library behaviour, market data | a **primary source URL plus the date it was read** |
 | Anything you could not confirm | the literal tag `UNVERIFIED`, kept in the deliverable |
 
-**A document inside a repo is a source only for facts about that repo.** Committed reports are *input*,
-not evidence — re-verify their external claims or carry them tagged `UNVERIFIED`.
+- A repo document sources facts about that repo only. Committed reports are input, not evidence: re-verify external claims or tag `UNVERIFIED`.
 
 ## 6. Decide — do not defer
 
@@ -71,12 +69,11 @@ not evidence — re-verify their external claims or carry them tagged `UNVERIFIE
 | Genuinely the owner's call | one row: the question · who decides · what it blocks · **the default that ships if nobody answers** |
 | Blocked on a fact you cannot get | the row above, plus what you tried |
 
-Banned: open questions with no defaults · "to be decided later" · deferring what the brief asked to settle.
+- Banned: open questions with no defaults · `TBD`/`later` · deferring what the brief asked to settle.
 
 ## 7. Prior art before custom code
 
-Before any row proposes a script, a helper or an abstraction, search for an existing tool. The row states the
-package or built-in that does this **with its docs URL**, or why none fits, in one clause.
+- Before any row proposes a script, helper or abstraction, search for an existing tool; the row states the package or built-in with its docs URL, or why none fits, in one clause.
 
 ## 8. Register — how both shapes are written
 
@@ -87,10 +84,3 @@ package or built-in that does this **with its docs URL**, or why none fits, in o
 | Scope | name which stated goal each row serves. Inferred-but-unasked work goes in an out-of-scope note |
 | Length | more than two lines of prose becomes a table |
 | Banned | first person · options surveys · thinking-process sections · closing summaries · hedge words · rhetorical questions · emoji |
-
-## 9. Closing ledger — mandatory, one line per task, last thing in the document
-
-```text
-1 -> grep -rn "TODO" src/ returns 0 matches
-2 -> npm run verify exits 0
-```

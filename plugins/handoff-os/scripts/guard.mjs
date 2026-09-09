@@ -162,7 +162,7 @@ function readBudget(payload, input) {
   }
 
   if (!sliced && actor === 'main' && (state.read_bytes || 0) >= READ_CEILING_BYTES) {
-    refuse('blocked', 'deferred', 'c',
+    refuse('slices', 'deferred', 'c',
       `${Math.round((state.read_bytes || 0) / 1024)}KB of whole files read into this thread, over the ${READ_CEILING_BYTES / 1024}KB ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.`);
   }
 
@@ -288,6 +288,7 @@ function fanOutCap(payload, count = 1) {
   let slot = 0;
   for (let n = 0; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
   if (slot > MAX_PER_WAVE) {
+    bump(payload, 'blocked');
     process.stderr.write(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Read the returns, then relaunch via /handoff-os:research-budget.\n`);
     process.exit(2);
   }
@@ -325,6 +326,9 @@ else if (SPAWN_TOOLS.includes(tool)) {
   const count = agentsRequested(input, tool);
   fanOutCap(payload, count);
   bump(payload, 'agents', count);
+  const kind = String(input.subagent_type || '');
+  if (/scout/i.test(kind)) bump(payload, 'scouts', count);
+  else if (/runner/i.test(kind)) bump(payload, 'runners', count);
   receipt(payload, input, tool);
 }
 else if (tool === 'Bash' || tool === 'PowerShell') {

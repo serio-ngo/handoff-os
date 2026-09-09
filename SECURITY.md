@@ -1,17 +1,16 @@
 # Security
 
-The plugin runs shell commands automatically on your machine in every session. Review the code before
-installing:
+| Review before install | Command |
+|---|---|
+| Hooks | `cat plugins/handoff-os/hooks/hooks.json` |
+| Scripts | `cat plugins/handoff-os/scripts/*.mjs` |
+| Suite | `npm test` |
 
-```bash
-cat plugins/handoff-os/hooks/hooks.json
-cat plugins/handoff-os/scripts/*.mjs
-npm test
-```
-
-Report vulnerabilities through GitHub private vulnerability reporting (Security, then Report a
-vulnerability). Do not open a public issue and do not include live credentials. First response within
-7 days.
+| Report | Rule |
+|---|---|
+| Channel | GitHub private vulnerability reporting (Security, then Report a vulnerability) |
+| Ban | no public issue; no live credentials |
+| First response | within 7 days |
 
 ## Scope
 
@@ -23,9 +22,7 @@ vulnerability). Do not open a public issue and do not include live credentials. 
 
 ## Known gaps
 
-Every gap below is a live case in `eval/guard-corpus.jsonl` tagged `known_gap: true`, so the count is
-published on every run rather than described. They are scored apart from recall and precision, which
-keeps a scoring choice from burying them.
+<!-- every gap is a live `known_gap: true` case in `eval/guard-corpus.jsonl`; scored apart from recall and precision -->
 
 | Gap | Eval case | Verdict |
 |---|---|---|
@@ -34,15 +31,13 @@ keeps a scoring choice from burying them.
 | An unquoted no-op flag used as a value (`curl -X POST -d --help`) suppresses the whole segment. | `evasion-03` | Allowed. |
 | A connector action whose name carries no classifiable verb (`transition_issue`) is not classified. | `evasion-04` | Allowed. |
 
-`evasion-03` is a cost of the no-op flag rule, which exists so `rm --help` and `npm publish
---dry-run` are not blocked. The rule ignores a flag found inside quotes, so `-d "q=--help"` is still
-blocked; the unquoted form is not.
+| Gap | Rule behind it |
+|---|---|
+| `evasion-03` | cost of the no-op flag rule (`rm --help`, `npm publish --dry-run` stay unblocked); quoted flags still inspect (`-d "q=--help"` blocked, unquoted form not) |
+| `evasion-04` | verb-denylist classifier; an allowlist would close it and raise false positives on unfamiliar connectors — not the default; `HANDOFF_MCP_ALLOW` narrows the other way |
 
-The connector classifier is a verb denylist, so an unlisted verb passes. Inverting it to an allowlist
-would close `evasion-04` and raise the false-positive rate on every unfamiliar connector. That
-trade is not made by default. `HANDOFF_MCP_ALLOW` narrows in the other direction.
-
-Reproduce: `npm run benchmark:eval`. Method and last run: [docs/BENCHMARK.md](docs/BENCHMARK.md).
-
-Re-run `npm test` after every Claude Code update. It fires every hook against a representative
-payload and fails if an event or payload field changed.
+| Check | Command |
+|---|---|
+| Reproduce | `npm run benchmark:eval` |
+| Method, last run | [docs/BENCHMARK.md](docs/BENCHMARK.md) |
+| After every Claude Code update | `npm test` — fires every hook against a representative payload; fails on changed event or field |

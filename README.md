@@ -13,7 +13,7 @@ out. Hooks and scripts only — no model calls, no network, no dependencies.
 [![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version)](plugins/handoff-os/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/github/license/serio-ngo/handoff-os)](LICENSE)
 
-![handoff-os refusing a 38KB read, a fourth subagent and a send](docs/demo.svg)
+![handoff-os admitting a small read, refusing a 38KB read, capping a 20-agent opus wave and blocking a send, then printing session totals](docs/demo.svg)
 
 ## What it optimises
 
@@ -81,7 +81,7 @@ Shell wrappers are unwrapped first, so `powershell -Command`, `cmd /c`, `bash -c
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **927** lines of Node across 6 scripts (819 non-blank) |
+| Guard logic | **938** lines of Node across 6 scripts (831 non-blank) |
 | Pattern rules | **47** |
 | Hooks | **6** handlers on 6 events |
 | Skills | **3** |

@@ -273,6 +273,7 @@ const cutoff = flags.days ? Date.now() - flags.days * 864e5 : 0;
 const t = {
   agents: 0, denies: 0, rereads: 0, slices: 0, queries: 0, caps: 0,
   deduped: 0, deferred: 0, offload: 0, read: 0, fresh: 0, cacheRead: 0, turns: 0,
+  scouts: 0, runners: 0,
 };
 const marks = [];
 
@@ -293,6 +294,8 @@ for (const file of ledgers) {
       t.agents += +counts[1]; t.denies += +counts[2]; t.rereads += +counts[3];
       t.slices += +counts[4]; t.queries += +counts[5]; t.caps += +counts[6];
     }
+    const used = /(\d+) scout, (\d+) runner/.exec(entry.target || '');
+    if (used) { t.scouts += +used[1]; t.runners += +used[2]; }
     t.deduped += +now[1]; t.deferred += +now[2]; t.offload += +now[3];
     t.read += +now[4]; t.fresh += +now[5]; t.cacheRead += +now[6];
     marks.push({ turn: +now[7], kept: +now[1] + +now[2] + +now[3] });
@@ -394,11 +397,13 @@ if (flags.replay) {
 
 console.log('\n  guard actions');
 rule('re-read dedup', t.rereads, 'a byte-identical file already in context');
-rule('whole-file cap', t.slices, 'a large file deferred to a slice or scout');
+rule('deferred to slice or scout', t.slices, 'over the file cap or the session ceiling');
 rule('repeat query', t.queries, 'a Grep or Glob already answered this session');
 rule('runaway query cap', t.caps, 'a content Grep with no head_limit');
 rule('subagent dispatch', t.agents, 'reading moved off the main thread');
-rule('denies', t.denies, 'egress lock plus the session read ceiling');
+rule('scout used', t.scouts, 'a lookup answered off-thread');
+rule('runner used', t.runners, 'a verdict back, never the log');
+rule('denies', t.denies, 'egress lock, dispatch budget and fan-out cap');
 console.log();
 
 const OPEN = '<!-- handoff-stats -->';
@@ -424,7 +429,7 @@ const statsBlock = () => {
       ...(marks.length ? [`| Re-sends removed, kept × turns that followed | ~${tokc(notResent)} |`] : []),
       '',
     ] : []),
-    `Guard actions: ${num(actions)}. Token counts are file bytes / 4 from this repo's own local `
+    `Guard actions: ${num(actions)}${t.scouts || t.runners ? ` (used ${num(t.scouts)} scout, ${num(t.runners)} runner)` : ''}. Token counts are file bytes / 4 from this repo's own local `
     + 'ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).',
   ];
 };

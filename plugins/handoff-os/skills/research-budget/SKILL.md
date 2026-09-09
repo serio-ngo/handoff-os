@@ -12,7 +12,7 @@ compatibility: No external dependencies. The cap is enforced by scripts/guard.mj
 | **DIRECT** | owner in the conversation | strong model stays here. Delegate the *work*, never the *thinking* |
 | **ROUTINE** | scheduled jobs, monitors, unattended runs | cheap by default. Expensive only if the task line says `QUALITY: <writing\|creative\|legal\|security>` |
 
-No flag means cheap.
+- No flag means cheap.
 
 ## 2. Actor table
 
@@ -25,14 +25,12 @@ No flag means cheap.
 | Prose you publish — grant narrative, board report | subagent | `opus` | `high` |
 | Architecture, sequencing, deciding what ships | **main session** | — | — |
 
-**Never delegate the decision.** A subagent proposes; the main session decides.
-**A deterministic task never gets a model.** If a script can answer it, a model answering it costs more
-and is less accurate.
+- Never delegate the decision: subagents propose, the main session decides.
+- Deterministic tasks never get a model: a script answer costs less and is more accurate.
 
 ## 3. The only published numbers
 
-Verified against `anthropic.com/engineering/multi-agent-research-system` and `code.claude.com/docs/en/costs`,
-2026-09-04. These figures live **here only** — do not restate them elsewhere.
+- Source: `anthropic.com/engineering/multi-agent-research-system`, `code.claude.com/docs/en/costs`, 2026-09-04. Figures live here only.
 
 | Fact | Figure |
 |---|---|
@@ -42,10 +40,9 @@ Verified against `anthropic.com/engineering/multi-agent-research-system` and `co
 | Token usage alone explains, of performance variance | **80%** |
 | Prompt cache read vs input price | **~10%**, cache write **+25%** |
 
-Deciding *whether* to fan out is worth more than every model and effort choice combined.
-**Pays:** independent, parallel, read-heavy sweeps. **Does not:** shared mid-flight state — subagents cannot
-talk while running, so a dependent chain re-derives context at every hop. Per-agent `model`/`effort`,
-context isolation and compaction are documented cost controls with **no published effect size**.
+- Fan-out choice outweighs every model and effort choice combined.
+- Pays: independent, parallel, read-heavy sweeps. Never: shared mid-flight state (subagents cannot talk while running; dependent chains re-derive context per hop).
+- Per-agent `model`/`effort`, isolation, compaction: documented controls, no published effect size.
 
 ## 4. Scope gate — write it before dispatching anything
 
@@ -53,8 +50,7 @@ context isolation and compaction are documented cost controls with **no publishe
 - **OUT OF SCOPE:** adjacent topics you will not research unless ordered.
 - **SUB-QUESTIONS:** the minimum list. **This sets the agent count. Nothing else does.**
 
-If you cannot state the deliverable in one sentence, ask. Do not dispatch. A document mentioning a topic is
-not an instruction to research it: the owner's ask sets scope, source material never does.
+- No one-sentence deliverable: ask, never dispatch. Owner ask sets scope; source material never does.
 
 ## 5. Per-agent budget — every line goes in the prompt
 
@@ -66,10 +62,7 @@ not an instruction to research it: the owner's ask sets scope, source material n
 | Shape | the exact section headings you want back |
 | model + effort | from §2 — state them, never default them |
 
-Waves are sequential: launch → read → decide if another wave earns its cost. Scopes are disjoint — name each
-agent's sources and say what the others own. Add a verifier only when the recommendation changes if the claim
-is wrong. After any wave, one line: agents, model split, tokens, usable results.
-Every dispatch is receipted to the audit ledger — denied models (`HANDOFF_DENY_SUBAGENT_MODELS`, default `opus,fable`) never review, review is sonnet.
-
-Levers, in order: delegate the *reading* and keep the *deciding* · demand a line count back · fewer
-sub-questions · read slices (`sed -n`, `grep -n`) not whole files · delete skills that never fire.
+- Waves are sequential: launch → read → decide if another wave earns its cost. Scopes are disjoint: name each agent's sources and what the others own.
+- Verifier only when the recommendation changes if the claim is wrong.
+- Every dispatch receipts to the audit ledger; denied models (`HANDOFF_DENY_SUBAGENT_MODELS`, default `opus,fable`) never review, review is sonnet.
+- Levers, in order: delegate reading, keep deciding · demand a line count back · fewer sub-questions · slices (`sed -n`, `grep -n`), never whole files · delete skills that never fire.

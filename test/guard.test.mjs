@@ -153,6 +153,23 @@ describe('dispatch budget', () => {
     for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
     assert.equal(spawn({ prompt: 'fourth', model: 'haiku' }), BLOCKED);
   });
+  it('counts a capped wave as blocked', () => {
+    const run = () => at('wv', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
+    run(); run(); run();
+    assert.equal(run(), BLOCKED);
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-wv.json'), 'utf8'));
+    assert.equal(state.saved.blocked, 1);
+    assert.equal(state.saved.agents, 3);
+  });
+  it('counts scout and runner dispatches apart from the wave', () => {
+    const run = (subagent_type) => at('ct', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku', subagent_type } });
+    assert.equal(run('handoff-os:scout'), ALLOWED);
+    assert.equal(run('handoff-os:runner'), ALLOWED);
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-ct.json'), 'utf8'));
+    assert.equal(state.saved.scouts, 1);
+    assert.equal(state.saved.runners, 1);
+    assert.equal(state.saved.agents, 2);
+  });
 });
 
 describe('read and query budgets', () => {

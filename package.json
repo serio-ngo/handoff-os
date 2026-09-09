@@ -1,6 +1,6 @@
 {
   "name": "handoff-os",
-  "version": "1.5.26",
+  "version": "1.5.31",
   "description": "An egress lock, a verification gate, an audit trail and budget caps for Claude Code. Sends, payments, publishes, merges, deletes and credential writes stop before they run. No model call, no API key, no telemetry, no dependencies.",
   "license": "Apache-2.0",
   "private": true,
@@ -16,7 +16,7 @@
   "engines": {
     "node": ">=22"
   },
-  "contentHash": "f01a1af002bf36dd",
+  "contentHash": "f00c9bca9370975a",
   "scripts": {
     "test": "node --test",
     "verify": "node --test",
@@ -28,6 +28,7 @@
     "release": "node scripts/handoff.mjs release",
     "benchmark": "node scripts/benchmark.mjs",
     "benchmark:eval": "node scripts/benchmark.mjs --eval",
-    "benchmark:compare": "node scripts/benchmark.mjs --eval --compare --write"
+    "benchmark:compare": "node scripts/benchmark.mjs --eval --compare --write",
+    "benchmark:replay": "node scripts/benchmark.mjs --replay --write"
   }
 }

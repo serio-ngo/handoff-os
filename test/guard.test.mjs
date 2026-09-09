@@ -153,6 +153,23 @@ describe('dispatch budget', () => {
     for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
     assert.equal(spawn({ prompt: 'fourth', model: 'haiku' }), BLOCKED);
   });
+  it('counts a capped wave as blocked', () => {
+    const run = () => at('wv', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
+    run(); run(); run();
+    assert.equal(run(), BLOCKED);
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-wv.json'), 'utf8'));
+    assert.equal(state.saved.blocked, 1);
+    assert.equal(state.saved.agents, 3);
+  });
+  it('counts scout and runner dispatches apart from the wave', () => {
+    const run = (subagent_type) => at('ct', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku', subagent_type } });
+    assert.equal(run('handoff-os:scout'), ALLOWED);
+    assert.equal(run('handoff-os:runner'), ALLOWED);
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-ct.json'), 'utf8'));
+    assert.equal(state.saved.scouts, 1);
+    assert.equal(state.saved.runners, 1);
+    assert.equal(state.saved.agents, 2);
+  });
 });
 
 describe('read and query budgets', () => {
@@ -199,6 +216,26 @@ describe('read and query budgets', () => {
     assert.equal(state.saved.queries, 1);
     assert.equal(state.saved.rereads, 0);
     assert.equal(state.saved.bytes, 0);
+  });
+  it('credits a refused read once however often it is retried', () => {
+    const file = path.join(box, 'retry.txt');
+    writeFileSync(file, 'w'.repeat(30 * 1024));
+    for (let n = 0; n < 3; n += 1) {
+      assert.equal(at('rt', { tool_name: 'Read', tool_input: { file_path: file } }), BLOCKED);
+    }
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-rt.json'), 'utf8'));
+    assert.equal(state.saved.slices, 1);
+    assert.equal(state.saved.deferred, 30 * 1024);
+  });
+  it('never spends the main thread read ceiling on a subagent read', () => {
+    const file = path.join(box, 'ceil-scout.txt');
+    writeFileSync(file, 'q'.repeat(1024));
+    mkdirSync(path.join(box, '.claude'), { recursive: true });
+    writeFileSync(path.join(box, '.claude', '.session-sc.json'),
+      JSON.stringify({ reads: {}, read_bytes: 600000, saved: {} }), 'utf8');
+    assert.equal(at('sc', { agent_type: 'handoff-os:scout', tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED);
+    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-sc.json'), 'utf8'));
+    assert.equal(state.read_bytes, 600000);
   });
   it('books a ceiling block as deferred, not deduped', () => {
     const file = path.join(box, 'ceil-small.txt');

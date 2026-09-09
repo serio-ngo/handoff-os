@@ -8,7 +8,7 @@ import { MODES } from '../eval/baselines.mjs';
 import { usage } from '../plugins/handoff-os/scripts/verify.mjs';
 import { inventory, inventoryBlock, writeBlock } from './generate.mjs';
 
-const flags = { write: false, days: 0, eval: false, compare: false, latency: false, json: false };
+const flags = { write: false, days: 0, eval: false, compare: false, latency: false, json: false, replay: false };
 let REPO = process.cwd();
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i += 1) {
@@ -16,6 +16,7 @@ for (let i = 0; i < argv.length; i += 1) {
   else if (argv[i] === '--eval') flags.eval = true;
   else if (argv[i] === '--compare') flags.compare = true;
   else if (argv[i] === '--latency') flags.latency = true;
+  else if (argv[i] === '--replay') flags.replay = true;
   else if (argv[i] === '--json') flags.json = true;
   else if (argv[i] === '--days') flags.days = Number(argv[i += 1] || 0);
   else if (!argv[i].startsWith('--')) REPO = argv[i];
@@ -23,6 +24,7 @@ for (let i = 0; i < argv.length; i += 1) {
 REPO = path.resolve(REPO);
 
 const num = (n) => Number(n || 0).toLocaleString('en-US');
+const tok4 = (bytes) => Math.round(bytes / 4);
 const tokc = (n) => {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   return n >= 10000 ? `${(n / 1000).toFixed(1)}k` : num(n);
@@ -188,6 +190,79 @@ function run() {
 
 if (flags.eval || flags.compare || flags.latency) process.exit(run());
 
+const transcriptDir = (root) => path.join(process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude'),
+  'projects', root.replace(/[^A-Za-z0-9]/g, '-'));
+
+const REPLAY_TOOLS = new Set(['Read', 'Grep', 'Glob', 'Bash']);
+const REPLAY_RULES = [
+  [/is unchanged and already in context/, 're-read dedup'],
+  [/whole-file limit/, 'whole-file cap'],
+  [/over the \d+KB ceiling/, 'session ceiling'],
+  [/already ran and nothing has been written/, 'repeat query'],
+  [/set head_limit/, 'runaway query cap'],
+  [/FAN-OUT CAP/, 'fan-out cap'],
+  [/DISPATCH BUDGET/, 'dispatch budget'],
+  [/EGRESS LOCK/, 'egress lock'],
+];
+
+// Re-feeds every judged tool call from this project's real Claude Code transcripts to the guard, in
+// order, one sandbox per session. Open-loop: a refusal cannot change what the agent did next, so the
+// refusal count is what the guard would have caught on that exact stream, not a counterfactual.
+function replay(root) {
+  const dir = transcriptDir(root);
+  const out = { sessions: 0, calls: 0, judged: 0, blocked: 0, rules: {}, kept: 0, admitted: 0, fresh: 0, cacheRead: 0 };
+  if (!existsSync(dir)) return out;
+  const guard = path.join(root, OWN);
+  for (const name of readdirSync(dir).filter((f) => f.endsWith('.jsonl'))) {
+    const session = name.replace(/\.jsonl$/, '');
+    const probe = mkdtempSync(path.join(tmpdir(), 'handoff-replay-'));
+    const env = { ...process.env, HANDOFF_OS_DIR: probe, CLAUDE_PROJECT_DIR: root };
+    let seen = false;
+    for (const line of readFileSync(path.join(dir, name), 'utf8').split(/\r?\n/)) {
+      if (!line) continue;
+      let entry;
+      try { entry = JSON.parse(line); } catch { continue; }
+      const u = entry.message?.usage;
+      if (u) {
+        out.fresh += (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_creation_input_tokens || 0);
+        out.cacheRead += u.cache_read_input_tokens || 0;
+      }
+      const content = entry.message?.content;
+      if (!Array.isArray(content)) continue;
+      for (const part of content) {
+        if (part?.type !== 'tool_use') continue;
+        seen = true;
+        out.calls += 1;
+        if (!REPLAY_TOOLS.has(part.name)) continue;
+        out.judged += 1;
+        const run = spawnSync(process.execPath, [guard], {
+          encoding: 'utf8',
+          env,
+          input: JSON.stringify({
+            hook_event_name: 'PreToolUse',
+            session_id: session,
+            cwd: root,
+            agent_type: entry.isSidechain ? 'handoff-os:scout' : 'main',
+            tool_name: part.name,
+            tool_input: part.input || {},
+          }),
+        });
+        if (run.status !== 2) continue;
+        out.blocked += 1;
+        const rule = (REPLAY_RULES.find(([rx]) => rx.test(run.stderr || '')) || [null, 'other'])[1];
+        out.rules[rule] = (out.rules[rule] || 0) + 1;
+      }
+    }
+    if (seen) out.sessions += 1;
+    const ledger = path.join(probe, '.claude', `.session-${session}.json`);
+    if (!existsSync(ledger)) continue;
+    const { saved } = JSON.parse(readFileSync(ledger, 'utf8'));
+    out.kept += (saved.bytes || 0) + (saved.deferred || 0) + (saved.offload || 0);
+    out.admitted += saved.read || 0;
+  }
+  return out;
+}
+
 const auditDir = path.join(REPO, 'audit');
 const ledgers = existsSync(auditDir)
   ? readdirSync(auditDir).filter((name) => /^\d{4}-\d{2}\.jsonl$/.test(name)).sort()
@@ -198,7 +273,9 @@ const cutoff = flags.days ? Date.now() - flags.days * 864e5 : 0;
 const t = {
   agents: 0, denies: 0, rereads: 0, slices: 0, queries: 0, caps: 0,
   deduped: 0, deferred: 0, offload: 0, read: 0, fresh: 0, cacheRead: 0, turns: 0,
+  scouts: 0, runners: 0,
 };
+const marks = [];
 
 for (const file of ledgers) {
   for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
@@ -207,26 +284,21 @@ for (const file of ledgers) {
     try { entry = JSON.parse(line); } catch { continue; }
     if (entry.action !== 'read-budget') continue;
     if (cutoff && entry.ts && Date.parse(entry.ts) < cutoff) continue;
+    const now = /dedup (\d+) tok, defer (\d+) tok, offload (\d+) tok, admitted (\d+) tok, fresh (\d+) tok, cache-read (\d+) tok, turn (\d+)/
+      .exec(entry.result || '');
+    if (!now) continue;
     t.turns += 1;
-    const counts = /(\d+) agents, (\d+) blocked, (\d+) re-reads, (\d+) slices(?:, (\d+) queries, (\d+) caps)?/
+    const counts = /(\d+) agents, (\d+) blocked, (\d+) re-reads, (\d+) slices, (\d+) queries, (\d+) caps/
       .exec(entry.target || '');
     if (counts) {
-      t.agents += +counts[1]; t.denies += +counts[2]; t.rereads += +counts[3]; t.slices += +counts[4];
-      t.queries += +(counts[5] || 0); t.caps += +(counts[6] || 0);
+      t.agents += +counts[1]; t.denies += +counts[2]; t.rereads += +counts[3];
+      t.slices += +counts[4]; t.queries += +counts[5]; t.caps += +counts[6];
     }
-    const result = entry.result || '';
-    const now = /dedup (\d+) tok, defer (\d+) tok, offload (\d+) tok, admitted (\d+) tok, fresh (\d+) tok, cache-read (\d+) tok/
-      .exec(result);
-    if (now) {
-      t.deduped += +now[1]; t.deferred += +now[2]; t.offload += +now[3];
-      t.read += +now[4]; t.fresh += +now[5]; t.cacheRead += +now[6];
-    } else {
-      // Lines written by earlier versions, kept so the history still counts.
-      const old = /~(\d+) tok deduped, (\d+) tok deferred, (\d+) tok read/.exec(result);
-      if (old) { t.deduped += +old[1]; t.deferred += +old[2]; t.read += +old[3]; }
-      const older = /~(\d+) tokens saved, (\d+) cache-read/.exec(result);
-      if (older) { t.deduped += +older[1]; t.cacheRead += +older[2]; }
-    }
+    const used = /(\d+) scout, (\d+) runner/.exec(entry.target || '');
+    if (used) { t.scouts += +used[1]; t.runners += +used[2]; }
+    t.deduped += +now[1]; t.deferred += +now[2]; t.offload += +now[3];
+    t.read += +now[4]; t.fresh += +now[5]; t.cacheRead += +now[6];
+    marks.push({ turn: +now[7], kept: +now[1] + +now[2] + +now[3] });
   }
 }
 
@@ -258,9 +330,21 @@ const kept = t.deduped + t.deferred + t.offload;
 const readVolume = kept + t.read;
 const keptPct = share(kept, readVolume);
 const resend = t.fresh ? t.cacheRead / t.fresh : 0;
-const avoided = Math.round(kept * resend);
 const actions = t.denies + t.rereads + t.slices + t.queries + t.caps + t.agents;
 const window = flags.days ? `last ${flags.days} day(s)` : 'all recorded turns';
+
+// A byte refused at turn N is a byte the turns after it never re-send. Turn stamps restart with
+// each session, so a drop in the count closes one session and opens the next.
+function resends(rows) {
+  let total = 0;
+  for (let i = 0, start = 0; i < rows.length; i += 1) {
+    if (i < rows.length - 1 && rows[i + 1].turn > rows[i].turn) continue;
+    for (let j = start; j <= i; j += 1) total += rows[j].kept * (rows[i].turn - rows[j].turn);
+    start = i + 1;
+  }
+  return total;
+}
+const notResent = resends(marks);
 
 console.log(`\nhandoff-os — context kept out of the main thread, ${window}`);
 console.log(`  source: audit/*.jsonl, ${t.turns} recorded turn(s)\n`);
@@ -278,16 +362,48 @@ if (t.fresh) {
   row('fresh tokens', num(t.fresh), 'tok   input + output + cache write');
   row('cache-read tokens', num(t.cacheRead), 'tok');
   row('context re-send ratio', `${resend.toFixed(1)}x`, 'every fresh token re-read this often');
-  row('cache-read likely avoided', `~${tokc(avoided)}`, 'tok   kept tokens at that ratio, an estimate');
+}
+console.log(`
+  re-sends the refusals removed${marks.length ? '' : ' — no turn-stamped ledger line yet'}`);
+if (marks.length) row('kept tok x turns that followed', `~${tokc(notResent)}`, 'tok   summed per block, per session');
+
+const REPLAY_OPEN = '<!-- handoff-replay -->';
+const REPLAY_CLOSE = '<!-- /handoff-replay -->';
+if (flags.replay) {
+  const r = replay(REPO);
+  const pct = (part) => share(part, r.judged);
+  const rules = Object.entries(r.rules).sort((a, b) => b[1] - a[1]);
+  console.log(`\n  trace replay — ${num(r.judged)} judged call(s) from ${r.sessions} real session(s)`);
+  row('refused', num(r.blocked), `${pct(r.blocked)}% of judged calls`);
+  for (const [rule, count] of rules) row(`  ${rule}`, num(count), `${pct(count)}%`);
+  row('bytes kept out', `~${tokc(tok4(r.kept))}`, 'tok');
+  row('bytes admitted', `~${tokc(tok4(r.admitted))}`, 'tok');
+  if (flags.write) {
+    console.log(`  ${writeBlock(path.join(REPO, 'README.md'), REPLAY_OPEN, REPLAY_CLOSE, [
+      `| Replayed over ${num(r.sessions)} real sessions | Count | Share of judged |`,
+      '|---|---|---|',
+      `| Tool calls recorded | ${num(r.calls)} | — |`,
+      `| Judged by the guard | ${num(r.judged)} | 100% |`,
+      `| **Refused** | **${num(r.blocked)}** | **${pct(r.blocked)}%** |`,
+      ...rules.map(([rule, count]) => `| — ${rule} | ${num(count)} | ${pct(count)}% |`),
+      '',
+      'Every `Read`, `Grep`, `Glob` and `Bash` call from this machine\'s Claude Code transcripts, re-fed '
+      + 'to the guard in order, one sandbox per session. Open-loop: a refusal cannot change what the '
+      + 'agent did next, so this is what the guard catches on that exact stream, not a counterfactual. '
+      + 'Reproduce with `npm run benchmark:replay`.',
+    ])}`);
+  }
 }
 
 console.log('\n  guard actions');
 rule('re-read dedup', t.rereads, 'a byte-identical file already in context');
-rule('whole-file cap', t.slices, 'a large file deferred to a slice or scout');
+rule('deferred to slice or scout', t.slices, 'over the file cap or the session ceiling');
 rule('repeat query', t.queries, 'a Grep or Glob already answered this session');
 rule('runaway query cap', t.caps, 'a content Grep with no head_limit');
 rule('subagent dispatch', t.agents, 'reading moved off the main thread');
-rule('denies', t.denies, 'egress lock plus the session read ceiling');
+rule('scout used', t.scouts, 'a lookup answered off-thread');
+rule('runner used', t.runners, 'a verdict back, never the log');
+rule('denies', t.denies, 'egress lock, dispatch budget and fan-out cap');
 console.log();
 
 const OPEN = '<!-- handoff-stats -->';
@@ -310,10 +426,10 @@ const statsBlock = () => {
       `| Fresh — input + output + cache write | ${num(t.fresh)} |`,
       `| Cache-read | ${num(t.cacheRead)} |`,
       `| **Context re-send ratio** | **${resend.toFixed(1)}×** |`,
-      `| Cache-read avoided, kept × ratio | ~${tokc(avoided)} |`,
+      ...(marks.length ? [`| Re-sends removed, kept × turns that followed | ~${tokc(notResent)} |`] : []),
       '',
     ] : []),
-    `Guard actions: ${num(actions)}. Token counts are file bytes / 4 from this repo's own local `
+    `Guard actions: ${num(actions)}${t.scouts || t.runners ? ` (used ${num(t.scouts)} scout, ${num(t.runners)} runner)` : ''}. Token counts are file bytes / 4 from this repo's own local `
     + 'ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).',
   ];
 };
@@ -326,6 +442,7 @@ if (flags.write) {
     readVolumeTokens: readVolume,
     offloadTokens: t.offload,
     resendRatio: Number(resend.toFixed(1)),
+    resendsRemoved: notResent,
     ledgerTurns: t.turns,
   });
 }

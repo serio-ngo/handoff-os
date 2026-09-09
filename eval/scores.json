@@ -1,6 +1,6 @@
 {
   "generated": "2026-09-08",
-  "version": "1.5.24",
+  "version": "1.5.27",
   "cases": 66,
   "recall": 100,
   "precision": 100,
@@ -17,7 +17,7 @@
   "latencyMedianMs": 66,
   "latencyP95Ms": 84,
   "contextTokens": 560,
-  "logicLines": 926,
+  "logicLines": 927,
   "dependencies": 0,
   "baselines": {
     "none": {
@@ -41,10 +41,11 @@
       "f1": 0.72
     }
   },
-  "keptPct": 67,
-  "keptTokens": 49731,
-  "readVolumeTokens": 74162,
+  "keptPct": 0,
+  "keptTokens": 0,
+  "readVolumeTokens": 0,
   "offloadTokens": 0,
-  "resendRatio": 35,
-  "ledgerTurns": 39
+  "resendRatio": 34.9,
+  "ledgerTurns": 0,
+  "resendsRemoved": 0
 }

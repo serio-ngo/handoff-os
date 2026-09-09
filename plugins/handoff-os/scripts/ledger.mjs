@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps',
-  'bytes', 'deferred', 'offload', 'read'];
+  'bytes', 'deferred', 'offload', 'read', 'scouts', 'runners'];
 
 export const BYTE_COUNTERS = ['bytes', 'deferred', 'offload'];
 
@@ -54,22 +54,14 @@ export const volume = (t) => kept(t) + Number(t.read || 0);
 
 export const keptPct = (t) => (volume(t) ? Math.round((kept(t) / volume(t)) * 100) : 0);
 
-export function dedupePct(t) {
-  const total = volume(t);
-  return total ? Math.round((Number(t.bytes || 0) / total) * 100) : 0;
-}
-
 export function savings(state) {
   const s = state.saved;
-  if (!COUNTERS.some((key) => s[key])) return null;
-  return { ...s, tokens: tok(kept(s)) };
+  return COUNTERS.some((key) => s[key]) ? { ...s } : null;
 }
 
 const num = (value) => Number(value || 0).toLocaleString('en-US');
+const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
 const compact = (value) => (value >= 10000 ? `${(value / 1000).toFixed(1)}k` : num(value));
-
-const actions = (t) => ['blocked', 'rereads', 'slices', 'queries', 'caps', 'agents']
-  .reduce((total, key) => total + Number(t[key] || 0), 0);
 
 function lifetime(state) {
   const life = { ...zero(), ...(state.lifetime || {}) };
@@ -84,8 +76,15 @@ export function bank(state) {
 
 export function lifetimeLine(state) {
   const life = lifetime(state);
-  const parts = [];
-  if (kept(life)) parts.push(`~${compact(tok(kept(life)))} tok kept out, ${keptPct(life)}% of read volume`);
-  if (actions(life)) parts.push(`${num(actions(life))} guard actions`);
-  return parts.length ? `HANDOFF OS · ${parts.join(' · ')}` : '';
+  const lines = [];
+  if (kept(life)) lines.push(`~${compact(tok(kept(life)))} kept out of context (${keptPct(life)}%)`);
+  const stopped = Number(life.rereads || 0) + Number(life.slices || 0);
+  const capped = Number(life.queries || 0) + Number(life.caps || 0);
+  const blocked = Number(life.blocked || 0);
+  if (stopped + capped + blocked) lines.push(plural(stopped + capped + blocked, 'guard action', 'guard actions'));
+  const used = [];
+  if (Number(life.scouts || 0)) used.push(plural(Number(life.scouts), 'scout', 'scouts'));
+  if (Number(life.runners || 0)) used.push(plural(Number(life.runners), 'runner', 'runners'));
+  if (used.length) lines.push(`used ${used.join(' · ')}`);
+  return lines.length ? `HANDOFF OS · ${lines.join('\n')}` : '';
 }

@@ -5,7 +5,8 @@ license: Apache-2.0
 compatibility: Needs a tracker and doc store. Email read and draft only — never sends.
 ---
 
-The tracker, doc store and design tool are whatever `memory.md` records. Never assume a vendor.
+- Tracker, doc store, design tool: whatever `memory.md` records.
+- Never assume a vendor.
 
 ## 1. The loop
 

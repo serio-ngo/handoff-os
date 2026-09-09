@@ -1,42 +1,78 @@
 # Benchmark
 
-Three things get measured here. Context savings, below, is what the plugin is for. Track A is
-whether the guard blocks what it claims to. Track B is the paired-session counterfactual, and it is
-**not run**.
+<!-- ledger · replay · track A · track B -->
+
+| Track | Question | Status |
+|---|---|---|
+| Ledger | what the guard refused in live sessions | runs on every Stop hook |
+| Replay | what the guard would refuse on recorded real traffic | `npm run benchmark:replay` |
+| Track A | does the guard block what it claims to | `npm run benchmark:eval`, gated in CI |
+| Track B | does the bill actually fall | **not run** |
 
 ## Context savings — what `npm run benchmark` prints
 
-`read volume` is every byte the session asked to put in the main thread. `kept out` is
-the part the guard refused before it entered the thread, and the headline share is `kept / read volume`.
+| Figure | Definition |
+|---|---|
+| `read volume` | every byte the session asked to put in the main thread |
+| `kept out` | the part refused before entry |
+| Share | `kept / read volume` |
 
 | Line | Counter | Credited |
 |---|---|---|
-| re-read dedup | `bytes` | full file size — it was already in context, byte-identical |
-| whole-file cap | `deferred` | full file size at the moment of refusal |
+| re-read dedup | `bytes` | full file size — already in context, byte-identical |
+| whole-file cap | `deferred` | full file size at refusal |
 | moved to a subagent | `offload` | bytes read under a non-`main` actor |
-| admitted | `read` | bytes the guard let into the main thread |
-| repeat query, runaway cap | `queries`, `caps` | counted only; the output size is unknown at `PreToolUse` |
+| admitted | `read` | bytes let into the main thread |
+| repeat query, runaway cap | `queries`, `caps` | counted only; output size unknown at `PreToolUse` |
+| dispatched scout / runner | `scouts`, `runners` | counted only; their reads credit `offload` |
 
-Two things that keep the share honest. `queries` and `caps` are deliberately *not* credited any
-tokens, because the guard cannot know how large a Grep result would have been — an earlier version
-folded them into `rereads` and `slices`, which is why action counts looked busy while the token
-totals sat at zero. And after a whole-file cap the agent reads a slice or dispatches scout instead;
-that follow-up read is counted as `admitted` or `offload`, so it lands in the denominator.
+| Share rule | Why |
+|---|---|
+| `queries` and `caps` earn no tokens | guard cannot know the `Grep` result size |
+| a retried refusal credits once | first refusal stamps `actor + path + mtime:size + rule`; repeats skip the byte credit |
+| the follow-up read lands in the denominator | slice or scout read after a cap counts as `admitted` or `offload` |
 
-Byte counts are file bytes / 4. That is an estimate of tokens and is never a billing figure.
+- Only the current ledger format parses; older lines skip, never guessed.
+- Bytes / 4 estimates tokens; never billing.
+
+| Denominator | Scope |
+|---|---|
+| Counts | unsliced main-thread `Read` calls; shell-spotted whole-file reads |
+| Misses | slices, `Grep` output, `Bash` output, subagent returns |
+| Read as | share of whole-file read volume, not of the window |
 
 ## Billing — measured, not estimated
 
-The Stop hook reads `transcript_path` and sums the `usage` blocks: `input_tokens`, `output_tokens`,
-`cache_creation_input_tokens` as **fresh**, and `cache_read_input_tokens` as **cache-read**. These
-are Claude Code's own counts, not an estimate. When the ledger has no billing recorded — lines
-written by an older version — the benchmark falls back to every transcript for the project under
-`~/.claude/projects/<slug>/`.
+| Field | Source |
+|---|---|
+| `fresh` | `input_tokens` + `output_tokens` + `cache_creation_input_tokens`, from transcript `usage` |
+| `cache-read` | `cache_read_input_tokens`, from transcript `usage` |
+| Fallback | every transcript under `~/.claude/projects/<slug>/` when no ledger line carries billing |
+| `context re-send ratio` | `cache-read / fresh`; the mechanism exploited, not the plugin |
 
-`context re-send ratio` is `cache-read / fresh`: how many times an average fresh token was re-read
-from cache. `cache-read avoided` multiplies the kept tokens by that ratio. That last figure is an
-extrapolation, not a measurement — it assumes a refused read would have been admitted at a typical
-point in the session. The honest counterfactual is Track B below, which is still not run.
+| `re-sends removed` | Rule |
+|---|---|
+| Credit | `kept bytes × turns that followed`, per stamped line, per session |
+| Sessions | turn counts restart per session; a drop closes one, opens the next |
+| Price | re-sends would be cache-read tokens, priced below input; still not a bill |
+
+## Replay — the guard against recorded traffic
+
+```bash
+npm run benchmark:replay
+```
+
+- Input: this project's transcripts under `~/.claude/projects/<slug>/`; every `Read`, `Grep`, `Glob`, `Bash` call, in order, one sandbox ledger per session.
+
+| Property | Value |
+|---|---|
+| Input | real tool calls from real sessions, not fixtures |
+| Isolation | one temp `HANDOFF_OS_DIR` per session, matching that session's dedup state |
+| Loop | open — a refusal cannot change what the agent did next |
+| Misses | shell pipelines and `$(...)`, which the read budget cannot size |
+| Bias | guarded sessions produce fewer hits, so the count is a floor |
+
+- Answers what the guard catches on this stream. Not Track B.
 
 ## Track A
 
@@ -46,21 +82,21 @@ point in the session. The honest counterfactual is Track B below, which is still
 | Runner | `npm run benchmark:eval`, exits 1 on a miss, gated in CI |
 | Verdict | exit 2 means blocked |
 | `origin` field | `spec` = derived from the rule table, self-confirming · `probe` = found by adversarial probing · `regression` = reproduces a shipped bug |
-| Scoring | recall never without false-positive rate; `known_gap` cases scored apart so no scoring choice hides them |
+| Scoring | recall never without false-positive rate; `known_gap` cases scored apart |
 
-Run against any other guard that reads a `PreToolUse` payload on stdin:
+- Same corpus, same scoring, any `PreToolUse` guard on stdin:
 
 ```bash
 HANDOFF_EVAL_GUARD="node ../other-guard/hook.mjs" npm run benchmark:eval
 ```
 
-No third-party guard's code has been run against this corpus, and nobody has independently
-reproduced these numbers. Treat them as a self-test with a published method.
+- No third-party guard run here. Self-test with published method.
 
 ## Comparison
 
-`npm run benchmark:compare` replays the same corpus against four comparators in `eval/baselines.mjs`
-and rewrites the table in the README.
+```bash
+npm run benchmark:compare
+```
 
 | Comparator | What it models | Fair to it |
 |---|---|---|
@@ -69,17 +105,10 @@ and rewrites the table in the README.
 | `keyword` | a pattern-list `PreToolUse` hook, ~35 dangerous-pattern regexes | The shape most published guard hooks ship. Graded on the same cases, including the safe ones. |
 | `denyall` | block every tool call | The ceiling. Perfect recall, useless in practice — this is why recall is never reported alone. |
 
-These are mechanism baselines written here from published rule shapes, not vendor code, and no
-product is named. A baseline can only be as good as the reimplementation, so read the table as
-"this class of mechanism scores about this", not as a product ranking. The comparators are graded on
-the identical case list with the identical scoring, and `eval/baselines.mjs` is committed so the run
-can be repeated or the baselines argued with.
-
-`eval/scores.json` is written by the same run and feeds the README badges, so a stale badge and a
-stale table are impossible to ship separately.
-
-`--latency` on the same command prints per-call hook latency, a full Node process spawn. It is
-machine-specific and is not published in the README.
+- Mechanism baselines from published rule shapes, not vendor code; no product named.
+- Same case list, same scoring; `eval/baselines.mjs` committed for repeat or dispute.
+- `eval/scores.json` written by the same run; feeds the README badges.
+- `--latency` prints full-spawn hook latency; machine-specific; not published.
 
 <!-- eval-results -->
 Run 2026-09-08 · 66 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
@@ -113,6 +142,5 @@ Confusion: TP 35 · FN 0 · FP 0 · TN 27. Bypasses scored apart.
 | Overhead | Net out the session card and loaded skill descriptions |
 | Ban | Never report bytes / 4 as billing |
 
-Most input tokens in a long session are cached re-reads billed at a fraction of input price, so a
-large cut in raw bytes can move the bill by nothing. Publish the per-run table or publish no number.
-Until this runs, the savings figures above are what was refused, never a proven cut to the bill.
+- Cached re-reads price below input; a raw-byte cut can move the bill by nothing.
+- Per-run table or no number. Refusals only until this runs.

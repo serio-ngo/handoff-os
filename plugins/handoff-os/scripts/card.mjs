@@ -56,6 +56,7 @@ MEMORY ${status}
        durable owner facts live there — read it, and update it when the owner states one
 CHEAP  lookups go to the scout agent (haiku); you keep the deciding here
 STYLE  tables and short imperative lines · partial completion is valid, silent failure is not
+SUMMARY the Stop hook prints session totals; never write your own closing summary
 PROOF  a "done" claim needs a real run: node plugins/handoff-os/scripts/verify.mjs <session_id>`;
 }
 
@@ -72,7 +73,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const line = process.env.HANDOFF_STATS === '1' && session
       ? lifetimeLine(load(rootOf(payload), session))
       : '';
-    if (line) process.stdout.write(`${line}\nClose your reply with that line, on its own, nothing after it.\n`);
+    if (line) process.stdout.write(`${line}\nClose your reply with those lines, on their own, nothing after them.\n`);
     process.exit(0);
   }
   if (session) { try { writeFileSync(seenPath(session), 'card', 'utf8'); } catch { } }

@@ -134,39 +134,44 @@ function readBudget(payload, input) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
-  const key = `${actorOf(payload)}|${path.resolve(file)}`;
+  const actor = actorOf(payload);
+  const resolved = path.resolve(file);
+  const key = `${actor}|${resolved}`;
   const fingerprint = `${stats.mtimeMs}:${stats.size}`;
 
-  if (!sliced && state.reads[key] === fingerprint) {
-    state.saved.rereads += 1;
-    state.saved.bytes += stats.size;
+  const refuse = (action, bucket, tag, message) => {
+    const stamp = `${fingerprint}:${tag}`;
+    if (state.reads[`${actor}|x:${resolved}`] !== stamp) {
+      state.reads[`${actor}|x:${resolved}`] = stamp;
+      state.saved[action] += 1;
+      state.saved[bucket] += stats.size;
+    }
     save(root, session, state);
-    process.stderr.write(`READ BUDGET: ${path.basename(file)} is unchanged and already in context. Read a slice with offset/limit if you need one region.\n`);
+    process.stderr.write(`READ BUDGET: ${message}\n`);
     process.exit(2);
+  };
+
+  if (!sliced && state.reads[key] === fingerprint) {
+    refuse('rereads', 'bytes', 'r',
+      `${path.basename(file)} is unchanged and already in context. Read a slice with offset/limit if you need one region.`);
   }
 
   if (!sliced && stats.size > BIG_FILE_BYTES) {
-    state.saved.slices += 1;
-    state.saved.deferred += stats.size;
-    save(root, session, state);
-    process.stderr.write(`READ BUDGET: ${path.basename(file)} is ${Math.round(stats.size / 1024)}KB, over the ${BIG_FILE_BYTES / 1024}KB whole-file limit. Read the region you need with offset/limit, or dispatch handoff-os:scout to answer from it.\n`);
-    process.exit(2);
+    refuse('slices', 'deferred', 's',
+      `${path.basename(file)} is ${Math.round(stats.size / 1024)}KB, over the ${BIG_FILE_BYTES / 1024}KB whole-file limit. Read the region you need with offset/limit, or dispatch handoff-os:scout to answer from it.`);
   }
 
-  if (!sliced && (state.read_bytes || 0) >= READ_CEILING_BYTES) {
-    state.saved.blocked += 1;
-    state.saved.deferred += stats.size;
-    save(root, session, state);
-    process.stderr.write(`READ BUDGET: ${Math.round((state.read_bytes || 0) / 1024)}KB of whole files read this session, over the ${READ_CEILING_BYTES / 1024}KB ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.\n`);
-    process.exit(2);
+  if (!sliced && actor === 'main' && (state.read_bytes || 0) >= READ_CEILING_BYTES) {
+    refuse('slices', 'deferred', 'c',
+      `${Math.round((state.read_bytes || 0) / 1024)}KB of whole files read into this thread, over the ${READ_CEILING_BYTES / 1024}KB ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.`);
   }
 
   if (!sliced) {
     state.reads[key] = fingerprint;
-    state.read_bytes = (state.read_bytes || 0) + stats.size;
-    // A subagent's read never lands in the main thread, so it is context kept out, not admitted.
-    if (actorOf(payload) === 'main') state.saved.read += stats.size;
-    else state.saved.offload += stats.size;
+    if (actor === 'main') {
+      state.read_bytes = (state.read_bytes || 0) + stats.size;
+      state.saved.read += stats.size;
+    } else state.saved.offload += stats.size;
   }
   save(root, session, state);
 }
@@ -189,13 +194,15 @@ function queryBudget(payload, input, tool) {
   const state = load(root, session);
   const key = `${actorOf(payload)}|q:${tool}:${JSON.stringify(input)}`;
   if (state.reads[key]) {
-    state.saved.queries += 1;
+    if (state.reads[key] === 1) state.saved.queries += 1;
+    state.reads[key] = 2;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: this exact ${tool} already ran and nothing has been written since. Change the query, or read the file you are checking.\n`);
     process.exit(2);
   }
   if (tool === 'Grep' && input.output_mode === 'content' && input.head_limit === undefined) {
-    state.saved.caps += 1;
+    if (!state.reads[`${key}|cap`]) state.saved.caps += 1;
+    state.reads[`${key}|cap`] = 1;
     save(root, session, state);
     process.stderr.write(`READ BUDGET: set head_limit on a content-mode Grep so the match list cannot run away (30 is plenty).\n`);
     process.exit(2);
@@ -281,6 +288,7 @@ function fanOutCap(payload, count = 1) {
   let slot = 0;
   for (let n = 0; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
   if (slot > MAX_PER_WAVE) {
+    bump(payload, 'blocked');
     process.stderr.write(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Read the returns, then relaunch via /handoff-os:research-budget.\n`);
     process.exit(2);
   }
@@ -318,6 +326,9 @@ else if (SPAWN_TOOLS.includes(tool)) {
   const count = agentsRequested(input, tool);
   fanOutCap(payload, count);
   bump(payload, 'agents', count);
+  const kind = String(input.subagent_type || '');
+  if (/scout/i.test(kind)) bump(payload, 'scouts', count);
+  else if (/runner/i.test(kind)) bump(payload, 'runners', count);
   receipt(payload, input, tool);
 }
 else if (tool === 'Bash' || tool === 'PowerShell') {

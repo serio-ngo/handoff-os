@@ -111,17 +111,17 @@ npm run benchmark:compare
 - `--latency` prints full-spawn hook latency; machine-specific; not published.
 
 <!-- eval-results -->
-Run 2026-09-08 · 66 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-09 · 68 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
 
 | Metric | Value |
 |---|---|
 | Recall | 35/35 (100%) |
 | Precision | 35/35 (100%) |
-| False-positive rate | 0/27 (0%) |
+| False-positive rate | 0/29 (0%) |
 | F1 | 1.00 |
 | Known bypasses caught | 0/4 (0%) |
 
-Confusion: TP 35 · FN 0 · FP 0 · TN 27. Bypasses scored apart.
+Confusion: TP 35 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
 
 - `evasion-01` open — the binary name is held in a shell variable.
 - `evasion-02` open — payload decoded by a pipeline, not by a shell flag.

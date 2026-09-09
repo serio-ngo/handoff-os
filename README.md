@@ -66,11 +66,11 @@ No ledger turns recorded yet (all recorded turns). Method: docs/BENCHMARK.md.
 |---|---|---|---|
 | no guard, permission prompts only | 0% | 0% | 0.00 |
 | Claude Code permissions.deny globs | 23% | 7% | 0.36 |
-| a pattern-list PreToolUse hook | 46% | 15% | 0.58 |
-| block every tool call | 100% | 100% | 0.72 |
+| a pattern-list PreToolUse hook | 46% | 14% | 0.58 |
+| block every tool call | 100% | 100% | 0.71 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-66 cases, 2026-09-08; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code. [Method](docs/BENCHMARK.md).
+68 cases, 2026-09-09; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code. [Method](docs/BENCHMARK.md).
 <!-- /guard-scores -->
 
 Shell wrappers are unwrapped first, so `powershell -Command`, `cmd /c`, `bash -c` and
@@ -99,6 +99,13 @@ Shell wrappers are unwrapped first, so `powershell -Command`, `cmd /c`, `bash -c
 
 Hooks load at session start, so restart Claude Code — a running session keeps the version it started
 with.
+
+| Surface | Hooks run |
+|---|---|
+| Claude Code CLI, VS Code, JetBrains, desktop Code tab | yes |
+| claude.ai chat, the API, any other harness | no — nothing loads `hooks.json`, so no rule fires |
+
+Installed is not the same as enforcing. Confirm with `npm run doctor`.
 
 ## Configuration
 

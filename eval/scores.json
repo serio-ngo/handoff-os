@@ -1,7 +1,7 @@
 {
-  "generated": "2026-09-08",
-  "version": "1.5.27",
-  "cases": 66,
+  "generated": "2026-09-09",
+  "version": "1.5.32",
+  "cases": 68,
   "recall": 100,
   "precision": 100,
   "fpRate": 0,
@@ -10,14 +10,14 @@
     "tp": 35,
     "fn": 0,
     "fp": 0,
-    "tn": 27
+    "tn": 29
   },
   "bypassesOpen": 4,
   "bypassesTotal": 4,
   "latencyMedianMs": 66,
   "latencyP95Ms": 84,
   "contextTokens": 560,
-  "logicLines": 927,
+  "logicLines": 938,
   "dependencies": 0,
   "baselines": {
     "none": {
@@ -32,20 +32,20 @@
     },
     "keyword": {
       "recall": 46,
-      "fpRate": 15,
+      "fpRate": 14,
       "f1": 0.58
     },
     "denyall": {
       "recall": 100,
       "fpRate": 100,
-      "f1": 0.72
+      "f1": 0.71
     }
   },
   "keptPct": 0,
   "keptTokens": 0,
   "readVolumeTokens": 0,
   "offloadTokens": 0,
-  "resendRatio": 34.9,
+  "resendRatio": 34.3,
   "ledgerTurns": 0,
   "resendsRemoved": 0
 }

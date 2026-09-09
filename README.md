@@ -39,14 +39,14 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Measured — live ledger
 
 <!-- handoff-stats -->
-| Measured over 2 turns | Tokens | Share |
+| Measured over 3 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~382 | 100% |
-| **Kept out** | **~0** | **0%** |
-| — re-read dedup | ~0 | 0% |
+| Read volume the session asked for | ~690 | 100% |
+| **Kept out** | **~43** | **6%** |
+| — re-read dedup | ~43 | 6% |
 | — whole-file cap | ~0 | 0% |
 | — moved to a subagent | ~0 | 0% |
-| Admitted to the main thread | ~382 | 100% |
+| Admitted to the main thread | ~647 | 94% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
@@ -54,7 +54,7 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 | Skill descriptions, always in context | ~177 |
 | Agent descriptions, always in context | ~92 |
 | **Total footprint** | **~581** |
-| **Net kept out minus footprint** | **~-581** |
+| **Net kept out minus footprint** | **~-538** |
 
 | Measured billing | Tokens |
 |---|---|
@@ -63,7 +63,7 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 | **Context re-send ratio** | **20.9×** |
 | Re-sends removed, kept × turns that followed | ~0 |
 
-Guard actions: 2. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
+Guard actions: 4. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 <!-- /handoff-stats -->
 
 ## Guard against the alternatives
@@ -119,6 +119,14 @@ Guard actions: 2. Token counts are file bytes / 4 from this repo's own local led
 Install: clone this repo, point `plugin` at the loader in `opencode.json`, restart opencode:
 
 `"plugin": ["file:///path/to/handoff-os/.opencode/plugin/handoff-os.ts"]`
+
+Update with a plain `git pull` — file-based plugins never cache.
+
+Every tool call then runs the same guards. A refusal stops the call, tells the model why, and
+lands in the repo audit log with the reason. Works with any model — dispatches are judged on
+content, never on provider or model name. Session data lands in the repo ledger, where
+`npm run benchmark` picks it up. Not covered on this harness: connector (`mcp`) calls pass
+through unjudged, and there is no blocking verify gate.
 
 Every tool call runs the same guards. A refusal stops the call and tells the model why, and
 the reason lands in the repo audit log. Works with any model — dispatches are judged on

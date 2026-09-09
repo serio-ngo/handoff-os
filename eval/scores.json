@@ -1,6 +1,6 @@
 {
   "generated": "2026-09-09",
-  "version": "1.5.40",
+  "version": "1.5.41",
   "cases": 68,
   "recall": 100,
   "precision": 100,
@@ -39,12 +39,12 @@
       "f1": 0.71
     }
   },
-  "keptPct": 0,
-  "keptTokens": 0,
-  "readVolumeTokens": 382,
+  "keptPct": 6,
+  "keptTokens": 43,
+  "readVolumeTokens": 690,
   "offloadTokens": 0,
   "resendRatio": 20.9,
-  "ledgerTurns": 2,
+  "ledgerTurns": 3,
   "resendsRemoved": 0,
   "taxTokens": 581,
   "repos": 1

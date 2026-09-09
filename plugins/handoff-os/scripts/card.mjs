@@ -65,12 +65,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { }
 
   const session = String(payload.session_id || '').replace(/[^A-Za-z0-9_-]/g, '');
-  const backup = payload.hook_event_name === 'UserPromptSubmit';
+  const isPromptSubmit = payload.hook_event_name === 'UserPromptSubmit';
 
-  if (!backup) releaseCeiling(payload);
+  if (!isPromptSubmit) releaseCeiling(payload);
 
-  if (backup && (!session || existsSync(seenPath(session)))) {
-    const line = process.env.HANDOFF_STATS === '1' && session
+  if (isPromptSubmit && (!session || existsSync(seenPath(session)))) {
+    const line = process.env.HANDOFF_STATS !== '0' && session
       ? lifetimeLine(load(rootOf(payload), session))
       : '';
     if (line) process.stdout.write(`${line}\nClose your reply with those lines, on their own, nothing after them.\n`);

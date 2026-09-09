@@ -25,10 +25,12 @@
 | admitted | `read` | bytes let into the main thread |
 | repeat query, runaway cap | `queries`, `caps` | counted only; output size unknown at `PreToolUse` |
 | dispatched scout / runner | `scouts`, `runners` | counted only; their reads credit `offload` |
+| plugin footprint | — | session card + skill and agent descriptions, chars / 4, always in context |
 
 | Share rule | Why |
 |---|---|
 | `queries` and `caps` earn no tokens | guard cannot know the `Grep` result size |
+| `net` is kept-out tokens minus footprint | the window price of the gate; negative when the window did no whole-file reads |
 | a retried refusal credits once | first refusal stamps `actor + path + mtime:size + rule`; repeats skip the byte credit |
 | the follow-up read lands in the denominator | slice or scout read after a cap counts as `admitted` or `offload` |
 
@@ -78,7 +80,7 @@ npm run benchmark:replay
 
 | Item | Value |
 |---|---|
-| Corpus | `eval/guard-corpus.jsonl`, 66 labelled cases |
+| Corpus | `eval/guard-corpus.jsonl`, 68 labelled cases |
 | Runner | `npm run benchmark:eval`, exits 1 on a miss, gated in CI |
 | Verdict | exit 2 means blocked |
 | `origin` field | `spec` = derived from the rule table, self-confirming · `probe` = found by adversarial probing · `regression` = reproduces a shipped bug |
@@ -108,7 +110,8 @@ npm run benchmark:compare
 - Mechanism baselines from published rule shapes, not vendor code; no product named.
 - Same case list, same scoring; `eval/baselines.mjs` committed for repeat or dispute.
 - `eval/scores.json` written by the same run; feeds the README badges.
-- `--latency` prints full-spawn hook latency; machine-specific; not published.
+- Cost is context tax: the plugin's own footprint against the rot it keeps out, per window, in the ledger report and the README stats block.
+- Spawn milliseconds print on `--latency` runs only; machine-specific, never published, never in `scores.json`.
 
 <!-- eval-results -->
 Run 2026-09-09 · 68 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
@@ -127,7 +130,6 @@ Confusion: TP 35 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
 - `evasion-02` open — payload decoded by a pipeline, not by a shell flag.
 - `evasion-03` open — an unquoted no-op flag used as a POST body excuses the segment.
 - `evasion-04` open — connector action whose name carries no classifiable verb.
-
 <!-- /eval-results -->
 
 ## Track B — protocol, not a result

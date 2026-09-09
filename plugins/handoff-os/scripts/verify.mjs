@@ -74,29 +74,31 @@ function report(payload) {
   const session = sessionOf(payload);
   const state = load(root, session);
   const total = savings(state);
-  const line = total ? lifetimeLine(state) : null;
-  if (!line) return null;
-  const real = usage(payload.transcript_path);
-  append(root, {
-    actor: 'main',
-    tier: 'GREEN',
-    action: 'read-budget',
-    target: `${total.agents} agents, ${total.blocked} blocked, ${total.rereads} re-reads, `
-      + `${total.slices} slices, ${total.queries} queries, ${total.caps} caps, `
-      + `${total.scouts} scout, ${total.runners} runner`,
-    result: `kept ${tok(kept(total))} tok of ${tok(volume(total))} (${keptPct(total)}%), `
-      + `dedup ${tok(total.bytes)} tok, defer ${tok(total.deferred)} tok, offload ${tok(total.offload)} tok, `
-      + `admitted ${tok(total.read)} tok, fresh ${real.fresh} tok, cache-read ${real.cacheRead} tok, `
-      + `turn ${real.turns}`,
-  });
-  bank(state);
-  for (const key of COUNTERS) state.saved[key] = 0;
-  save(root, session, state);
+  const line = lifetimeLine(state) || null;
+  if (total) {
+    const real = usage(payload.transcript_path);
+    append(root, {
+      actor: 'main',
+      tier: 'GREEN',
+      action: 'read-budget',
+      target: `${total.agents} agents, ${total.blocked} blocked, ${total.rereads} re-reads, `
+        + `${total.slices} slices, ${total.queries} queries, ${total.caps} caps, `
+        + `${total.scouts} scout, ${total.runners} runner`,
+      result: `kept ${tok(kept(total))} tok of ${tok(volume(total))} (${keptPct(total)}%), `
+        + `dedup ${tok(total.bytes)} tok, defer ${tok(total.deferred)} tok, offload ${tok(total.offload)} tok, `
+        + `admitted ${tok(total.read)} tok, fresh ${real.fresh} tok, cache-read ${real.cacheRead} tok, `
+        + `turn ${real.turns}`,
+    });
+    bank(state);
+    for (const key of COUNTERS) state.saved[key] = 0;
+    save(root, session, state);
+  }
+  if (!line || process.env.HANDOFF_STATS === '0') return null;
   return line;
 }
 
-function announce(note, extra) {
-  const text = [extra, note].filter(Boolean).join('\n');
+function announce(stats, extra) {
+  const text = [extra, stats].filter(Boolean).join('\n');
   if (text) {
     process.stdout.write(JSON.stringify({
       systemMessage: text,
@@ -113,15 +115,15 @@ function gate() {
   const message = String(payload.last_assistant_message || '') || lastAssistantText(payload.transcript_path);
   if (payload.hook_event_name === 'SubagentStop') citationGate(message);
 
-  const note = report(payload);
+  const stats = report(payload);
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
   const scripts = scriptsAt(root);
-  if (!scripts) announce(note);
+  if (!scripts) announce(stats);
 
-  if (!DONE_CLAIM.test(message.replace(HANDOFF_CARD, ''))) announce(note);
+  if (!DONE_CLAIM.test(message.replace(HANDOFF_CARD, ''))) announce(stats);
 
   const command = stepsToCommand(resolveSteps(scripts));
-  if (!command) announce(note);
+  if (!command) announce(stats);
 
   const session = sessionOf(payload);
   const state = rootOf(payload);
@@ -130,15 +132,15 @@ function gate() {
 
   if (existsSync(marker)) {
     try {
-      if (Date.now() - statSync(marker).mtimeMs < MARKER_MAX_AGE_MS) announce(note);
-    } catch { announce(note); }
+      if (Date.now() - statSync(marker).mtimeMs < MARKER_MAX_AGE_MS) announce(stats);
+    } catch { announce(stats); }
   }
 
   let blocks = 0;
   try { blocks = parseInt(readFileSync(counter, 'utf8').trim(), 10) || 0; } catch { blocks = 0; }
 
   if (blocks >= MAX_BLOCKS) {
-    announce(note, `Verify gate stood down after ${MAX_BLOCKS} blocks. "${command}" is unproven — the human must check it.`);
+    announce(stats, `Verify gate stood down after ${MAX_BLOCKS} blocks. "${command}" is unproven — the human must check it.`);
   }
 
   try {
@@ -146,7 +148,7 @@ function gate() {
     writeFileSync(counter, String(blocks + 1), 'utf8');
   } catch { }
 
-  process.stderr.write(`Verify gate: you claimed done with no evidence. Run this, then say done again:\n  node "\${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs" ${session}\nIt runs ${command} and writes the marker only on exit 0. Writing the marker by hand is forbidden.\n`);
+  process.stderr.write(`${stats ? `${stats}\n` : ''}Verify gate: you claimed done with no evidence. Run this, then say done again:\n  node "\${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs" ${session}\nIt runs ${command} and writes the marker only on exit 0. Writing the marker by hand is forbidden.\n`);
   process.exit(2);
 }
 

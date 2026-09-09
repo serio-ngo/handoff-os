@@ -187,7 +187,7 @@ export function inventoryBlock(inv = inventory()) {
       `| Hooks | **${inv.hookHandlers}** handlers on ${inv.hookEvents} events |`,
       `| Skills | **${inv.skills}** |`,
       `| Subagents | **${inv.agents}** |`,
-      `| Runtime dependencies | **${inv.dependencies}** |`,
+      `| Third-party packages | **${inv.dependencies}** |`,
       `| Network calls, API keys, model calls | **0** |`,
     ]),
   ].join('\n').split('\n');

@@ -4,6 +4,11 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.5.41 | 2026-09-09 | gitleaks out, dependabot watches actions, opencode install and update notes |
+| 1.5.40 | 2026-09-09 | opencode reads and writes judged via arg aliases, denials land in audit, user-facing opencode notes |
+| 1.5.39 | 2026-09-09 | legacy ledger lines purged, opencode dispatches model-agnostic, post-merge opencode install notes |
+| 1.5.38 | 2026-09-09 | opencode bridge always on with install notes, params reviewed unchanged |
+| 1.5.37 | 2026-09-09 | core judges exported for reuse, opencode bridge feeds session data, actionlint and gitleaks gates, multi-repo benchmark, tax in doctor |
 | 1.5.36 | 2026-09-09 | README intro states what the plugin does and why it is unique, chips grouped, prose framed as quotes |
 | 1.5.35 | 2026-09-09 | one markdown writer so upkeep is a no-op after release, upkeep:check gate shared with CI, README rewritten for humans |
 | 1.5.34 | 2026-09-09 | cost reframed as context tax: footprint vs kept-out net per window, spawn ms demoted to footnote |

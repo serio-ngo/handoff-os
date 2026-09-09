@@ -266,23 +266,16 @@ function upkeep() {
   const touched = normalise();
   const pkgPath = path.join(REPO, 'package.json');
   const pkg = readJsonFile(pkgPath);
-  const manifestPath = path.join(PLUGIN, '.claude-plugin', 'plugin.json');
-  const plugin = readJsonFile(manifestPath);
   const current = stamp();
-  let bumped = 'unchanged';
-  if (pkg.contentHash !== current) {
-    const [major, minor, patch] = plugin.version.split('.').map(Number);
-    plugin.version = [major, minor, patch + 1].join('.');
-    writeJson(manifestPath, plugin);
-    pkg.version = plugin.version;
-    pkg.contentHash = stamp();
-    writeJson(pkgPath, pkg);
-    bumped = `${plugin.version} (content changed)`;
-  }
+  const drift = pkg.contentHash === current
+    ? 'unchanged'
+    : `content changed; run npm run release to version it (${current})`;
+  pkg.contentHash = current;
+  writeJson(pkgPath, pkg);
   writeFileSync(path.join(REPO, 'docs', 'MANIFEST.md'), manifest(), 'utf8');
   writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock());
   row('formatted', `${touched} file(s)`);
-  row('version', bumped);
+  row('content', drift);
 }
 
 const BLOCKED = 2;

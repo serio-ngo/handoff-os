@@ -32,6 +32,14 @@ const tokc = (n) => {
 const share = (part, whole) => (whole ? Math.round((part / whole) * 100) : 0);
 const rate = (a, t) => (t ? `${a}/${t} (${Math.round((a / t) * 100)}%)` : 'n/a');
 const percent = (a, t) => (t ? Math.round((a / t) * 100) : 0);
+const taxOf = (inv) => ({
+  card: Math.round(inv.cardChars / 4),
+  skills: Math.round(inv.skillChars / 4),
+  agents: Math.round(inv.agentChars / 4),
+  total: Math.round(inv.contextChars / 4),
+});
+const row = (label, value, extra = '') => console.log(`  ${label.padEnd(36)}${String(value).padStart(11)}${extra && `   ${extra}`}`);
+const rule = (name, fired, effect) => console.log(`  ${name.padEnd(22)}${num(fired).padStart(6)}   ${effect}`);
 const OWN = 'plugins/handoff-os/scripts/guard.mjs';
 
 const corpus = () => readFileSync(path.join(REPO, 'eval', 'guard-corpus.jsonl'), 'utf8')
@@ -84,7 +92,10 @@ function mergeScores(root, patch) {
   const file = path.join(root, 'eval', 'scores.json');
   let current = {};
   try { current = JSON.parse(readFileSync(file, 'utf8')); } catch { current = {}; }
-  writeFileSync(file, `${JSON.stringify({ ...current, ...patch }, null, 2)}\n`, 'utf8');
+  const next = { ...current, ...patch };
+  delete next.latencyMedianMs;
+  delete next.latencyP95Ms;
+  writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
   console.log('  wrote eval/scores.json');
 }
 
@@ -152,13 +163,19 @@ function run() {
     }
   }
   const lat = flags.latency || flags.compare ? latency() : null;
+  const tax = taxOf(inventory(REPO));
 
   if (flags.json) {
-    console.log(JSON.stringify({ own, baselines, latency: lat }, (k, v) => (k === 'misses' || k === 'gaps' ? undefined : v)));
+    console.log(JSON.stringify({ own, baselines, latency: lat, tax }, (k, v) => (k === 'misses' || k === 'gaps' ? undefined : v)));
   } else {
     console.log(`\n${evalBlock(own, label).join('\n')}\n`);
     if (flags.compare) console.log(`${compareBlock(own, baselines).join('\n')}\n`);
-    if (lat) console.log(`  hook cost: ${lat.medianMs} ms median, ${lat.p95Ms} ms p95 over ${lat.samples} calls\n`);
+    console.log('  context tax — what the plugin itself costs the window');
+    row('session card', `~${tokc(tax.card)}`, 'tok   always in context');
+    row('skill descriptions', `~${tokc(tax.skills)}`, 'tok   always in context');
+    row('agent descriptions', `~${tokc(tax.agents)}`, 'tok   always in context');
+    row('total footprint', `~${tokc(tax.total)}`, 'tok   chars / 4, an estimate');
+    if (lat) console.log(`  spawn ${lat.medianMs} ms median, ${lat.p95Ms} ms p95 over ${lat.samples} calls — machine-specific, not published\n`);
   }
 
   if (flags.write) {
@@ -170,6 +187,7 @@ function run() {
         generated: new Date().toISOString().slice(0, 10),
         version: JSON.parse(readFileSync(path.join(REPO, 'package.json'), 'utf8')).version,
         cases: own.cases,
+        taxTokens: tax.total,
         recall: own.recall,
         precision: own.precision,
         fpRate: own.fpRate,
@@ -178,6 +196,7 @@ function run() {
         bypassesOpen: own.gapsTotal - own.gapsCaught,
         bypassesTotal: own.gapsTotal,
         logicLines: inv.logicLines,
+        contextTokens: tax.total,
         dependencies: inv.dependencies,
         baselines: Object.fromEntries(Object.entries(baselines)
           .map(([mode, s]) => [mode, { recall: s.recall, fpRate: s.fpRate, f1: s.f1 }])),
@@ -319,9 +338,6 @@ function fromTranscripts(root) {
   return out;
 }
 
-const row = (label, value, extra = '') => console.log(`  ${label.padEnd(36)}${String(value).padStart(11)}${extra && `   ${extra}`}`);
-const rule = (name, fired, effect) => console.log(`  ${name.padEnd(22)}${num(fired).padStart(6)}   ${effect}`);
-
 const billing = t.fresh ? { fresh: t.fresh, cacheRead: t.cacheRead, sessions: 0 } : fromTranscripts(REPO);
 t.fresh = billing.fresh;
 t.cacheRead = billing.cacheRead;
@@ -329,6 +345,8 @@ t.cacheRead = billing.cacheRead;
 const kept = t.deduped + t.deferred + t.offload;
 const readVolume = kept + t.read;
 const keptPct = share(kept, readVolume);
+const tax = taxOf(inventory(REPO));
+const net = kept - tax.total;
 const resend = t.fresh ? t.cacheRead / t.fresh : 0;
 const actions = t.denies + t.rereads + t.slices + t.queries + t.caps + t.agents;
 const window = flags.days ? `last ${flags.days} day(s)` : 'all recorded turns';
@@ -356,6 +374,12 @@ row('  whole-file cap', `~${tokc(t.deferred)}`, 'tok   over 24KB, a slice or sco
 row('  moved to a subagent', `~${tokc(t.offload)}`, 'tok   read under a scout, never in this thread');
 row('admitted to the main thread', `~${tokc(t.read)}`, `tok   ${100 - keptPct}% of read volume`);
 console.log('  token counts above are file bytes / 4, an estimate, never billing');
+console.log('\n  context tax — what the plugin itself costs the window');
+row('session card', `~${tokc(tax.card)}`, 'tok   always in context');
+row('skill descriptions', `~${tokc(tax.skills)}`, 'tok   always in context');
+row('agent descriptions', `~${tokc(tax.agents)}`, 'tok   always in context');
+row('total footprint', `~${tokc(tax.total)}`, 'tok   chars / 4, an estimate');
+row('net kept out minus footprint', `~${tokc(net)}`, 'tok   rot avoided less tax');
 
 if (t.fresh) {
   console.log(`\n  real billing, measured${billing.sessions ? ` across ${billing.sessions} session transcript(s)` : ' from the ledger'}`);
@@ -420,6 +444,14 @@ const statsBlock = () => {
     `| — moved to a subagent | ~${tokc(t.offload)} | ${share(t.offload, readVolume)}% |`,
     `| Admitted to the main thread | ~${tokc(t.read)} | ${100 - keptPct}% |`,
     '',
+    `| Context tax — the plugin's own footprint | Tokens |`,
+    '|---|---|',
+    `| Session card, always in context | ~${tokc(tax.card)} |`,
+    `| Skill descriptions, always in context | ~${tokc(tax.skills)} |`,
+    `| Agent descriptions, always in context | ~${tokc(tax.agents)} |`,
+    `| **Total footprint** | **~${tokc(tax.total)}** |`,
+    `| **Net kept out minus footprint** | **~${tokc(net)}** |`,
+    '',
     ...(t.fresh ? [
       `| Measured billing${billing.sessions ? `, ${billing.sessions} session transcripts` : ''} | Tokens |`,
       '|---|---|',
@@ -441,6 +473,7 @@ if (flags.write) {
     keptTokens: kept,
     readVolumeTokens: readVolume,
     offloadTokens: t.offload,
+    taxTokens: tax.total,
     resendRatio: Number(resend.toFixed(1)),
     resendsRemoved: notResent,
     ledgerTurns: t.turns,

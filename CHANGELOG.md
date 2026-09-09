@@ -4,6 +4,7 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.5.42 | 2026-09-09 | cowork workspace bash payloads judged, readme states cowork/opencode support |
 | 1.5.41 | 2026-09-09 | gitleaks out, dependabot watches actions, opencode install and update notes |
 | 1.5.40 | 2026-09-09 | opencode reads and writes judged via arg aliases, denials land in audit, user-facing opencode notes |
 | 1.5.39 | 2026-09-09 | legacy ledger lines purged, opencode dispatches model-agnostic, post-merge opencode install notes |

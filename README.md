@@ -39,14 +39,14 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Measured — live ledger
 
 <!-- handoff-stats -->
-| Measured over 3 turns | Tokens | Share |
+| Measured over 4 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~690 | 100% |
-| **Kept out** | **~43** | **6%** |
-| — re-read dedup | ~43 | 6% |
+| Read volume the session asked for | ~900 | 100% |
+| **Kept out** | **~43** | **5%** |
+| — re-read dedup | ~43 | 5% |
 | — whole-file cap | ~0 | 0% |
 | — moved to a subagent | ~0 | 0% |
-| Admitted to the main thread | ~647 | 94% |
+| Admitted to the main thread | ~857 | 95% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
@@ -88,7 +88,7 @@ Guard actions: 4. Token counts are file bytes / 4 from this repo's own local led
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **1012** lines of Node across 7 scripts (897 non-blank) |
+| Guard logic | **1021** lines of Node across 7 scripts (906 non-blank) |
 | Pattern rules | **47** |
 | Hooks | **6** handlers on 6 events |
 | Skills | **3** |
@@ -107,14 +107,12 @@ Guard actions: 4. Token counts are file bytes / 4 from this repo's own local led
 > Hooks load at session start, so restart Claude Code — a running session keeps the version it
 > started with.
 
-| Surface | Hooks run |
-|---|---|
-| Claude Code CLI, VS Code, JetBrains, desktop Code tab | yes |
-| claude.ai chat, the API, any other harness | no — nothing loads `hooks.json`, so no rule fires |
 
 > Installed is not the same as enforcing. Confirm with `npm run doctor`.
 
-### OpenCode
+### OpenCode — supported
+
+Why it works here: the same guard judges every tool call, whatever model you pick, so a refusal still stops the call, explains itself, and lands in the repo ledger for `npm run benchmark`.
 
 Install: clone this repo, point `plugin` at the loader in `opencode.json`, restart opencode:
 
@@ -122,43 +120,40 @@ Install: clone this repo, point `plugin` at the loader in `opencode.json`, resta
 
 Update with a plain `git pull` — file-based plugins never cache.
 
-Every tool call then runs the same guards. A refusal stops the call, tells the model why, and
-lands in the repo audit log with the reason. Works with any model — dispatches are judged on
-content, never on provider or model name. Session data lands in the repo ledger, where
-`npm run benchmark` picks it up. Not covered on this harness: connector (`mcp`) calls pass
-through unjudged, and there is no blocking verify gate.
+What is not covered here: connector (`mcp`) calls pass through unjudged, and there is no blocking verify gate.
 
-Every tool call runs the same guards. A refusal stops the call and tells the model why, and
-the reason lands in the repo audit log. Works with any model — dispatches are judged on
-content, never on provider or model name. Session data lands in the repo ledger, where
-`npm run benchmark` picks it up. Not covered on this harness: connector (`mcp`) calls pass
-through unjudged, and there is no blocking verify gate.
+### Cowork — supported with limits
+
+Why it is partial: skills, connectors, and subagents run in Cowork, but plugin command hooks (`PreToolUse`, `PostToolUse`) currently never fire there — the host spawns with `--setting-sources user`, which silently skips plugin scope (upstream issues `anthropics/claude-code#27398`, `#51281`, `#51904`).
+
+
+What still helps when hooks do run: the guard already judges `mcp__workspace__bash` payloads (`command` / `script` / `code`) for egress, destructive git, and secret writes, just like `Bash`.
+
+What to do until hooks fire: copy the `deny` list from `settings/policy.json` into user scope as a fallback, and read Cowork runs from `local-agent-mode-sessions/*/audit.jsonl` or the Compliance API instead of `audit/*.jsonl`, which `npm run benchmark` never sees.
 
 ## Configuration
 
-| Variable | Effect |
-|---|---|
-| `HANDOFF_STATS=0` | Silence the kept-out line. On by default. |
-| `HANDOFF_LOCK_GIT=1` | Block all state-changing git commands, including commits. |
-| `HANDOFF_MCP_ALLOW=action,action` | Allow named connector actions the egress lock would block. |
-| `HANDOFF_DENY_SUBAGENT_MODELS=model,model` | Deny these model tiers for subagents. Default `opus,fable`. |
-| `HANDOFF_OS_DIR=/path` | Store session state and audit files outside the project. |
+
+- `HANDOFF_STATS=0` silences the kept-out line once you trust the gate.
+- `HANDOFF_LOCK_GIT=1` blocks every state-changing git command, including commits, when merges must stay human.
+- `HANDOFF_MCP_ALLOW=action,action` allows the named connector actions the egress lock would otherwise stop.
+- `HANDOFF_DENY_SUBAGENT_MODELS=model,model` keeps the listed tiers off subagent dispatches (default `opus,fable`, because review belongs on sonnet).
+- `HANDOFF_OS_DIR=/path` stores session state and audit files outside the project when the repo must stay clean.
 
 > Node 22 or later. `settings/policy.json` holds the `deny` list, because permission rules cannot
 > ship inside a plugin.
 
 ## Limits
 
-| Limit | Rule |
-|---|---|
-| Token counts | Bytes / 4 is an estimate. Only the billing figures are measured. |
-| Counterfactual | The ledger records what was refused, never a paired session proving the bill fell. |
-| Replay | Open-loop — a refusal cannot change what the agent did next. Not a counterfactual. |
-| Denominator | Only whole-file reads are counted. Slices, `Grep` output and subagent returns are not. |
-| Shell-heavy sessions | Reads issued through pipelines are invisible to the read budget. |
-| Surface | Only where Claude Code runs plugin hooks. |
-| Matching | Pattern-based shell matching can be evaded. Run it alongside OS permissions. |
-| Reproduction | Self-measured on one machine. Nobody has independently reproduced it. |
+
+- Token counts are bytes / 4 estimates; only the billing figures are measured, so never price from the estimate.
+- The ledger records what was refused, never a paired session proving the bill fell, so there is no counterfactual yet.
+- Replay is open-loop — a refusal cannot change what the agent did next — so it shows catches on that stream, not savings.
+- Only whole-file reads count toward the denominator; slices, `Grep` output, and subagent returns are invisible to it.
+- Shell-heavy sessions hide reads inside pipelines, which the read budget cannot size.
+- Coverage ends where hooks stop loading, so chat, API, and unhooked harnesses run unguarded.
+- Pattern matching can be evaded (see `SECURITY.md`), so run it alongside OS permissions, never instead of them.
+- All figures are self-measured on one machine and unreproduced, so rerun `npm run benchmark:replay` before you cite them.
 
 ## License
 

@@ -339,6 +339,15 @@ export function judge(payload = {}) {
     if (SQL_DESTRUCTIVE.test(JSON.stringify(input))) {
       deny(`blocked ${tool} — the payload carries a destructive SQL statement, human-only`);
     }
+    for (const key of ['command', 'script', 'code']) {
+      if (typeof input[key] !== 'string') continue;
+      const verdict = judgeShell(input[key]);
+      if (verdict) deny(`blocked ${tool} — ${verdict}`);
+      for (const target of shellWriteTargets(input[key])) {
+        const reason = judgeWrite(target, input[key], 'a shell write');
+        if (reason) deny(`blocked ${tool} — ${reason}`);
+      }
+    }
     const dashed = action.replace(/_/g, '-');
     const strong = STRONG.some((verb) => action.includes(verb));
     const hit = DESTRUCTIVE.find((verb) => action.includes(verb))

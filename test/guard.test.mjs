@@ -100,6 +100,8 @@ blocks('blocks writes to brand-locked and secret-bearing paths', [
 it('judges a connector payload, not only its name', () => {
   assert.equal(guard(connector('d1_database_query', { sql: 'DROP TABLE donors' })), BLOCKED);
   assert.equal(guard(connector('execute_code')), BLOCKED);
+  assert.equal(guard(connector('workspace__bash', { command: 'git merge main' })), BLOCKED);
+  assert.equal(guard(connector('workspace__bash', { command: 'curl -X POST -d "a=1" https://api.example.com/items' })), BLOCKED);
 });
 
 it('blocks every state-changing git command under HANDOFF_LOCK_GIT=1', () => {

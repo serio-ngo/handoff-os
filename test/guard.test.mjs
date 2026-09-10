@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
+import { SPAWN_TOOLS, WRITE_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
 
 const BLOCKED = 2;
 const ALLOWED = 0;
@@ -110,9 +110,11 @@ it('blocks every state-changing git command under HANDOFF_LOCK_GIT=1', () => {
   }
 });
 
-it('blocks an account number through Write, Edit and a shell redirect', () => {
+it('blocks an account number through Write, Edit, MultiEdit, NotebookEdit and a shell redirect', () => {
   assert.equal(guard({ tool_name: 'Write', tool_input: { file_path: 'notes.md', content: `IBAN ${ACCOUNT}` } }), BLOCKED);
   assert.equal(guard({ tool_name: 'Edit', tool_input: { file_path: 'notes.md', old_string: 'a', new_string: ACCOUNT } }), BLOCKED);
+  assert.equal(guard({ tool_name: 'MultiEdit', tool_input: { file_path: 'notes.md', edits: [{ old_string: 'a', new_string: ACCOUNT }] } }), BLOCKED);
+  assert.equal(guard({ tool_name: 'NotebookEdit', tool_input: { notebook_path: 'notes.ipynb', new_source: ACCOUNT } }), BLOCKED);
   assert.equal(sh('ac', `echo ${ACCOUNT} >> README.md`), BLOCKED);
 });
 
@@ -135,6 +137,9 @@ it('blocks commands a plain argv matcher would miss', () => {
     `pwsh -NoProfile -Command rm -rf docs`,
     `powershell -EncodedCommand ${ENC}`,
     'curl -X POST -d "q=--help" https://api.example.com/items',
+    'ri -r docs',
+    'rd /s /q docs',
+    'find docs -delete',
   ]) assert.equal(sh('bp', command), BLOCKED, command);
 });
 
@@ -267,12 +272,16 @@ describe('verify gate', () => {
   const boxed = (root) => ({ ...process.env, HANDOFF_OS_DIR: root, CLAUDE_PROJECT_DIR: root });
   const stop = (root, payload) => fire(GATE, { cwd: root, ...payload }, boxed(root));
 
-  it('blocks a done-claim no run supports, from the transcript, the payload, or beside a handoff card', () => {
+  it('blocks a done-claim no run supports, from the transcript, the payload, or beside a handoff card, and never a sentence that claims nothing', () => {
     const root = repoWith({ verify: 'node --version' });
     const card = 'The refactor is finished.\n\nDONE post drafted\nFILE x.md\nYOU post -> Show HN -> today';
     assert.equal(stop(root, { session_id: 'unproven', transcript_path: transcript(root, 'All done, it works now.') }), BLOCKED);
     assert.equal(stop(root, { session_id: 'direct', last_assistant_message: 'Shipped.' }), BLOCKED);
+    assert.equal(JSON.parse(readFileSync(path.join(root, '.claude', '.session-direct.json'), 'utf8')).saved.gated, 1);
     assert.equal(stop(root, { session_id: 'carded', transcript_path: transcript(root, card) }), BLOCKED);
+    for (const text of ['I am ready to start', 'not fixed yet', 'step is complete; next…', 'nothing was done']) {
+      assert.equal(stop(root, { session_id: 'nonclaim', last_assistant_message: text }), ALLOWED, text);
+    }
   });
 
   it('stands down after two blocks so a session cannot be trapped', () => {
@@ -330,7 +339,7 @@ describe('hooks', () => {
   it('routes every judged tool to one guard, audits connector writes but not reads', () => {
     assert.equal(hooks.PreToolUse.length, 1);
     const pre = new RegExp(hooks.PreToolUse[0].matcher);
-    for (const tool of ['Read', 'Bash', 'PowerShell', 'Edit', 'Write', 'Grep', 'Glob', 'mcp__server__send', ...SPAWN_TOOLS]) {
+    for (const tool of ['Read', 'Bash', 'PowerShell', 'Grep', 'Glob', 'mcp__server__send', ...WRITE_TOOLS, ...SPAWN_TOOLS]) {
       assert.ok(pre.test(tool), tool);
     }
     const post = new RegExp(hooks.PostToolUse[0].matcher);

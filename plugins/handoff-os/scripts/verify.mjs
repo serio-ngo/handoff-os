@@ -3,10 +3,11 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { COUNTERS, bank, kept, keptPct, lifetimeLine, load, rootOf, save, savings, sessionOf, tok, volume } from './ledger.mjs';
+import { COUNTERS, bank, bump, lifetimeLine, load, rootOf, save, savings, sessionOf } from './ledger.mjs';
 
-const DONE_CLAIM = /\b(?:done|complete|completed|finished|works now|fixed|ready|shipped)\b/i;
+const DONE_CLAIM = /(?:^|\n)[ \t>*`-]*(?:done|shipped|all set|fixed)\b|\b(?:is|are|now|all|task|work|change)s? (?:done|completed|finished|fixed|ready|shipped)\b/i;
 const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*YOU\b.*$/gm;
+const SELF = fileURLToPath(new URL('./verify.mjs', import.meta.url));
 const MARKER_MAX_AGE_MS = 30 * 60 * 1000;
 const MAX_BLOCKS = 2;
 const CITED = /[\w.-]+:\d+|https?:\/\/|\bUNVERIFIED\b/i;
@@ -63,8 +64,9 @@ function uncited(message) {
   return text.length >= MIN_CLAIM_CHARS && !CITED.test(text);
 }
 
-function citationGate(message) {
+function citationGate(payload, message) {
   if (!uncited(message)) process.exit(0);
+  bump(payload, 'gated');
   process.stderr.write('SCOUT CONTRACT: this return carries no file:line, no URL and no UNVERIFIED tag, so nothing in it can be checked. Re-answer with a citation per fact, or mark the unconfirmed ones UNVERIFIED.\n');
   process.exit(2);
 }
@@ -76,18 +78,12 @@ export function report(payload) {
   const total = savings(state);
   const line = lifetimeLine(state) || null;
   if (total) {
-    const real = usage(payload.transcript_path);
     append(root, {
       actor: 'main',
       tier: 'GREEN',
       action: 'read-budget',
-      target: `${total.agents} agents, ${total.blocked} blocked, ${total.rereads} re-reads, `
-        + `${total.slices} slices, ${total.queries} queries, ${total.caps} caps, `
-        + `${total.scouts} scout, ${total.runners} runner`,
-      result: `kept ${tok(kept(total))} tok of ${tok(volume(total))} (${keptPct(total)}%), `
-        + `dedup ${tok(total.bytes)} tok, defer ${tok(total.deferred)} tok, offload ${tok(total.offload)} tok, `
-        + `admitted ${tok(total.read)} tok, fresh ${real.fresh} tok, cache-read ${real.cacheRead} tok, `
-        + `turn ${real.turns}`,
+      target: JSON.stringify(total),
+      result: JSON.stringify(usage(payload.transcript_path)),
     });
     bank(state);
     for (const key of COUNTERS) state.saved[key] = 0;
@@ -113,7 +109,7 @@ function gate() {
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
 
   const message = String(payload.last_assistant_message || '') || lastAssistantText(payload.transcript_path);
-  if (payload.hook_event_name === 'SubagentStop') citationGate(message);
+  if (payload.hook_event_name === 'SubagentStop') citationGate(payload, message);
 
   const stats = report(payload);
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
@@ -148,7 +144,8 @@ function gate() {
     writeFileSync(counter, String(blocks + 1), 'utf8');
   } catch { }
 
-  process.stderr.write(`${stats ? `${stats}\n` : ''}Verify gate: you claimed done with no evidence. Run this, then say done again:\n  node "\${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs" ${session}\nIt runs ${command} and writes the marker only on exit 0. Writing the marker by hand is forbidden.\n`);
+  const shown = process.env.HANDOFF_STATS === '0' ? '' : lifetimeLine(bump(payload, 'gated'));
+  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: you claimed done with no evidence. Run this, then say done again:\n  node "${SELF}" ${session}\nIt runs ${command} and writes the marker only on exit 0. Writing the marker by hand is forbidden.\n`);
   process.exit(2);
 }
 
@@ -178,9 +175,10 @@ function runner(session, root) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const session = String(process.argv[2] || '').replace(/[^A-Za-z0-9_-]/g, '');
+  const arg = String(process.argv[2] ?? '');
+  const session = sessionOf({ session_id: arg });
   if (process.argv[2] === undefined) gate();
-  else if (!session) {
+  else if (!arg.trim() || !session) {
     console.error('verify: pass the session id the gate printed.');
     process.exit(1);
   } else runner(session, (process.argv[3] || process.env.CLAUDE_PROJECT_DIR || process.cwd()).replace(/\\/g, '/'));

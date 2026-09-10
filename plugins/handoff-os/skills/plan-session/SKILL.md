@@ -1,6 +1,6 @@
 ---
 name: plan-session
-description: "Contract for repo plans and specs — WHAT/WHERE/WHY/WHEN/DONE plan rows and ID/RULE/VALUE/SOURCE/CHECK spec rows, one decided path per row, every external claim sourced or tagged UNVERIFIED. Use when writing or updating a plan or spec in a repo."
+description: "Use when writing or updating a repo plan or spec — the row contract both must follow."
 license: Apache-2.0
 compatibility: No external dependencies. Repo plans and repo specs only — not org ops, not tracker work.
 ---

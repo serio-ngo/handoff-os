@@ -4,6 +4,7 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.6.0 | 2026-09-10 | version bump so the installed hook updates; gated counter for verify gate and citation contract; 1.6 plan, comparables, Track B protocol |
 | 1.5.42 | 2026-09-09 | cowork workspace bash payloads judged, readme states cowork/opencode support |
 | 1.5.41 | 2026-09-09 | gitleaks out, dependabot watches actions, opencode install and update notes |
 | 1.5.40 | 2026-09-09 | opencode reads and writes judged via arg aliases, denials land in audit, user-facing opencode notes |

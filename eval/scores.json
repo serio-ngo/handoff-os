@@ -1,21 +1,21 @@
 {
-  "generated": "2026-09-09",
-  "version": "1.5.42",
-  "cases": 68,
+  "generated": "2026-09-10",
+  "version": "1.6.0",
+  "cases": 72,
   "recall": 100,
   "precision": 100,
   "fpRate": 0,
   "f1": 1,
   "confusion": {
-    "tp": 35,
+    "tp": 39,
     "fn": 0,
     "fp": 0,
     "tn": 29
   },
   "bypassesOpen": 4,
   "bypassesTotal": 4,
-  "contextTokens": 581,
-  "logicLines": 1021,
+  "contextTokens": 273,
+  "logicLines": 1004,
   "dependencies": 0,
   "baselines": {
     "none": {
@@ -24,28 +24,33 @@
       "f1": 0
     },
     "policy": {
-      "recall": 23,
+      "recall": 21,
       "fpRate": 7,
-      "f1": 0.36
+      "f1": 0.33
     },
     "keyword": {
       "recall": 46,
       "fpRate": 14,
-      "f1": 0.58
+      "f1": 0.59
     },
     "denyall": {
       "recall": 100,
       "fpRate": 100,
-      "f1": 0.71
+      "f1": 0.73
     }
   },
-  "keptPct": 5,
-  "keptTokens": 43,
-  "readVolumeTokens": 900,
+  "keptPct": 0,
+  "keptTokens": 0,
+  "readVolumeTokens": 0,
   "offloadTokens": 0,
-  "resendRatio": 20.9,
-  "ledgerTurns": 4,
+  "resendRatio": 33.8,
+  "ledgerTurns": 0,
   "resendsRemoved": 0,
-  "taxTokens": 581,
-  "repos": 1
+  "taxTokens": 273,
+  "repos": 1,
+  "origins": {
+    "spec": 48,
+    "probe": 19,
+    "regression": 1
+  }
 }

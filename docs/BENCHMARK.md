@@ -80,7 +80,7 @@ npm run benchmark:replay
 
 | Item | Value |
 |---|---|
-| Corpus | `eval/guard-corpus.jsonl`, 68 labelled cases |
+| Corpus | `eval/guard-corpus.jsonl`, 72 labelled cases — 68 scored, 4 documented evasions apart |
 | Runner | `npm run benchmark:eval`, exits 1 on a miss, gated in CI |
 | Verdict | exit 2 means blocked |
 | `origin` field | `spec` = derived from the rule table, self-confirming · `probe` = found by adversarial probing · `regression` = reproduces a shipped bug |
@@ -115,23 +115,24 @@ npm run benchmark:compare
 - Multiple roots aggregate: `node scripts/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
-Run 2026-09-09 · 68 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-10 · 72 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
 
 | Metric | Value |
 |---|---|
-| Recall | 35/35 (100%) |
-| Precision | 35/35 (100%) |
+| Recall | 39/39 (100%) |
+| Precision | 39/39 (100%) |
 | False-positive rate | 0/29 (0%) |
 | F1 | 1.00 |
 | Known bypasses caught | 0/4 (0%) |
 
-Confusion: TP 35 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
+Confusion: TP 39 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
 
 - `evasion-01` open — the binary name is held in a shell variable.
 - `evasion-02` open — payload decoded by a pipeline, not by a shell flag.
 - `evasion-03` open — an unquoted no-op flag used as a POST body excuses the segment.
 - `evasion-04` open — connector action whose name carries no classifiable verb.
 
+48 of 68 scored cases are `spec` (rule-derived), 19 `probe`, 1 `regression`; recall here is a regression check, not a detection rate.
 <!-- /eval-results -->
 
 ## Track B — protocol, not a result
@@ -139,12 +140,24 @@ Confusion: TP 35 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
 | Item | Rule |
 |---|---|
 | Status | Not run |
-| Design | Same N tasks twice, with and without the plugin, same prompts and model |
-| Sample | N ≥ 10 per condition |
-| Meter | Claude Code usage blocks — input, output, cache-read, cache-write — priced cache-aware |
-| Quality gate | Pass rate beside tokens. A token drop with a pass drop is a loss |
-| Overhead | Net out the session card and loaded skill descriptions |
-| Ban | Never report bytes / 4 as billing |
+| Runner | `npm run benchmark:ab` — planned, `docs/PLAN-1.6.md` row 6 |
+| Tasks | `eval/tasks.jsonl`, N ≥ 10 rows: `id`, `prompt`, `repo`, `pass` — a shell command that exits 0 on success |
+| Arms | each task twice, same prompt and model: `claude -p --output-format json`, then the same with `--plugin-dir plugins/handoff-os` |
+| Order | arms alternate per task; fresh checkout per run |
+| Meter | `usage` blocks from the JSON output, deduplicated by `requestId` |
+| Billed tokens | `input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens` at the cache-read price ratio; `output_tokens` reported apart |
+| Footprint | session card + skill and agent descriptions, the `npm run benchmark` context tax, subtracted from the plugin arm |
+| Δ | billed without − billed with − footprint, per task; mean with bootstrap 95% CI over 10,000 resamples |
+| Verify-gate catches | `gated` blocks where the task's `pass` command fails at that Stop |
+| Citation catches | `gated` blocks where a cited `file:line` is missing on disk |
+| Quality gate | pass rate per arm beside tokens; a token drop with a pass drop is a loss |
+| Output | `eval/ab.json`, one row per task per arm; README block fields in `docs/PLAN-1.6.md` Proof format |
+| Ban | bytes / 4 never reported as billing |
+
+```bash
+npm run benchmark:ab                    # both arms, every task, writes eval/ab.json
+npm run benchmark:ab -- --task <id>     # one task
+```
 
 - Cached re-reads price below input; a raw-byte cut can move the bill by nothing.
 - Per-run table or no number. Refusals only until this runs.

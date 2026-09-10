@@ -1,6 +1,6 @@
 ---
 name: scout
-description: Cheap read-only lookup worker. Use for find-a-file, quote-a-value, extract-to-schema, or one live page read — anything with a clear input and a short answer. Runs on haiku.
+description: Use for a lookup with a clear input and a short answer — find a file, quote a value, read one page.
 tools: Read, Grep, Glob, WebFetch
 model: haiku
 ---

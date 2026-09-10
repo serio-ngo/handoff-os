@@ -93,7 +93,32 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Live ledger — what the guard did on this machine
 
 <!-- handoff-stats -->
-No ledger turns recorded yet. Method: docs/BENCHMARK.md.
+| Measured over 3 turns | Tokens | Share |
+|---|---|---|
+| Read volume the session asked for | ~255.1k | 100% |
+| **Kept out** | **~223.9k** | **88%** |
+| — re-read dedup | ~29.7k | 12% |
+| — whole-file cap | ~239 | 0% |
+| — moved to a subagent | ~194.0k | 76% |
+| Admitted to the main thread | ~31.1k | 12% |
+
+| Context tax — the plugin's own footprint | Tokens |
+|---|---|
+| Session card, always in context | ~161 |
+| Skill descriptions, always in context | ~65 |
+| Agent descriptions, always in context | ~50 |
+| **Total footprint** | **~276** |
+| Per turn, on top of that | **0** (since 1.6.0) |
+| **Net kept out minus footprint** | **~223.7k** |
+
+| Measured billing | Tokens |
+|---|---|
+| Fresh — input + output + cache write | 7,347,335 |
+| Cache-read | 221,103,017 |
+| **Context re-send ratio** | **30.1×** |
+| Re-sends removed, kept × turns that followed | ~13.9M |
+
+Guard actions: 38. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 <!-- /handoff-stats -->
 
 ## Track A

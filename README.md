@@ -76,13 +76,15 @@ Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 <!-- guard-scores -->
 | Guard | Caught | Wrongly blocked | F1 |
 |---|---|---|---|
+| no guard, permission prompts only | 0% | 0% | 0.00 |
 | Claude Code permissions.deny globs | 17% | 6% | 0.29 |
 | a pattern-list PreToolUse hook | 39% | 11% | 0.53 |
 | block every tool call | 100% | 100% | 0.72 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-[Method](docs/BENCHMARK.md).
+85 cases, 2026-09-10; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code. [Method](docs/BENCHMARK.md).
 
+58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
 
 ## Install

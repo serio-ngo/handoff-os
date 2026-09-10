@@ -370,6 +370,19 @@ function readBudget(payload, input, rewritable = false) {
   return trim;
 }
 
+function unbook(payload, before) {
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  for (const key of Object.keys(state.reads)) {
+    if (!(key in before.reads) && !key.includes('|x:')) delete state.reads[key];
+  }
+  state.read_bytes = before.read_bytes;
+  state.whole_files = before.whole_files;
+  for (const key of ['read', 'offload', 'rewrites', 'trimmed']) state.saved[key] = before.saved[key];
+  save(root, session, state);
+}
+
 function invalidateQueries(payload) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
@@ -571,23 +584,29 @@ export function judge(raw = {}) {
     }
     if (targets.length) invalidateQueries(payload);
     let rewrite = null;
-    for (const read of shellReads(command)) {
-      if (read.unjudged) { bump(payload, 'unjudged'); continue; }
-      const file = path.resolve(typeof payload.cwd === 'string' ? payload.cwd : process.cwd(), read.file);
-      if (!read.whole) { bookSlice(payload, file, read, { shell: true, filtered: read.piped }); continue; }
-      if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true, filtered: true }); continue; }
-      const trim = readBudget(payload, { file_path: file }, tool === 'Bash' && read.rewritable && !rewrite ? 'shell' : false);
-      if (trim) {
-        rewrite = {
-          updatedInput: {
-            ...input,
-            command: command.slice(0, read.at)
-              + `head -c ${BIG_FILE_BYTES} ${shellQuote(read.file)}`
-              + command.slice(read.at + read.chunk.length),
-          },
-          reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}. Read a region with sed -n 'a,bp', or dispatch handoff-os:scout.`,
-        };
+    const before = load(rootOf(payload), sessionOf(payload));
+    try {
+      for (const read of shellReads(command)) {
+        if (read.unjudged) { bump(payload, 'unjudged'); continue; }
+        const file = path.resolve(typeof payload.cwd === 'string' ? payload.cwd : process.cwd(), read.file);
+        if (!read.whole) { bookSlice(payload, file, read, { shell: true, filtered: read.piped }); continue; }
+        if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true, filtered: true }); continue; }
+        const trim = readBudget(payload, { file_path: file }, tool === 'Bash' && read.rewritable && !rewrite ? 'shell' : false);
+        if (trim) {
+          rewrite = {
+            updatedInput: {
+              ...input,
+              command: command.slice(0, read.at)
+                + `head -c ${BIG_FILE_BYTES} ${shellQuote(read.file)}`
+                + command.slice(read.at + read.chunk.length),
+            },
+            reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}. Read a region with sed -n 'a,bp', or dispatch handoff-os:scout.`,
+          };
+        }
       }
+    } catch (error) {
+      if (error instanceof Blocked) unbook(payload, before);
+      throw error;
     }
     return rewrite;
   } else if (tool.startsWith('mcp__')) {

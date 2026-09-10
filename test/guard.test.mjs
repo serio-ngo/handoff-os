@@ -250,6 +250,11 @@ describe('read and query budgets', () => {
     assert.equal(sh('fl', `cat -n ${flagged}`), BLOCKED);
     assert.equal(sh('fl2', `cat ${flagged} 2>&1`), BLOCKED);
     assert.equal(sh('fl3', `cat ${flagged} 1>&2`), BLOCKED);
+    const small = path.join(box, 'beside.txt');
+    writeFileSync(small, 'beside');
+    assert.equal(sh('fl4', `cat ${small}; cat -n ${flagged}`), BLOCKED);
+    assert.equal(sh('fl4', `cat ${small}`), ALLOWED);
+    assert.equal(state('fl4').read_bytes, 6);
   });
   it('leaves a read redirected into a file alone — its bytes never reach the thread', () => {
     const piped = path.join(box, 'piped.txt');

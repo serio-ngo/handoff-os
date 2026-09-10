@@ -140,12 +140,24 @@ Confusion: TP 39 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
 | Item | Rule |
 |---|---|
 | Status | Not run |
-| Design | Same N tasks twice, with and without the plugin, same prompts and model |
-| Sample | N ≥ 10 per condition |
-| Meter | Claude Code usage blocks — input, output, cache-read, cache-write — priced cache-aware |
-| Quality gate | Pass rate beside tokens. A token drop with a pass drop is a loss |
-| Overhead | Net out the session card and loaded skill descriptions |
-| Ban | Never report bytes / 4 as billing |
+| Runner | `npm run benchmark:ab` — planned, `docs/PLAN-1.6.md` row 6 |
+| Tasks | `eval/tasks.jsonl`, N ≥ 10 rows: `id`, `prompt`, `repo`, `pass` — a shell command that exits 0 on success |
+| Arms | each task twice, same prompt and model: `claude -p --output-format json`, then the same with `--plugin-dir plugins/handoff-os` |
+| Order | arms alternate per task; fresh checkout per run |
+| Meter | `usage` blocks from the JSON output, deduplicated by `requestId` |
+| Billed tokens | `input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens` at the cache-read price ratio; `output_tokens` reported apart |
+| Footprint | session card + skill and agent descriptions, the `npm run benchmark` context tax, subtracted from the plugin arm |
+| Δ | billed without − billed with − footprint, per task; mean with bootstrap 95% CI over 10,000 resamples |
+| Verify-gate catches | `gated` blocks where the task's `pass` command fails at that Stop |
+| Citation catches | `gated` blocks where a cited `file:line` is missing on disk |
+| Quality gate | pass rate per arm beside tokens; a token drop with a pass drop is a loss |
+| Output | `eval/ab.json`, one row per task per arm; README block fields in `docs/PLAN-1.6.md` Proof format |
+| Ban | bytes / 4 never reported as billing |
+
+```bash
+npm run benchmark:ab                    # both arms, every task, writes eval/ab.json
+npm run benchmark:ab -- --task <id>     # one task
+```
 
 - Cached re-reads price below input; a raw-byte cut can move the bill by nothing.
 - Per-run table or no number. Refusals only until this runs.

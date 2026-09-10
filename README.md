@@ -68,7 +68,7 @@ No ledger turns recorded yet. Method: docs/BENCHMARK.md.
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **1001** lines of Node across 7 scripts (889 non-blank) |
+| Guard logic | **1004** lines of Node across 7 scripts (892 non-blank) |
 | Pattern rules | **48** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |
@@ -134,4 +134,5 @@ What to do until hooks fire: copy the `deny` list from `settings/policy.json` in
 [Apache-2.0](LICENSE), maintained by serio-ngo.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) ·
-[docs/BENCHMARK.md](docs/BENCHMARK.md) · [docs/MANIFEST.md](docs/MANIFEST.md)
+[docs/BENCHMARK.md](docs/BENCHMARK.md) · [docs/MANIFEST.md](docs/MANIFEST.md) ·
+[docs/PLAN-1.6.md](docs/PLAN-1.6.md) · [docs/COMPARABLES.md](docs/COMPARABLES.md)

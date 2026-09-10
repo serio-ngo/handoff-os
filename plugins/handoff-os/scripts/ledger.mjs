@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps',
-  'bytes', 'deferred', 'offload', 'read', 'scouts', 'runners'];
+  'bytes', 'deferred', 'offload', 'read', 'scouts', 'runners', 'gated'];
 
 export const BYTE_COUNTERS = ['bytes', 'deferred', 'offload'];
 
@@ -82,6 +82,7 @@ export function lifetimeLine(state) {
   const capped = Number(life.queries || 0) + Number(life.caps || 0);
   const blocked = Number(life.blocked || 0);
   if (stopped + capped + blocked) lines.push(plural(stopped + capped + blocked, 'guard action', 'guard actions'));
+  if (Number(life.gated || 0)) lines.push(`${num(life.gated)} gated`);
   const used = [];
   if (Number(life.scouts || 0)) used.push(plural(Number(life.scouts), 'scout', 'scouts'));
   if (Number(life.runners || 0)) used.push(plural(Number(life.runners), 'runner', 'runners'));

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { COUNTERS, bank, lifetimeLine, load, rootOf, save, savings, sessionOf } from './ledger.mjs';
+import { COUNTERS, bank, bump, lifetimeLine, load, rootOf, save, savings, sessionOf } from './ledger.mjs';
 
 const DONE_CLAIM = /(?:^|\n)[ \t>*`-]*(?:done|shipped|all set|fixed)\b|\b(?:is|are|now|all|task|work|change)s? (?:done|completed|finished|fixed|ready|shipped)\b/i;
 const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*YOU\b.*$/gm;
@@ -64,8 +64,9 @@ function uncited(message) {
   return text.length >= MIN_CLAIM_CHARS && !CITED.test(text);
 }
 
-function citationGate(message) {
+function citationGate(payload, message) {
   if (!uncited(message)) process.exit(0);
+  bump(payload, 'gated');
   process.stderr.write('SCOUT CONTRACT: this return carries no file:line, no URL and no UNVERIFIED tag, so nothing in it can be checked. Re-answer with a citation per fact, or mark the unconfirmed ones UNVERIFIED.\n');
   process.exit(2);
 }
@@ -108,7 +109,7 @@ function gate() {
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
 
   const message = String(payload.last_assistant_message || '') || lastAssistantText(payload.transcript_path);
-  if (payload.hook_event_name === 'SubagentStop') citationGate(message);
+  if (payload.hook_event_name === 'SubagentStop') citationGate(payload, message);
 
   const stats = report(payload);
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
@@ -143,7 +144,8 @@ function gate() {
     writeFileSync(counter, String(blocks + 1), 'utf8');
   } catch { }
 
-  process.stderr.write(`${stats ? `${stats}\n` : ''}Verify gate: you claimed done with no evidence. Run this, then say done again:\n  node "${SELF}" ${session}\nIt runs ${command} and writes the marker only on exit 0. Writing the marker by hand is forbidden.\n`);
+  const shown = process.env.HANDOFF_STATS === '0' ? '' : lifetimeLine(bump(payload, 'gated'));
+  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: you claimed done with no evidence. Run this, then say done again:\n  node "${SELF}" ${session}\nIt runs ${command} and writes the marker only on exit 0. Writing the marker by hand is forbidden.\n`);
   process.exit(2);
 }
 

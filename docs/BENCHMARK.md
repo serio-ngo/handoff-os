@@ -1,8 +1,8 @@
 # Benchmark
 
-<sub><b>Answers</b> · what the guard refused, would refuse, blocks, and bills — ledger · replay · track A · track B · <a href="../README.md">README</a></sub>
+<sub><b>Answers</b> · what the guard refused, would refuse, blocks, and bills — ledger · replay · track A · track B · flood · <a href="../README.md">README</a></sub>
 
-<!-- ledger · replay · track A · track B -->
+<!-- ledger · replay · track A · track B · flood -->
 
 | Track | Question | Status |
 |---|---|---|
@@ -10,6 +10,7 @@
 | Replay | what the guard would refuse on recorded real traffic | `npm run benchmark:replay` |
 | Track A | does the guard block what it claims to | `npm run benchmark:eval`, gated in CI |
 | Track B | does the bill actually fall | `npm run benchmark:ab` |
+| Flood | what one 20-subagent prompt costs, with and without | `npm run benchmark:flood` |
 
 ## Context savings — what `npm run benchmark` prints
 
@@ -154,6 +155,20 @@ npm run benchmark:compare
 | `keyword` | a pattern-list `PreToolUse` hook, ~35 dangerous-pattern regexes | The shape most published guard hooks ship. Graded on the same cases, including the safe ones. |
 | `denyall` | block every tool call | The ceiling. Perfect recall, useless in practice — this is why recall is never reported alone. |
 
+<!-- guard-scores -->
+| Guard | Caught | Wrongly blocked | F1 |
+|---|---|---|---|
+| no guard, permission prompts only | 0% | 0% | 0.00 |
+| Claude Code permissions.deny globs | 17% | 6% | 0.29 |
+| a pattern-list PreToolUse hook | 39% | 11% | 0.53 |
+| block every tool call | 100% | 100% | 0.72 |
+| **handoff-os** | 100% | 0% | 1.00 |
+
+85 cases, 2026-09-10; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code.
+
+58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+<!-- /guard-scores -->
+
 - Mechanism baselines from published rule shapes, not vendor code; no product named.
 - Same case list, same scoring; `eval/baselines.mjs` committed for repeat or dispute.
 - `eval/scores.json` written by the same run; feeds the README badges.
@@ -213,16 +228,6 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 ```
 
 <!-- ab-results -->
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="ab-delta-dark.svg">
-<img src="ab-delta.svg" width="720" alt="Δ billed tokens vs no plugin, cache-read at 0.1×: build c24cb86 +35.5% [+17.3%, +54.8%], pass 8/11 with, 10/11 without; build 84f2ac8 +11.3% [-5.0%, +42.7%], pass 9/11 with, 11/11 without">
-</picture>
-
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="ab-micro-dark.svg">
-<img src="ab-micro.svg" width="720" alt="Micro experiments, billed tokens with vs without the plugin: micro-a build c24cb86 22,134 vs 57,225; micro-a build 84f2ac8 45,672 vs 57,213; micro-b build c24cb86 89,538 vs 129,661; micro-b build 84f2ac8 119,129 vs 122,333">
-</picture>
-
 | Status | Run 1 — plugin build c24cb86 (main, 1.6.0) · 2026-09-10 · model `claude-haiku-4-5-20251001` · N = 11 |
 |---|---|
 | Footprint | ~273 tok |
@@ -323,6 +328,8 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | `micro-b` | with | 119,129 | 381,315 | 21 / 18 / 3 | dispatch 6, fan-out 12 | agents 3, blocked 18, rewrites 1, trimmed 17974, offload 1025, read 25175, scouts 3, waves 12, agentsCapped 12 |
 | `micro-b` | without | 122,333 | 379,503 | 6 / 0 / 6 | — | — |
 
+</details>
+
 | Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1) |
 |---|
 
@@ -334,6 +341,9 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | Pass rate | with 10/11 · without 11/11 | — | — |
 | Guard events, with plugin | repeat-query 1 · re-read 1 · dispatch 7 · fan-out 7 · gated 3 · egress-lock 1 | — | — |
 | Billed tokens, both arms | 1,306,298 | — | — |
+
+<details>
+<summary>Per-task rows · 22 · micro rows · 4</summary>
 
 | Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|
@@ -367,6 +377,8 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | `micro-b` | with | 135,750 | 397,216 | 15 / 9 / 6 | dispatch 6, fan-out 3 | agents 6, blocked 9, rewrites 1, trimmed 17974, offload 26200, scouts 6, gated 3, waves 3, agentsCapped 3 |
 | `micro-b` | without | 147,121 | 538,675 | 5 / 0 / 5 | — | — |
 
+</details>
+
 | Task | without, run 1 | without, run 2 | without, run 3 | build 1 · c24cb86 | build 2 · 84f2ac8 | build 3 · c1d8710 | Pass b1 / b2 / b3 |
 |---|---|---|---|---|---|---|---|
 | `big-read` | 57,350 | 57,300 | 57,272 | 64,261 | 45,699 | 115,597 | no / yes / yes |
@@ -385,3 +397,36 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 npm run benchmark:ab -- --model claude-haiku-4-5-20251001
 ```
 <!-- /ab-results -->
+
+## Flood — one prompt, 20 subagents
+
+| Item | Rule |
+|---|---|
+| Runner | `npm run benchmark:flood` — `scripts/benchmark.mjs flood` |
+| Fixture | `eval/fixture/` minus `src/`, `tests/`, `tools/`; plus `src/mod01.js … mod20.js`, generated at run time, three exports each |
+| Prompt | one: launch one subagent per module, all 20 in parallel, then one line per module |
+| Arms | without the plugin first, then `--plugin-dir plugins/handoff-os`; same flags as Track B, `--max-turns 25` |
+| Model | `claude-sonnet-5` by default; `--model <id>` |
+| Subagent calls | `Agent` / `Task` tool calls in the transcript |
+| Started | `subagent_stats.spawned` from the result event |
+| Refused | subagent calls answered by a `PreToolUse` hook error |
+| Tokens billed | `input + cache write + 0.1 × cache read`, transcript `usage`, subagents included |
+| Cost | `total_cost_usd` from the result event |
+| Finished | reply names all 20 modules |
+| Budget | stops once cumulative cost passes `--budget-usd` (default 10); partial result still written |
+| Output | `eval/flood-results.json` · `docs/flood.svg`, `docs/flood-dark.svg` · README `<!-- handoff-flood -->` · this file's `<!-- flood-results -->` |
+
+```bash
+npm run benchmark:flood                 # both arms, one prompt
+npm run benchmark:flood -- --render     # rewrite the figure and the blocks from eval/flood-results.json
+npm run benchmark:flood -- --dry-run    # pipeline only, no model call
+```
+
+<!-- flood-results -->
+Run 2026-09-10 · model `claude-sonnet-5` · plugin build 8e9d9c4 (1.9.1) · `eval/flood-results.json`
+
+| Arm | Subagent calls | Started | Refused by the guard | Tokens billed | Cost | Wall time | Finished |
+|---|---|---|---|---|---|---|---|
+| without | 20 | 20 | 0 | 174,757 | $0.52 | 39s | yes |
+| with | 43 | 3 | 40 | 104,751 | $0.41 | 120s | no |
+<!-- /flood-results -->

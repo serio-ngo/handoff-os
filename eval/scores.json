@@ -1,6 +1,6 @@
 {
   "generated": "2026-09-10",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "cases": 72,
   "recall": 100,
   "precision": 100,
@@ -15,7 +15,7 @@
   "bypassesOpen": 4,
   "bypassesTotal": 4,
   "contextTokens": 273,
-  "logicLines": 1004,
+  "logicLines": 1304,
   "dependencies": 0,
   "baselines": {
     "none": {

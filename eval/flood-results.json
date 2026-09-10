@@ -39,6 +39,12 @@
       "spawnBlocked": 0,
       "spawned": 20,
       "subagentMessages": 46,
+      "subagentRaw": {
+        "n": 20,
+        "mean": 24480,
+        "min": 24477,
+        "max": 24488
+      },
       "ledger": {},
       "result": "All 20 modules reported back. Here's one line per module:\n\n```\nmod01.js: name, run01, size01\nmod02.js: name, run02, size02\nmod03.js: name, run03, size03\nmod04.js: name, run04, size04\nmod05.js: name, run05, size05\nmod06.js: name, run06, size06\nmod07.js: name, run07, size07\nmod08.js: name, run08, size08\nmod09.js: name, run09, size09\nmod10.js: name, run10, size10\nmod11.js: name, run11, size11\nmod12.j"
     },
@@ -70,6 +76,12 @@
       "spawnBlocked": 40,
       "spawned": 3,
       "subagentMessages": 12,
+      "subagentRaw": {
+        "n": 3,
+        "mean": 18813,
+        "min": 18786,
+        "max": 18831
+      },
       "ledger": {
         "agents": 3,
         "blocked": 40,

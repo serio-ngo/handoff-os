@@ -411,22 +411,26 @@ npm run benchmark:ab -- --model claude-haiku-4-5-20251001
 | Started | `subagent_stats.spawned` from the result event |
 | Refused | subagent calls answered by a `PreToolUse` hook error |
 | Tokens billed | `input + cache write + 0.1 × cache read`, transcript `usage`, subagents included |
+| Raw tokens per subagent | `input + cache write + cache read` of one subagent's messages, grouped by `parent_tool_use_id`, mean over the arm; the figure's per-wave line is `requested × mean` |
 | Cost | `total_cost_usd` from the result event |
 | Finished | reply names all 20 modules |
 | Budget | stops once cumulative cost passes `--budget-usd` (default 10); partial result still written |
-| Output | `eval/flood-results.json` · `docs/flood.svg`, `docs/flood-dark.svg` · README `<!-- handoff-flood -->` · this file's `<!-- flood-results -->` |
+| Output | `eval/flood-results.json` · `docs/flood.svg` · README `<!-- handoff-flood -->` · this file's `<!-- flood-results -->` |
+| Figures | `scripts/figures.mjs` renders `docs/flood.svg`, `docs/tiles-*.svg`, `docs/demo.svg` from `eval/*.json` and plugin constants; `npm run upkeep` rewrites them, `upkeep:check` fails when they differ |
 
 ```bash
 npm run benchmark:flood                 # both arms, one prompt
-npm run benchmark:flood -- --render     # rewrite the figure and the blocks from eval/flood-results.json
+npm run benchmark:flood -- --render     # rewrite docs/flood.svg and the blocks from eval/flood-results.json
 npm run benchmark:flood -- --dry-run    # pipeline only, no model call
 ```
 
 <!-- flood-results -->
 Run 2026-09-10 · model `claude-sonnet-5` · plugin build 8e9d9c4 (1.9.1) · `eval/flood-results.json`
 
-| Arm | Subagent calls | Started | Refused by the guard | Tokens billed | Cost | Wall time | Finished |
-|---|---|---|---|---|---|---|---|
-| without | 20 | 20 | 0 | 174,757 | $0.52 | 39s | yes |
-| with | 43 | 3 | 40 | 104,751 | $0.41 | 120s | no |
+| Arm | Subagent calls | Started | Refused by the guard | Raw tokens per subagent | Tokens billed | Cost | Wall time | Finished |
+|---|---|---|---|---|---|---|---|---|
+| without | 20 | 20 | 0 | 24,480 | 174,757 | $0.52 | 39s | yes |
+| with | 43 | 3 | 40 | 18,813 | 104,751 | $0.41 | 120s | no |
+
+Figure estimate line: 50,000 raw tokens per subagent in a real repo · Opus list price $5 per 1M input tokens.
 <!-- /flood-results -->

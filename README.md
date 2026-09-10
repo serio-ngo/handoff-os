@@ -14,7 +14,7 @@
 [![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic&color=57606a)](plugins/handoff-os/scripts)
 [![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.dependencies&label=dependencies&color=2da44e)](package.json)
 
-<img src="docs/demo.svg" width="720" alt="handoff-os refusing a 38KB read, capping a subagent wave and blocking a send, then printing session totals">
+<img src="docs/demo.svg" width="720" alt="handoff-os on a 20-subagent request: 3 start, the FAN-OUT CAP holds 17 for the next wave, the Stop receipt prints the count">
 
 <sub>[Install](#install) · [Also stops](#also-stops) · [Method](docs/BENCHMARK.md) · [Contributing](CONTRIBUTING.md)</sub>
 
@@ -25,12 +25,9 @@ Claude Code can launch 20 subagents in one turn. A 5-hour window goes in seconds
 The hook caps each wave at 3 and queues the rest.
 
 <!-- handoff-flood -->
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="docs/flood-dark.svg">
-<img src="docs/flood.svg" width="720" alt="20 subagents requested, model claude-sonnet-5. Without handoff-os: 20 started at once, 174,757 tokens billed. With handoff-os: 3 started at once, 104,751 tokens billed, 3 of 20 done, 17 held for the next wave.">
-</picture>
+<img src="docs/flood.svg" width="720" alt="20 subagents requested, model claude-sonnet-5. One uncapped wave: 20 started, about 490k raw tokens measured (20 × 24,480 per subagent); in a real repo 1M+ tokens, about $5 at Opus list price, an estimate. With the guard: 3 started, 17 held for the next wave, measured.">
 
-20 subagents requested, model `claude-sonnet-5`. Started at once: **20** without, **3** with. Tokens billed this turn: **174.8k** without, **104.8k** with — 3 of 20 done, 17 held for the next wave.
+**Measured** on `claude-sonnet-5`, one prompt: 20 subagents started and ≈490k raw tokens without the guard, 3 started and 17 held with it; 1M+ tokens a wave in a real repo is an **estimate**.
 <!-- /handoff-flood -->
 
 ## Install
@@ -44,39 +41,16 @@ Restart Claude Code. Hooks load at session start.
 
 ## Also stops
 
-<table>
-<tr>
-<th align="left" width="40%">Stops</th>
-<th align="left" width="30%">Counts</th>
-<th align="left" width="30%">Does not</th>
-</tr>
-<tr valign="top">
-<td>
-Whole-file dumps over 24 KB<br>
-Destructive <code>git</code> and <code>rm</code><br>
-"Done" with no verification run
-</td>
-<td>
-Subagents held back<br>
-Tokens kept out<br>
-Receipt at <code>Stop</code>
-</td>
-<td>
-Call a model<br>
-Touch the network<br>
-Depend on anything
-</td>
-</tr>
-</table>
+<img src="docs/tiles-stops.svg" width="720" alt="Stops: 3 subagents per wave; 24 KB whole-file read cap; destructive git and rm calls; Done with no verification run">
+
+<img src="docs/tiles-counts.svg" width="720" alt="Counts: subagents held back; read volume kept out; receipt printed at Stop">
+
+<img src="docs/tiles-never.svg" width="720" alt="Does not: 0 model calls, 0 network calls, 0 dependencies">
 
 <details>
 <summary>Cost and limits</summary>
 
-| Where | Effect |
-|---|---|
-| Ordinary tasks | +11–33% tokens; refusals add turns |
-| Cowork | hooks do not fire |
-| OpenCode | subagent calls bypass the guard |
+<img src="docs/tiles-cost.svg" width="720" alt="Cost and limits: more tokens on ordinary tasks; Cowork hooks do not fire; OpenCode subagents bypass the guard">
 
 Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 

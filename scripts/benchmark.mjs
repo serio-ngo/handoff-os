@@ -8,6 +8,7 @@ import { MODES } from '../eval/baselines.mjs';
 import { BYTE_COUNTERS, COUNTERS } from '../plugins/handoff-os/scripts/ledger.mjs';
 import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
 import { usage } from '../plugins/handoff-os/scripts/verify.mjs';
+import { started, writeFlood } from './figures.mjs';
 import { inventory, writeBlock } from './generate.mjs';
 
 const flags = { write: false, eval: false, compare: false, latency: false, replay: false, ab: false, flood: false };
@@ -274,6 +275,11 @@ function addUsage(t, u) {
   t.requests += 1;
 }
 
+const rawOf = (u) => Number(u.input_tokens || 0) + Number(u.cache_creation_input_tokens || 0) + Number(u.cache_read_input_tokens || 0);
+const summary = (xs) => (xs.length
+  ? { n: xs.length, mean: Math.round(xs.reduce((a, b) => a + b, 0) / xs.length), min: Math.min(...xs), max: Math.max(...xs) }
+  : null);
+
 const textOf = (content) => (typeof content === 'string' ? content
   : Array.isArray(content) ? content.map((part) => (typeof part === 'string' ? part : part?.text || '')).join('\n') : '');
 
@@ -284,6 +290,7 @@ function parseStream(stdout) {
   };
   const seen = new Set();
   const spawnIds = new Set();
+  const perSubagent = {};
   for (const line of String(stdout).split(/\r?\n/)) {
     if (!line.startsWith('{')) continue;
     let event;
@@ -291,7 +298,11 @@ function parseStream(stdout) {
     if (event.type === 'assistant') {
       const key = event.request_id || event.message?.id || event.uuid;
       if (event.parent_tool_use_id) out.subagentMessages += 1;
-      if (event.message?.usage && !seen.has(key)) { seen.add(key); addUsage(out.usage, event.message.usage); }
+      if (event.message?.usage && !seen.has(key)) {
+        seen.add(key);
+        addUsage(out.usage, event.message.usage);
+        if (event.parent_tool_use_id) perSubagent[event.parent_tool_use_id] = (perSubagent[event.parent_tool_use_id] || 0) + rawOf(event.message.usage);
+      }
       for (const part of event.message?.content || []) {
         if (part?.type !== 'tool_use') continue;
         out.toolCalls += 1;
@@ -321,6 +332,7 @@ function parseStream(stdout) {
       if (event.subagent_stats) out.spawned = Number(event.subagent_stats.spawned || 0);
     }
   }
+  out.subagentRaw = summary(Object.values(perSubagent));
   return out;
 }
 
@@ -406,6 +418,7 @@ function runArm(task, arm, opts) {
     spawnBlocked: parsed.spawnBlocked,
     spawned: parsed.spawned,
     subagentMessages: parsed.subagentMessages,
+    subagentRaw: parsed.subagentRaw,
     ledger: arm === 'A' ? ledgerOf(dir) : {},
     result: parsed.result.slice(0, 400),
   };
@@ -473,24 +486,6 @@ const shortCommit = (r) => String(r.plugin.commit || 'unknown').slice(0, 7);
 const runLabel = (r, n) => `Run ${n} — plugin build ${shortCommit(r)} (${r.plugin.ref || 'local'}, ${r.plugin.version})`;
 const guardCell = (row) => Object.entries(row.guard).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
 const ledgerCell = (row) => Object.entries(row.ledger).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
-
-const THEMES = {
-  light: { suffix: '', surface: '#ffffff', border: '#d0d7de', ink: '#1f2328', muted: '#656d76', without: '#eb6834', with: '#2a78d6' },
-  dark: { suffix: '-dark', surface: '#161b22', border: '#30363d', ink: '#e6edf3', muted: '#8d96a0', without: '#d95926', with: '#3987e5' },
-};
-const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
-const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const px = (v) => Math.round(v * 10) / 10;
-const svgText = (x, y, s, o = {}) => `<text x="${px(x)}" y="${px(y)}" fill="${o.fill}" font-size="${o.size ?? 12}"${o.weight ? ` font-weight="${o.weight}"` : ''}${o.anchor ? ` text-anchor="${o.anchor}"` : ''}>${esc(s)}</text>`;
-const svgBar = (x0, x1, y, h, fill) => {
-  const r = Math.min(4, Math.abs(x1 - x0));
-  if (r < 1) return '';
-  return `<path d="M${px(x0)},${px(y)} H${px(x1 - r)} A${r},${r} 0 0 1 ${px(x1)},${px(y + r)} V${px(y + h - r)} A${r},${r} 0 0 1 ${px(x1 - r)},${px(y + h)} H${px(x0)} Z" fill="${fill}"/>`;
-};
-const svgOpen = (w, h, t, label) => [
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(label)}" font-family="${FONT}">`,
-  `<rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="8" fill="${t.surface}" stroke="${t.border}"/>`,
-];
 
 function aggregateTable(r, n) {
   const a = r.aggregate;
@@ -683,10 +678,6 @@ function ab(opts) {
   return stopped ? 1 : 0;
 }
 
-const FLOOD_OPEN = '<!-- handoff-flood -->';
-const FLOOD_CLOSE = '<!-- /handoff-flood -->';
-const FLOOD_DOC_OPEN = '<!-- flood-results -->';
-const FLOOD_DOC_CLOSE = '<!-- /flood-results -->';
 const FLOOD_MODULES = 20;
 const FLOOD_PROMPT = `There are ${FLOOD_MODULES} modules in src/. Launch one subagent per module, all ${FLOOD_MODULES} in parallel, each returns the module's exported names. Then print one line per module.`;
 
@@ -703,83 +694,13 @@ const floodTask = () => ({
   files: floodFiles(),
 });
 
-const started = (row) => row.spawned ?? Math.max(0, row.spawnRequested - row.spawnBlocked);
 const secs = (ms) => `${Math.round(ms / 1000)}s`;
 const usd = (x) => `$${Number(x || 0).toFixed(2)}`;
-
-const held = (r) => Math.max(0, r.requested - started(r.arms.with));
-const outcome = (r) => (r.arms.with.pass ? 'all done' : `${started(r.arms.with)} of ${r.requested} done, ${held(r)} held for the next wave`);
-const floodAlt = (r) => `${r.requested} subagents requested, model ${r.model}. Without handoff-os: ${started(r.arms.without)} started at once, `
-  + `${num(r.arms.without.billed)} tokens billed. With handoff-os: ${started(r.arms.with)} started at once, ${num(r.arms.with.billed)} tokens billed, ${outcome(r)}.`;
-
-function floodSvg(r, t) {
-  const W = 720; const H = 296; const L = 150; const R = 610; const barH = 22;
-  const groups = [
-    { title: 'Subagents started at once', y: 64, value: started, fmt: String, note: () => (held(r) ? `${held(r)} held for the next wave` : '') },
-    { title: 'Tokens billed, this turn', y: 172, value: (row) => row.billed, fmt: tokc, note: () => (r.arms.with.pass ? '' : `${started(r.arms.with)} of ${r.requested} modules done`) },
-  ];
-  const out = svgOpen(W, H, t, floodAlt(r));
-  out.push(`<rect x="${W - 232}" y="24" width="10" height="10" rx="2" fill="${t.without}"/>`, svgText(W - 217, 33, 'without handoff-os', { fill: t.muted, size: 12 }));
-  out.push(`<rect x="${W - 104}" y="24" width="10" height="10" rx="2" fill="${t.with}"/>`, svgText(W - 89, 33, 'with', { fill: t.muted, size: 12 }));
-  for (const g of groups) {
-    out.push(svgText(24, g.y, g.title, { fill: t.ink, size: 15, weight: 600 }));
-    const rows = [['without', r.arms.without, t.without], ['with', r.arms.with, t.with]];
-    const max = Math.max(1, ...rows.map(([, row]) => g.value(row)));
-    rows.forEach(([label, row, fill], i) => {
-      const y = g.y + 14 + i * (barH + 12);
-      const v = g.value(row);
-      const x1 = L + ((v / max) * (R - L));
-      out.push(svgText(L - 14, y + barH - 6, label, { fill: t.muted, size: 13, anchor: 'end' }));
-      out.push(svgBar(L, x1, y, barH, fill));
-      const value = g.fmt(v);
-      const vx = Math.max(x1, L) + 10;
-      out.push(svgText(vx, y + barH - 4, value, { fill: t.ink, size: 22, weight: 700 }));
-      const note = label === 'with' ? g.note() : '';
-      if (note) out.push(svgText(vx + value.length * 13 + 8, y + barH - 6, note, { fill: t.muted, size: 12 }));
-    });
-  }
-  out.push(svgText(24, H - 18, `${r.requested} subagents requested · one prompt, same files, model ${r.model}`, { fill: t.muted, size: 12 }));
-  out.push('</svg>');
-  return out.join('\n');
-}
-
-const floodCaption = (r) => `${r.requested} subagents requested, model \`${r.model}\`. Started at once: **${started(r.arms.without)}** without, **${started(r.arms.with)}** with. `
-  + `Tokens billed this turn: **${tokc(r.arms.without.billed)}** without, **${tokc(r.arms.with.billed)}** with — ${outcome(r)}.`;
-
-const floodRow = (label, row) => `| ${label} | ${row.spawnRequested} | ${started(row)} | ${row.spawnBlocked} | ${num(row.billed)} | ${usd(row.cost)} | ${secs(row.durationMs)} | ${row.pass ? 'yes' : 'no'}${row.error ? ` (${row.error.split(':')[0]})` : ''} |`;
-
-function floodDocBlock(r) {
-  return [
-    `Run ${r.generated} · model \`${r.model}\` · plugin build ${shortCommit(r)} (${r.plugin.version}) · \`eval/flood-results.json\`${r.stopped ? ` · stopped: ${r.stopped}` : ''}`,
-    '',
-    '| Arm | Subagent calls | Started | Refused by the guard | Tokens billed | Cost | Wall time | Finished |',
-    '|---|---|---|---|---|---|---|---|',
-    floodRow('without', r.arms.without),
-    floodRow('with', r.arms.with),
-  ];
-}
-
-function writeFloodBlocks(r) {
-  for (const theme of Object.values(THEMES)) {
-    const file = path.join('docs', `flood${theme.suffix}.svg`);
-    writeFileSync(path.join(REPO, file), floodSvg(r, theme), 'utf8');
-    console.log(`  wrote ${file}`);
-  }
-  console.log(`  ${writeBlock(path.join(REPO, 'README.md'), FLOOD_OPEN, FLOOD_CLOSE, [
-    '<picture>',
-    '<source media="(prefers-color-scheme: dark)" srcset="docs/flood-dark.svg">',
-    `<img src="docs/flood.svg" width="720" alt="${esc(floodAlt(r))}">`,
-    '</picture>',
-    '',
-    floodCaption(r),
-  ])}`);
-  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), FLOOD_DOC_OPEN, FLOOD_DOC_CLOSE, floodDocBlock(r))}`);
-}
 
 function flood(opts) {
   const outFile = path.resolve(REPO, opts.out);
   if (opts.render) {
-    writeFloodBlocks(JSON.parse(readFileSync(outFile, 'utf8')));
+    for (const line of writeFlood(JSON.parse(readFileSync(outFile, 'utf8')))) console.log(`  ${line}`);
     return 0;
   }
   const task = floodTask();
@@ -815,7 +736,7 @@ function flood(opts) {
   };
   writeFileSync(outFile, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
   console.log(`\n  wrote ${path.relative(REPO, outFile)}${stopped ? `  ${stopped}` : ''}`);
-  if (arms.with && arms.without && !opts.dryRun && !path.relative(REPO, outFile).startsWith('..')) writeFloodBlocks(result);
+  if (arms.with && arms.without && !opts.dryRun && !path.relative(REPO, outFile).startsWith('..')) for (const line of writeFlood(result)) console.log(`  ${line}`);
   return stopped ? 1 : 0;
 }
 

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 92" width="720" height="92" role="img" aria-label="+11–35% tokens on ordinary tasks; Cowork hooks do not fire; OpenCode subagents bypass the guard" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<rect x="0.5" y="0.5" width="228.33333333333334" height="91" rx="8" fill="none" stroke="#7d8590" stroke-opacity=".35"/>
+<rect x="16" y="22" width="3" height="48" rx="1.5" fill="#2a78d6"/>
+<text x="30" y="50" fill="#7d8590" font-size="26" font-weight="700">+11–35%</text>
+<text x="30" y="71" fill="#7d8590" font-size="12">tokens on ordinary tasks</text>
+<rect x="245.83333333333334" y="0.5" width="228.33333333333334" height="91" rx="8" fill="none" stroke="#7d8590" stroke-opacity=".35"/>
+<rect x="261.33333333333337" y="22" width="3" height="48" rx="1.5" fill="#2a78d6"/>
+<text x="275.33333333333337" y="50" fill="#7d8590" font-size="26" font-weight="700">Cowork</text>
+<text x="275.33333333333337" y="71" fill="#7d8590" font-size="12">hooks do not fire</text>
+<rect x="491.1666666666667" y="0.5" width="228.33333333333334" height="91" rx="8" fill="none" stroke="#7d8590" stroke-opacity=".35"/>
+<rect x="506.6666666666667" y="22" width="3" height="48" rx="1.5" fill="#2a78d6"/>
+<text x="520.6666666666667" y="50" fill="#7d8590" font-size="26" font-weight="700">OpenCode</text>
+<text x="520.6666666666667" y="71" fill="#7d8590" font-size="12">subagents bypass the guard</text>
+</svg>

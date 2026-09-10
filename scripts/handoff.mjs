@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdir
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
+import { writeFigures } from './figures.mjs';
 import { PLUGIN, REPO, inventory, manifest, markdown, policyFor, readJson, walk, writeBlock } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
@@ -212,8 +213,10 @@ function normalise() {
 }
 
 function upkeep() {
+  const figures = writeFigures();
   const touched = normalise();
   writeFileSync(path.join(REPO, 'docs', 'MANIFEST.md'), manifest(), 'utf8');
+  row('figures', `${figures.length} file(s)`);
   row('formatted', `${touched} file(s)`);
 }
 

@@ -162,6 +162,7 @@ npm run benchmark:ab                                   # every task, both arms, 
 npm run benchmark:ab -- --task big-read                # one task
 npm run benchmark:ab -- --dry-run                      # pipeline only, no model call
 npm run benchmark:ab -- --render                       # rewrite the blocks from eval/ab-results.json
+npm run benchmark:ab -- --plugin-dir <dir> --out <file>  # another plugin build; an --out outside the repo leaves the blocks alone
 npm run benchmark:ab -- --model <id> --n 5 --no-micro
 ```
 

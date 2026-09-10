@@ -14,9 +14,9 @@ const flags = { write: false, eval: false, compare: false, latency: false, repla
 const AB = {
   tasks: 'eval/tasks.jsonl', n: Infinity, model: 'claude-haiku-4-5-20251001', dryRun: false, out: 'eval/ab-results.json',
   task: null, micro: true, maxTurns: 12, timeoutMs: 15 * 60 * 1000, budgetUsd: 5, seed: 20260910, keep: false, render: false,
-  claude: process.env.HANDOFF_AB_CLAUDE || 'claude',
+  claude: process.env.HANDOFF_AB_CLAUDE || 'claude', pluginDir: null,
 };
-const AB_VALUE = { '--tasks': 'tasks', '--n': 'n', '--model': 'model', '--out': 'out', '--task': 'task', '--max-turns': 'maxTurns', '--timeout': 'timeoutMs', '--budget': 'budgetUsd', '--seed': 'seed' };
+const AB_VALUE = { '--tasks': 'tasks', '--n': 'n', '--model': 'model', '--out': 'out', '--task': 'task', '--max-turns': 'maxTurns', '--timeout': 'timeoutMs', '--budget': 'budgetUsd', '--seed': 'seed', '--plugin-dir': 'pluginDir' };
 let REPO = process.cwd();
 const REPOS = [];
 const argv = process.argv.slice(2);
@@ -231,7 +231,6 @@ function run() {
   return own.misses.length ? 1 : 0;
 }
 
-const PLUGIN_DIR = path.join(REPO, 'plugins', 'handoff-os');
 const AB_OPEN = '<!-- handoff-ab -->';
 const AB_CLOSE = '<!-- /handoff-ab -->';
 const AB_DOC_OPEN = '<!-- ab-results -->';
@@ -383,7 +382,7 @@ function runArm(task, arm, opts) {
   env.HANDOFF_OS_DIR = dir;
   const args = ['-p', task.prompt, '--output-format', 'stream-json', '--verbose', '--max-turns', String(opts.maxTurns),
     '--model', opts.model, '--strict-mcp-config', '--setting-sources', 'project', '--allowedTools', AB_TOOLS];
-  if (arm === 'A') args.push('--plugin-dir', PLUGIN_DIR);
+  if (arm === 'A') args.push('--plugin-dir', abPluginDir(opts));
   const started = Date.now();
   let stdout = STUB_STREAM;
   let error = null;
@@ -545,6 +544,8 @@ function abDocBlock(r) {
   return lines;
 }
 
+const abPluginDir = (opts) => path.resolve(opts.pluginDir || path.join(REPO, 'plugins', 'handoff-os'));
+
 function writeAbBlocks(result) {
   console.log(`  ${writeBlock(path.join(REPO, 'README.md'), AB_OPEN, AB_CLOSE, abReadmeBlock(result))}`);
   console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result))}`);
@@ -594,7 +595,9 @@ function ab(opts) {
   }
   const pairs = rows.map((r) => [r.A, r.B]);
   const pick = (key) => (row) => Number(row[key] ?? 0);
-  const inv = inventory(REPO);
+  const pluginDir = abPluginDir(opts);
+  const pluginRoot = path.basename(path.dirname(pluginDir)) === 'plugins' ? path.dirname(path.dirname(pluginDir)) : REPO;
+  const inv = inventory(pluginRoot);
   const result = {
     generated: new Date().toISOString().slice(0, 10),
     model: opts.model,
@@ -602,7 +605,7 @@ function ab(opts) {
     dryRun: opts.dryRun,
     maxTurns: opts.maxTurns,
     stopped,
-    plugin: { version: JSON.parse(readFileSync(path.join(PLUGIN_DIR, '.claude-plugin', 'plugin.json'), 'utf8')).version, footprintTokens: taxOf(inv).total },
+    plugin: { dir: pluginDir, version: JSON.parse(readFileSync(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8')).version, footprintTokens: taxOf(inv).total },
     prices: { source: 'https://platform.claude.com/docs/en/about-claude/pricing, read 2026-09-10', model: price ? price.key : null, perMillion: price ? { input: price.input, output: price.output, cacheWrite5m: price.input * CACHE_WRITE_5M, cacheWrite1h: price.input * CACHE_WRITE_1H, cacheRead: price.input * CACHE_READ } : null },
     aggregate: {
       billedWeighted: bootstrap(pairs, pick('billedWeighted')),
@@ -631,7 +634,7 @@ function ab(opts) {
     console.log(`  Δ billed (0.1× read) ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} · Δ cost ${fmtUsd(a.costUsd.mean)}${fmtCi(a.costUsd.ci95, fmtUsd)} · pass with ${a.passA}/${rows.length}, without ${a.passB}/${rows.length}`);
     console.log(`  expected guard class hit on ${a.expectedHit}/${a.expectedTotal} provoking tasks · neutral tasks untouched ${a.neutralClean}/${a.neutralTotal} · spend $${spend.toFixed(2)}${stopped ? ` · ${stopped}` : ''}`);
   }
-  writeAbBlocks(result);
+  if (!path.relative(REPO, outFile).startsWith('..')) writeAbBlocks(result);
   return stopped ? 1 : 0;
 }
 

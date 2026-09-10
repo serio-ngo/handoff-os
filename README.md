@@ -1,16 +1,18 @@
+<div align="center">
+
 # handoff-os
 
-Spend guard for Claude Code. Acts at `PreToolUse` and `Stop`, before the tokens are spent.
+**Spend guard for Claude Code** — acts at `PreToolUse` and `Stop`, before the tokens are spent.
 
-Books every action in four units: 
-waves held back, 
-expensive dispatches redirected to scout or runner, 
-whole-file reads trimmed or stopped, 
-done-claims gated. 
-
-Stops: a 4th agent in a 90-second wave · opus/fable dispatch with no `QUALITY:` flag ·
-whole-file read over 24 KB (rewritten to a slice, not refused) · byte-identical re-read ·
-9th whole file in one thread (handed to a scout) · content grep with no `head_limit` · any send, pay, publish, merge or delete.
+| Stops | How |
+|---|---|
+| 4th agent in a 90-second wave | held for the next wave |
+| opus/fable dispatch with no `QUALITY:` flag | refused, scout or runner named |
+| Whole-file read over 24 KB | rewritten to a slice |
+| Byte-identical re-read, repeat search | refused |
+| 9th whole file in one thread | handed to a scout |
+| Content grep with no `head_limit` | capped at 50 lines |
+| Send, pay, publish, merge, delete | refused, human-only |
 
 Zero dependencies, fully offline, no model calls, no network, no telemetry.
 
@@ -20,12 +22,16 @@ Zero dependencies, fully offline, no model calls, no network, no telemetry.
 
 [![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version)](plugins/handoff-os/.claude-plugin/plugin.json) [![license](https://img.shields.io/github/license/serio-ngo/handoff-os)](LICENSE)
 
-![handoff-os refusing a 38KB read, capping a 20-agent ultrathink opus wave and blocking a send, then printing session totals](docs/demo.svg)
+<img src="docs/demo.svg" width="720" alt="handoff-os refusing a 38KB read, capping a subagent wave and blocking a send, then printing session totals" />
+
+[What changes](#what-changes-for-you) · [Install](#install) · [Limits](#limits) · [Benchmark](docs/BENCHMARK.md)
+
+</div>
 
 ## What changes for you
 
 - A wave stops at three agents; the receipt says how many were held back.
-- An opus or fable dispatch with no `QUALITY:` flag is refused and a scout or runner is named instead (haiku uses ~1/5 tokens of opus).
+- An opus or fable dispatch with no `QUALITY:` flag is refused; a scout or runner is named instead.
 - One question about one line stops costing the whole file: over 24 KB is trimmed, unchanged re-reads stop, past eight whole files the next goes to a scout with the dispatch ready to paste.
 - A "done" claim waits for a real verification run.
 - Sends, payments, publishes, merges, deletes and credential writes stop before they run.
@@ -41,6 +47,7 @@ Zero dependencies, fully offline, no model calls, no network, no telemetry.
 | — egress lock | 36 | 3% |
 | — re-read dedup | 3 | 0% |
 
+<!-- /handoff-replay -->
 
 ## Measured — paired runs, with and without the plugin
 
@@ -64,7 +71,6 @@ Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 <!-- /handoff-ab -->
 
-
 ## Guard against the alternatives
 
 <!-- guard-scores -->
@@ -77,6 +83,8 @@ Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 [Method](docs/BENCHMARK.md).
 
+<!-- /guard-scores -->
+
 ## Install
 
 ```text
@@ -86,9 +94,14 @@ Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 > Hooks load at session start: restart Claude Code, then confirm with `npm run doctor`.
 
+<details>
+<summary>OpenCode and Cowork</summary>
+
 OpenCode works (same guard, `opencode.json` loader), except connector calls pass unjudged and
 subagent calls skip `tool.execute.before` (`sst/opencode#5894`). Cowork does not fire plugin
 hooks (`--setting-sources user`), so copy the `deny` list from `settings/policy.json` there.
+
+</details>
 
 ## Configuration
 
@@ -97,7 +110,6 @@ hooks (`--setting-sources user`), so copy the `deny` list from `settings/policy.
 - `HANDOFF_MCP_ALLOW=action,action` allows named connector actions the egress lock would stop.
 - `HANDOFF_DENY_SUBAGENT_MODELS=model,model` keeps tiers off dispatches (default `opus,fable`).
 - `HANDOFF_OS_DIR=/path` keeps session state and audit files out of the repo.
-
 
 ## Limits
 

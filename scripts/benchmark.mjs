@@ -485,12 +485,12 @@ const fmtPct = (x) => (x === null || x === undefined ? 'n/a' : `${x > 0 ? '+' : 
 const fmtUsd = (x) => (x === null || x === undefined ? 'n/a' : `${x < 0 ? '−' : '+'}$${Math.abs(x).toFixed(4)}`);
 const fmtCi = (ci, f) => (ci[0] === null ? '' : ` [${f(ci[0])}, ${f(ci[1])}]`);
 
-function abReadmeBlock(r) {
+function abReadmeBlock(r, extra = []) {
   if (r.dryRun) return [`Not run. Dry-run pipeline check on ${r.generated}, ${r.n} tasks, model \`${r.model}\`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md), Track B.`];
   const a = r.aggregate;
   const guard = Object.entries(a.guardEventsA).sort((x, y) => y[1] - x[1]);
   return [
-    `| Paired runs, ${r.n} tasks × 2 arms, ${r.generated}, model \`${r.model}\` | Value |`,
+    `| ${runLabel(r, 1)} — ${r.n} tasks × 2 arms, ${r.generated}, model \`${r.model}\` | Value |`,
     '|---|---|',
     `| Δ billed tokens, with − without, cache-read at 0.1× | **${fmtPct(a.billedWeighted.pct)}**${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
     `| Δ billed tokens, raw sum of input + cache write + cache read | ${fmtPct(a.billedRaw.pct)}${fmtCi(a.billedRaw.pctCi95, fmtPct)} |`,
@@ -501,6 +501,7 @@ function abReadmeBlock(r) {
     `| Guard events, with plugin | ${guard.length ? guard.map(([rule, count]) => `${rule} ${count}`).join(' · ') : 'none'} |`,
     `| Plugin footprint, always in context | ~${tokc(r.plugin.footprintTokens)} tok |`,
     `| Total spend, both arms | $${a.spendUsd.toFixed(2)} |`,
+    ...abReadmeExtra(extra),
     '',
     'Same prompt, same model, same fixture, arms in random order per task; 95% CI by bootstrap over paired '
     + 'differences. Negative Δ means the plugin arm billed less. Reproduce with `npm run benchmark:ab`. '
@@ -508,52 +509,107 @@ function abReadmeBlock(r) {
   ];
 }
 
-function abDocBlock(r) {
+const runLabel = (r, n) => `Run ${n} — plugin build ${String(r.plugin.commit || 'unknown').slice(0, 7)} (${r.plugin.ref || 'local'}, ${r.plugin.version})`;
+const cost4 = (x) => (x === null || x === undefined ? 'n/a' : `$${x.toFixed(4)}`);
+const guardCell = (row) => Object.entries(row.guard).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
+const ledgerCell = (row) => Object.entries(row.ledger).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
+
+function runTables(r) {
   const a = r.aggregate;
-  const status = r.dryRun ? `Not run: dry-run on ${r.generated}` : `Run on ${r.generated} · model \`${r.model}\` · N = ${r.n}${r.stopped ? ` · stopped: ${r.stopped}` : ''}`;
+  const lines = [
+    '| Aggregate | Mean Δ (with − without) | 95% CI | Δ % |', '|---|---|---|---|',
+    `| Billed tokens, cache-read at 0.1× | ${Math.round(a.billedWeighted.mean)} | ${a.billedWeighted.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
+    `| Billed tokens, raw | ${Math.round(a.billedRaw.mean)} | ${a.billedRaw.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedRaw.pct)}${fmtCi(a.billedRaw.pctCi95, fmtPct)} |`,
+    `| Output tokens | ${Math.round(a.output.mean)} | ${a.output.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.output.pct)}${fmtCi(a.output.pctCi95, fmtPct)} |`,
+    `| Cost, USD | ${fmtUsd(a.costUsd.mean)} | ${a.costUsd.ci95.map((x) => fmtUsd(x)).join(' … ')} | ${fmtPct(a.costUsd.pct)}${fmtCi(a.costUsd.pctCi95, fmtPct)} |`,
+    `| Pass rate | with ${a.passA}/${r.n} · without ${a.passB}/${r.n} | — | — |`,
+    `| Guard events, with plugin | ${Object.entries(a.guardEventsA).map(([k, v]) => `${k} ${v}`).join(' · ') || 'none'} | — | — |`,
+    `| Spend, both arms | $${a.spendUsd.toFixed(2)} | — | — |`,
+    '',
+    '| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Cost | Guard events | Ledger |', '|---|---|---|---|---|---|---|---|---|',
+    ...r.tasks.flatMap((t) => [t.A, t.B].map((row) => `| \`${row.task}\` | ${row.plugin ? 'with' : 'without'} | ${row.pass ? 'yes' : 'no'}${row.error ? ` (${row.error.split(':')[0]})` : ''} | ${num(row.billedWeighted)} | ${num(row.billedRaw)} | ${num(row.output)} | ${cost4(row.costUsd)} | ${guardCell(row)} | ${ledgerCell(row)} |`)),
+    '',
+  ];
+  if (r.micro) {
+    lines.push('| Micro | Arm | Billed (0.1× read) | Raw | Cost | Subagents requested / blocked / spawned | Guard events | Ledger |', '|---|---|---|---|---|---|---|---|');
+    for (const m of Object.values(r.micro)) {
+      for (const row of [m.A, m.B]) {
+        lines.push(`| \`${row.task}\` | ${row.plugin ? 'with' : 'without'} | ${num(row.billedWeighted)} | ${num(row.billedRaw)} | ${cost4(row.costUsd)} | ${row.spawnRequested} / ${row.spawnBlocked} / ${row.spawned ?? 'n/a'} | ${guardCell(row)} | ${ledgerCell(row)} |`);
+      }
+    }
+    lines.push('');
+  }
+  return lines;
+}
+
+function buildsTable(runs) {
+  const head = runs.map((r, i) => `build ${i + 1} · ${String(r.plugin.commit || '').slice(0, 7)}`);
+  const lines = [
+    `| Task | ${runs.map((_, i) => `without, run ${i + 1}`).join(' | ')} | ${head.join(' | ')} | Pass ${head.map((_, i) => `b${i + 1}`).join(' / ')} |`,
+    `|---|${runs.map(() => '---|').join('')}${runs.map(() => '---|').join('')}---|`,
+  ];
+  for (const t of runs[0].tasks) {
+    const rows = runs.map((r) => r.tasks.find((x) => x.id === t.id));
+    if (rows.some((x) => !x)) continue;
+    lines.push(`| \`${t.id}\` | ${rows.map((x) => num(x.B.billedWeighted)).join(' | ')} | ${rows.map((x) => num(x.A.billedWeighted)).join(' | ')} | ${rows.map((x) => (x.A.pass ? 'yes' : 'no')).join(' / ')} |`);
+  }
+  lines.push('');
+  return lines;
+}
+
+function abDocBlock(r, extra = []) {
+  const status = r.dryRun ? `Not run: dry-run on ${r.generated}` : `${runLabel(r, 1)} · ${r.generated} · model \`${r.model}\` · N = ${r.n}${r.stopped ? ` · stopped: ${r.stopped}` : ''}`;
   const lines = [
     `| Status | ${status} |`, '|---|---|',
-    `| Plugin | ${r.plugin.version}, footprint ~${tokc(r.plugin.footprintTokens)} tok |`,
+    `| Footprint | ~${tokc(r.plugin.footprintTokens)} tok |`,
     `| Prices | ${r.prices.source.replace(/https?:\/\/[^\s,]+/, (url) => `<${url}>`)} |`,
+    ...extra.map((x, i) => `| ${runLabel(x, i + 2)} | ${x.generated} · model \`${x.model}\` · N = ${x.n}${x.stopped ? ` · stopped: ${x.stopped}` : ''} · \`${path.basename(x.file)}\` |`),
     '',
   ];
   if (!r.dryRun) {
-    lines.push(
-      '| Aggregate | Mean Δ (with − without) | 95% CI | Δ % |', '|---|---|---|---|',
-      `| Billed tokens, cache-read at 0.1× | ${Math.round(a.billedWeighted.mean)} | ${a.billedWeighted.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
-      `| Billed tokens, raw | ${Math.round(a.billedRaw.mean)} | ${a.billedRaw.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedRaw.pct)}${fmtCi(a.billedRaw.pctCi95, fmtPct)} |`,
-      `| Output tokens | ${Math.round(a.output.mean)} | ${a.output.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.output.pct)}${fmtCi(a.output.pctCi95, fmtPct)} |`,
-      `| Cost, USD | ${fmtUsd(a.costUsd.mean)} | ${a.costUsd.ci95.map((x) => fmtUsd(x)).join(' … ')} | ${fmtPct(a.costUsd.pct)}${fmtCi(a.costUsd.pctCi95, fmtPct)} |`,
-      `| Pass rate | with ${a.passA}/${r.n} · without ${a.passB}/${r.n} | — | — |`,
-      '',
-      '| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Cost | Guard events | Ledger |', '|---|---|---|---|---|---|---|---|---|',
-      ...r.tasks.flatMap((t) => [t.A, t.B].map((row) => `| \`${row.task}\` | ${row.plugin ? 'with' : 'without'} | ${row.pass ? 'yes' : 'no'}${row.error ? ` (${row.error.split(':')[0]})` : ''} | ${num(row.billedWeighted)} | ${num(row.billedRaw)} | ${num(row.output)} | ${row.costUsd === null ? 'n/a' : `$${row.costUsd.toFixed(4)}`} | ${Object.entries(row.guard).map(([k, v]) => `${k} ${v}`).join(', ') || '—'} | ${Object.entries(row.ledger).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ') || '—'} |`)),
-      '',
-    );
-    if (r.micro) {
-      lines.push('| Micro | Arm | Billed (0.1× read) | Raw | Cost | Subagents requested / blocked / spawned | Guard events |', '|---|---|---|---|---|---|---|');
-      for (const m of Object.values(r.micro)) {
-        for (const row of [m.A, m.B]) {
-          lines.push(`| \`${row.task}\` | ${row.plugin ? 'with' : 'without'} | ${num(row.billedWeighted)} | ${num(row.billedRaw)} | ${row.costUsd === null ? 'n/a' : `$${row.costUsd.toFixed(4)}`} | ${row.spawnRequested} / ${row.spawnBlocked} / ${row.spawned ?? 'n/a'} | ${Object.entries(row.guard).map(([k, v]) => `${k} ${v}`).join(', ') || '—'} |`);
-        }
-      }
-      lines.push('');
-    }
+    lines.push(...runTables(r));
+    extra.forEach((x, i) => {
+      lines.push(`| ${runLabel(x, i + 2)} |`, '|---|', '');
+      lines.push(...runTables(x));
+    });
+    if (extra.length) lines.push(...buildsTable([r, ...extra]));
   }
   lines.push('```bash', `npm run benchmark:ab -- --model ${r.model}`, '```');
   return lines;
 }
 
+function abReadmeExtra(extra) {
+  return extra.flatMap((x, i) => {
+    const a = x.aggregate;
+    return [
+      `| ${runLabel(x, i + 2)}: Δ billed tokens, cache-read at 0.1× | **${fmtPct(a.billedWeighted.pct)}**${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
+      `| ${runLabel(x, i + 2)}: Δ cost per task | **${fmtUsd(a.costUsd.mean)}**${fmtCi(a.costUsd.ci95, fmtUsd)} |`,
+      `| ${runLabel(x, i + 2)}: pass rate, with / without | ${a.passA}/${x.n} / ${a.passB}/${x.n} |`,
+    ];
+  });
+}
+
+function extraRuns(outFile) {
+  const dir = path.join(REPO, 'eval');
+  return readdirSync(dir).filter((name) => /^ab-results-.*\.json$/.test(name)).sort()
+    .map((name) => path.join(dir, name)).filter((file) => file !== outFile)
+    .map((file) => ({ ...JSON.parse(readFileSync(file, 'utf8')), file }));
+}
+
+const gitAt = (cwd, args) => (spawnSync('git', args, { cwd, encoding: 'utf8' }).stdout || '').trim() || null;
+
 const abPluginDir = (opts) => path.resolve(opts.pluginDir || path.join(REPO, 'plugins', 'handoff-os'));
 
-function writeAbBlocks(result) {
-  console.log(`  ${writeBlock(path.join(REPO, 'README.md'), AB_OPEN, AB_CLOSE, abReadmeBlock(result))}`);
-  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result))}`);
+function writeAbBlocks(result, outFile) {
+  const extra = extraRuns(outFile);
+  console.log(`  ${writeBlock(path.join(REPO, 'README.md'), AB_OPEN, AB_CLOSE, abReadmeBlock(result, extra))}`);
+  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result, extra))}`);
 }
 
 function ab(opts) {
   if (opts.render) {
-    writeAbBlocks(JSON.parse(readFileSync(path.resolve(REPO, opts.out), 'utf8')));
+    const outFile = path.resolve(REPO, opts.out);
+    writeAbBlocks(JSON.parse(readFileSync(outFile, 'utf8')), outFile);
     return 0;
   }
   const tasksFile = path.resolve(REPO, opts.tasks);
@@ -605,7 +661,13 @@ function ab(opts) {
     dryRun: opts.dryRun,
     maxTurns: opts.maxTurns,
     stopped,
-    plugin: { dir: pluginDir, version: JSON.parse(readFileSync(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8')).version, footprintTokens: taxOf(inv).total },
+    plugin: {
+      dir: pluginDir,
+      version: JSON.parse(readFileSync(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8')).version,
+      commit: gitAt(pluginRoot, ['rev-parse', 'HEAD']),
+      ref: gitAt(pluginRoot, ['rev-parse', '--abbrev-ref', 'HEAD']),
+      footprintTokens: taxOf(inv).total,
+    },
     prices: { source: 'https://platform.claude.com/docs/en/about-claude/pricing, read 2026-09-10', model: price ? price.key : null, perMillion: price ? { input: price.input, output: price.output, cacheWrite5m: price.input * CACHE_WRITE_5M, cacheWrite1h: price.input * CACHE_WRITE_1H, cacheRead: price.input * CACHE_READ } : null },
     aggregate: {
       billedWeighted: bootstrap(pairs, pick('billedWeighted')),
@@ -634,7 +696,7 @@ function ab(opts) {
     console.log(`  Δ billed (0.1× read) ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} · Δ cost ${fmtUsd(a.costUsd.mean)}${fmtCi(a.costUsd.ci95, fmtUsd)} · pass with ${a.passA}/${rows.length}, without ${a.passB}/${rows.length}`);
     console.log(`  expected guard class hit on ${a.expectedHit}/${a.expectedTotal} provoking tasks · neutral tasks untouched ${a.neutralClean}/${a.neutralTotal} · spend $${spend.toFixed(2)}${stopped ? ` · ${stopped}` : ''}`);
   }
-  if (!path.relative(REPO, outFile).startsWith('..')) writeAbBlocks(result);
+  if (!path.relative(REPO, outFile).startsWith('..')) writeAbBlocks(result, outFile);
   return stopped ? 1 : 0;
 }
 

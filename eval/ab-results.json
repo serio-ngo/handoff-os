@@ -7,7 +7,9 @@
   "stopped": null,
   "plugin": {
     "version": "1.6.0",
-    "footprintTokens": 273
+    "footprintTokens": 273,
+    "commit": "c24cb864b0955c52ae03bb4ffee444e9c2c15c2c",
+    "ref": "main"
   },
   "prices": {
     "source": "https://platform.claude.com/docs/en/about-claude/pricing, read 2026-09-10",

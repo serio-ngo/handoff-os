@@ -1,10 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps',
-  'bytes', 'deferred', 'offload', 'read', 'scouts', 'runners', 'gated'];
+export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps', 'rewrites',
+  'bytes', 'deferred', 'trimmed', 'offload', 'read', 'scouts', 'runners', 'gated'];
 
-export const BYTE_COUNTERS = ['bytes', 'deferred', 'offload'];
+export const BYTE_COUNTERS = ['bytes', 'deferred', 'trimmed', 'offload'];
 
 const zero = () => Object.fromEntries(COUNTERS.map((key) => [key, 0]));
 const EMPTY = () => ({ reads: {}, saved: zero() });

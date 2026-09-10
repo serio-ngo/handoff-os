@@ -182,9 +182,22 @@ describe('dispatch budget', () => {
 describe('read and query budgets', () => {
   const probe = path.join(box, 'probe.txt');
 
-  it('blocks a whole-file read over the 24KB limit', () => {
-    writeFileSync(probe, 'x'.repeat(25 * 1024));
-    assert.equal(at('bq', { tool_name: 'Read', tool_input: { file_path: probe } }), BLOCKED);
+  const run = (session, payload) => spawnSync(process.execPath, [script('guard.mjs')], {
+    input: JSON.stringify({ cwd: box, session_id: session, ...payload }), encoding: 'utf8', env: { ...process.env, HANDOFF_OS_DIR: box },
+  });
+  const state = (session) => JSON.parse(readFileSync(path.join(box, '.claude', `.session-${session}.json`), 'utf8'));
+  const rewritten = (result) => JSON.parse(result.stdout).hookSpecificOutput;
+
+  it('rewrites a whole-file read over the 24KB limit to a line slice and books the trimmed bytes', () => {
+    writeFileSync(probe, `${'x'.repeat(63)}\n`.repeat(400));
+    const result = run('bq', { tool_name: 'Read', tool_input: { file_path: probe } });
+    assert.equal(result.status, ALLOWED);
+    const out = rewritten(result);
+    assert.equal(out.permissionDecision, 'allow');
+    assert.ok(out.updatedInput.limit > 0 && out.updatedInput.limit < 400, String(out.updatedInput.limit));
+    assert.equal(out.updatedInput.file_path, probe);
+    assert.equal(state('bq').saved.trimmed, 400 * 64 - out.updatedInput.limit * 64);
+    assert.equal(state('bq').saved.rewrites, 1);
   });
   it('blocks a re-read of the same unchanged bytes', () => {
     writeFileSync(probe, 'small');
@@ -227,6 +240,9 @@ describe('read and query budgets', () => {
   it('credits a refused read once however often it is retried', () => {
     const file = path.join(box, 'retry.txt');
     writeFileSync(file, 'w'.repeat(30 * 1024));
+    mkdirSync(path.join(box, '.claude'), { recursive: true });
+    writeFileSync(path.join(box, '.claude', '.session-rt.json'),
+      JSON.stringify({ reads: {}, read_bytes: 600000, saved: {} }), 'utf8');
     for (let n = 0; n < 3; n += 1) {
       assert.equal(at('rt', { tool_name: 'Read', tool_input: { file_path: file } }), BLOCKED);
     }

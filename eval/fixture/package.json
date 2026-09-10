@@ -1,0 +1,10 @@
+{
+  "name": "ab-fixture",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/parse.spec.mjs",
+    "verify": "node --test tests/parse.spec.mjs"
+  }
+}

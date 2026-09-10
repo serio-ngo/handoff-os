@@ -67,6 +67,27 @@ keys, no network, no telemetry.
 Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code transcripts, re-fed to the guard in order, one sandbox per session. Open-loop: a refusal cannot change what the agent did next, so this is what the guard catches on that exact stream, not a counterfactual. Reproduce with `npm run benchmark:replay`.
 <!-- /handoff-replay -->
 
+## Measured — paired runs, with and without the plugin
+
+<!-- handoff-ab -->
+| Run 1 — plugin build c24cb86 (main, 1.6.0) — 11 tasks × 2 arms, 2026-09-10, model `claude-haiku-4-5-20251001` | Value |
+|---|---|
+| Δ billed tokens, with − without, cache-read at 0.1× | **+35.5%** [+17.3%, +54.8%] |
+| Δ billed tokens, raw sum of input + cache write + cache read | +98.8% [+46.8%, +142.4%] |
+| Δ output tokens | +79.8% [+45.6%, +145.0%] |
+| Δ cost per task, list price | **+$0.0114** [+$0.0048, +$0.0181] |
+| Pass rate, with plugin | 8/11 |
+| Pass rate, without plugin | 10/11 |
+| Guard events, with plugin | fan-out 9 · dispatch 8 · whole-file 3 · gated 3 · egress-lock 2 · repeat-query 1 · re-read 1 |
+| Plugin footprint, always in context | ~273 tok |
+| Total spend, both arms | $1.70 |
+| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ billed tokens, cache-read at 0.1× | **+11.3%** [-5.0%, +42.7%] |
+| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ cost per task | **+$0.0040** [−$0.0023, +$0.0111] |
+| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): pass rate, with / without | 9/11 / 11/11 |
+
+Same prompt, same model, same fixture, arms in random order per task; 95% CI by bootstrap over paired differences. Negative Δ means the plugin arm billed less. Reproduce with `npm run benchmark:ab`. Per-task rows: `eval/ab-results.json`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
+<!-- /handoff-ab -->
+
 ## Measured — live ledger
 
 <!-- handoff-stats -->

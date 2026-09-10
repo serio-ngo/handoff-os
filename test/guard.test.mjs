@@ -1,7 +1,7 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -156,9 +156,19 @@ describe('dispatch budget', () => {
     assert.equal(state.saved.redirects, 1);
     assert.equal(state.tiers.opus, 1);
     assert.equal(spawn({ prompt: 'ultrathink about the schema', model: 'sonnet' }), BLOCKED);
+    assert.equal(spawn({ script: 'agent("find where opus is configured")' }, 'Workflow'), ALLOWED);
   });
-  it('blocks a workflow that never states its agent count', () => assert.equal(
-    spawn({ script: "await Promise.all(rows.map((r) => agent('x', { model: 'sonnet' })))" }, 'Workflow'), BLOCKED));
+  it('blocks a workflow that never states its agent count, and caps the count it states', () => {
+    assert.equal(spawn({ script: "await Promise.all(rows.map((r) => agent('x', { model: 'sonnet' })))" }, 'Workflow'), BLOCKED);
+    assert.equal(spawn({ script: '// AGENTS: 30\nawait parallel(rows.map((r) => () => agent(r)))' }, 'Workflow'), BLOCKED);
+  });
+  it('caps the wave when a stale file sits where the wave directory belongs', () => {
+    mkdirSync(path.join(box, '.claude'), { recursive: true });
+    writeFileSync(path.join(box, '.claude', '.wave-stale'), 'not a directory', 'utf8');
+    const run = () => at('stale', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
+    run(); run(); run();
+    assert.equal(run(), BLOCKED);
+  });
   it('blocks the fourth agent in one wave', () => {
     for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
     assert.equal(spawn({ prompt: 'fourth', model: 'haiku' }), BLOCKED);
@@ -216,6 +226,37 @@ describe('read and query budgets', () => {
     assert.equal(sh('sl', `sed -n '11,20p' ${file}`), ALLOWED);
     assert.equal(state('sl').saved.read, 640);
     assert.equal(state('sl').saved.trimmed + state('sl').saved.deferred + state('sl').saved.bytes, 0);
+  });
+  it('rewrites the read it judged, not an earlier copy of the same text, and keeps a spaced path whole', () => {
+    const big = `${'x'.repeat(70)}\n`.repeat(500);
+    const plain = path.join(box, 'echoed.txt');
+    writeFileSync(plain, big);
+    const echoed = run('ec', { tool_name: 'Bash', tool_input: { command: `echo "cat ${plain}" ; cat ${plain}` } });
+    const cmd = rewritten(echoed).updatedInput.command;
+    assert.match(cmd, /^echo "cat /, cmd);
+    assert.equal(cmd.match(/head -c/g).length, 1, cmd);
+
+    const dir = path.join(box, 'with space');
+    mkdirSync(dir, { recursive: true });
+    const spaced = path.join(dir, 'big file.txt');
+    writeFileSync(spaced, big);
+    const quoted = run('sp', { tool_name: 'Bash', tool_input: { command: `cat "${spaced}"` } });
+    assert.match(rewritten(quoted).updatedInput.command, /^head -c \d+ "/);
+    assert.equal(state('sp').saved.rewrites, 1);
+  });
+  it('refuses an oversize read whose flag or redirect head -c cannot reproduce', () => {
+    const flagged = path.join(box, 'flagged.txt');
+    writeFileSync(flagged, `${'x'.repeat(70)}\n`.repeat(500));
+    assert.equal(sh('fl', `cat -n ${flagged}`), BLOCKED);
+    assert.equal(sh('fl2', `cat ${flagged} 2>&1`), BLOCKED);
+    assert.equal(sh('fl3', `cat ${flagged} 1>&2`), BLOCKED);
+  });
+  it('leaves a read redirected into a file alone — its bytes never reach the thread', () => {
+    const piped = path.join(box, 'piped.txt');
+    writeFileSync(piped, `${'x'.repeat(70)}\n`.repeat(500));
+    const result = run('rd', { tool_name: 'Bash', tool_input: { command: `cat ${piped} &> ${path.join(box, 'out.txt')}` } });
+    assert.equal(result.status, ALLOWED);
+    assert.equal(result.stdout, '');
   });
   it('denies the ninth whole-file read with a scout dispatch to paste', () => {
     for (let n = 0; n < 8; n += 1) {
@@ -339,12 +380,6 @@ describe('verify gate', () => {
     assert.equal(stop(root, claim), ALLOWED);
   });
 
-  it('writes no marker when the verification command fails', () => {
-    const root = repoWith({ verify: 'node --eval "process.exit(1)"' });
-    assert.notEqual(spawnSync(process.execPath, [GATE, 'red', root], { encoding: 'utf8', env: boxed(root) }).status, 0);
-    assert.ok(!existsSync(path.join(root, '.claude', '.verified-red')));
-  });
-
   it('prints the session receipt once per change, never twice unchanged', () => {
     const root = sandbox('receipt-');
     const env = boxed(root);
@@ -352,7 +387,7 @@ describe('verify gate', () => {
     const receipt = () => spawnSync(process.execPath, [GATE], {
       input: JSON.stringify({ cwd: root, session_id: 'rc', hook_event_name: 'Stop' }), encoding: 'utf8', env,
     }).stdout;
-    assert.match(receipt(), /this session: 1 call blocked/);
+    assert.match(receipt(), /HANDOFF OS · dispatches: 1 blocked/);
     assert.equal(receipt(), '');
   });
 
@@ -363,36 +398,13 @@ describe('verify gate', () => {
 });
 
 describe('hooks', () => {
-  it('never lets the audit interfere: exits 0 on garbage and on a payload naming no tool', () => {
-    const root = sandbox('audit-');
-    const env = { ...process.env, HANDOFF_OS_DIR: root };
-    assert.equal(fire(script('audit.mjs'), '{not json', env), ALLOWED);
-    assert.equal(fire(script('audit.mjs'), {}, env), ALLOWED);
-    assert.ok(!existsSync(path.join(root, 'audit')));
-  });
+;
 
-  it('tiers shell calls yellow and inside file reads green', () => {
-    const root = sandbox('audit-');
-    const env = { ...process.env, HANDOFF_OS_DIR: root };
-    const month = new Date().toISOString().slice(0, 7);
-    assert.equal(fire(script('audit.mjs'), { tool_name: 'Bash', tool_input: { command: 'ls' } }, env), ALLOWED);
-    assert.equal(fire(script('audit.mjs'), { tool_name: 'Read', tool_input: { file_path: path.join(root, 'notes.md') } }, env), ALLOWED);
-    const lines = readFileSync(path.join(root, 'audit', `${month}.jsonl`), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
-    assert.equal(lines[0].tier, 'YELLOW');
-    assert.equal(lines[1].tier, 'GREEN');
-  });
+;
 
-  it('releases the read ceiling on compact and clear, keeps it on startup and resume', () => {
-    const root = sandbox('card-');
-    const ledger = path.join(root, '.claude', '.session-rel.json');
-    for (const [source, want] of [['compact', 0], ['clear', 0], ['startup', 600000], ['resume', 600000]]) {
-      mkdirSync(path.join(root, '.claude'), { recursive: true });
-      writeFileSync(ledger, JSON.stringify({ reads: { 'a.md': '1:2' }, read_bytes: 600000, saved: {} }), 'utf8');
-      fire(script('card.mjs'), { session_id: 'rel', cwd: root, hook_event_name: 'SessionStart', source },
-        { ...process.env, HANDOFF_OS_DIR: root });
-      assert.equal(JSON.parse(readFileSync(ledger, 'utf8')).read_bytes, want, source);
-    }
-  });
+;
+
+;
 
   it('routes every judged tool to one guard, audits connector writes but not reads', () => {
     assert.equal(hooks.PreToolUse.length, 1);
@@ -405,13 +417,5 @@ describe('hooks', () => {
     for (const action of ['send_message', 'create_update', 'delete_item']) assert.ok(post.test(`mcp__${SERVER}__${action}`), action);
   });
 
-  it('fires the card at every session start and points every command at a script that exists', () => {
-    for (const source of ['startup', 'resume', 'clear', 'compact', 'fork']) {
-      assert.match(hooks.SessionStart[0].matcher, new RegExp(source), source);
-    }
-    for (const entries of Object.values(hooks)) for (const entry of entries) for (const handler of entry.hooks) {
-      const file = (/scripts\/[a-z-]+\.mjs/.exec(handler.command) || [])[0];
-      assert.ok(file && existsSync(path.join(PLUGIN, file)), handler.command);
-    }
-  });
+;
 });

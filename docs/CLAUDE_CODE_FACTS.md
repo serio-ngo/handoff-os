@@ -29,7 +29,7 @@
 | PreToolUse `additionalContext` | string added to Claude's context alongside the tool result — the only rewrite field the model sees |
 | PostToolUse `hookSpecificOutput.updatedToolOutput` | replaces the tool result Claude sees; must match the tool's output shape; the tool has already run |
 | PostToolUse `updatedMCPToolOutput` | MCP tools only; prefer `updatedToolOutput` |
-| `systemMessage` | universal field: warning text shown to the **user**, not model context; Stop honours it; capped at 10,000 chars |
+| `systemMessage` | universal field: warning text shown to the **user**, not model context; Stop honours it |
 | Env | `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT` |
 | Kill switch | `"disableAllHooks": true` |
 

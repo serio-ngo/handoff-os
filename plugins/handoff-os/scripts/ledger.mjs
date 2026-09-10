@@ -8,9 +8,6 @@ export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'c
 
 export const BYTE_COUNTERS = ['bytes', 'deferred', 'trimmed', 'offload'];
 
-// USD per 1M input tokens — https://platform.claude.com/docs/en/about-claude/pricing.md, read 2026-09-10
-export const PRICES = { haiku: 1, sonnet: 2, opus: 5, fable: 10 };
-
 const zero = () => Object.fromEntries(COUNTERS.map((key) => [key, 0]));
 const EMPTY = () => ({ reads: {}, saved: zero() });
 
@@ -85,34 +82,27 @@ export function bank(state) {
 
 export function sessionLine(state, footprintTok = 0) {
   const s = fold(state.session, state.saved);
-  const tiers = state.tiers || {};
-  const parts = [];
-  if (s.rewrites) parts.push(`${plural(s.rewrites, 'read', 'reads')} trimmed (${kb(s.trimmed)} kept out)`);
-  if (s.rereads) parts.push(`${plural(s.rereads, 're-read', 're-reads')} stopped (${kb(s.bytes)})`);
-  const held = s.slices + s.offloads;
-  if (held) {
-    parts.push(`${plural(held, 'whole-file read', 'whole-file reads')} held back (${kb(s.deferred)}${s.offloads ? `, ${s.offloads} handed to scout` : ''})`);
-  }
-  if (s.caps) parts.push(`${plural(s.caps, 'search', 'searches')} capped at ${GREP_HEAD_LIMIT} lines`);
-  if (s.queries) parts.push(`${plural(s.queries, 'repeat search', 'repeat searches')} stopped`);
-  if (s.waves) parts.push(`${plural(s.waves, 'dispatch wave', 'dispatch waves')} capped (${plural(s.agentsCapped, 'agent', 'agents')} held back)`);
-  const named = Object.keys(tiers).filter((tier) => tiers[tier]);
-  for (const tier of named) {
-    const ratio = PRICES[tier] && PRICES.haiku ? ` (haiku is 1/${PRICES[tier] / PRICES.haiku} of the input price)` : '';
-    parts.push(`${plural(tiers[tier], `${tier} dispatch`, `${tier} dispatches`)} redirected to scout${ratio}`);
-  }
-  if (!named.length && s.redirects) parts.push(`${plural(s.redirects, 'dispatch', 'dispatches')} redirected to scout`);
+  const reads = [];
+  if (s.rewrites) reads.push(`${num(s.rewrites)} trimmed (${kb(s.trimmed)} out)`);
+  if (s.rereads + s.queries) reads.push(`${num(s.rereads + s.queries)} re-reads stopped`);
+  if (s.slices + s.offloads) reads.push(`${num(s.slices + s.offloads)} held back`);
+  if (s.caps) reads.push(`${num(s.caps)} capped at ${GREP_HEAD_LIMIT}`);
+  const disp = [];
+  if (s.waves) disp.push(`${num(s.waves)} waves capped (${num(s.agentsCapped)} held)`);
+  if (s.redirects) disp.push(`${num(s.redirects)} redirected`);
   const other = s.blocked - s.redirects - s.waves;
-  if (other > 0) parts.push(`${plural(other, 'call', 'calls')} blocked`);
-  if (s.gated) parts.push(`${plural(s.gated, 'done-claim', 'done-claims')} gated`);
-  const used = [];
-  if (s.scouts) used.push(plural(s.scouts, 'scout', 'scouts'));
-  if (s.runners) used.push(plural(s.runners, 'runner', 'runners'));
-  if (used.length) parts.push(`${used.join(', ')} used${s.offload ? ` (${kb(s.offload)} read off-thread)` : ''}`);
-  if (s.unjudged) parts.push(`${plural(s.unjudged, 'shell read', 'shell reads')} unsized`);
-  if (!parts.length) return '';
-  if (footprintTok) parts.push(`plugin cost ~${num(footprintTok)} tok`);
-  return `HANDOFF OS · this session: ${parts.join(' · ')}`;
+  if (other > 0) disp.push(`${num(other)} blocked`);
+  if (s.agents) disp.push(`${num(s.agents)} used`);
+  const tail = [];
+  if (s.gated) tail.push(`${num(s.gated)} gated`);
+  if (footprintTok) tail.push(`cost ~${num(footprintTok)} tok`);
+  const lines = [];
+  if (reads.length) lines.push(`reads: ${reads.join(' · ')}`);
+  if (disp.length) lines.push(`dispatches: ${disp.join(' · ')}`);
+  if (tail.length) lines.push(`gated/cost: ${tail.join(' · ')}`);
+  if (!lines.length) return '';
+  lines[0] = `HANDOFF OS · ${lines[0]}`;
+  return lines.join('\n');
 }
 
 export function lifetimeLine(state) {

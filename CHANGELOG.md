@@ -4,6 +4,8 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.9.0 | 2026-09-10 | restored live-ledger and what-ships render targets |
+| 1.8.0 | 2026-09-10 | three-line Stop receipt, readme hero and collapsibles, dead tests dropped |
 | 1.7.0 | 2026-09-10 | rewrite instead of refuse, every read shape booked, enforced delegation, waves and redirects counted, per-session receipt, claims audit |
 | 1.6.0 | 2026-09-10 | version bump so the installed hook updates; gated counter for verify gate and citation contract; 1.6 plan, comparables, Track B protocol |
 | 1.5.42 | 2026-09-09 | cowork workspace bash payloads judged, readme states cowork/opencode support |

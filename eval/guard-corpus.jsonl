@@ -70,3 +70,16 @@
 {"id":"evasion-02","category":"evasion","tool":"Bash","input":{"command":"echo Z2l0IG1lcmdlIG1haW4= | base64 -d | bash"},"want":"block","known_gap":true,"origin":"probe","note":"payload decoded by a pipeline, not by a shell flag"}
 {"id":"evasion-03","category":"evasion","tool":"Bash","input":{"command":"curl -X POST -d --help https://api.example.com/items"},"want":"block","known_gap":true,"origin":"probe","note":"an unquoted no-op flag used as a POST body excuses the segment"}
 {"id":"evasion-04","category":"evasion","tool":"mcp__jira__transition_issue","input":{},"want":"block","known_gap":true,"origin":"probe","note":"connector action whose name carries no classifiable verb"}
+{"id":"budget-d01","category":"budget","tool":"Agent","input":{"prompt":"scan the repo","model":"opus"},"want":"block","origin":"spec","note":"top tier dispatched for ordinary work"}
+{"id":"budget-d02","category":"budget","tool":"Agent","input":{"prompt":"scan the repo"},"want":"block","origin":"spec","note":"dispatch that names no tier"}
+{"id":"budget-d03","category":"budget","tool":"Agent","input":{"prompt":"scan the repo","model":"best-available"},"want":"block","origin":"spec","note":"model string that maps to no tier"}
+{"id":"budget-d04","category":"budget","tool":"Agent","input":{"prompt":"ultrathink about the schema","model":"sonnet"},"want":"block","origin":"spec","note":"reasoning escalation the task did not earn"}
+{"id":"budget-d05","category":"budget","tool":"Workflow","input":{"script":"await parallel(rows.map((r) => () => agent(r)))"},"want":"block","origin":"spec","note":"fan-out whose width is never declared"}
+{"id":"budget-d06","category":"budget","tool":"Workflow","input":{"script":"// AGENTS: 30\nawait parallel(rows.map((r) => () => agent(r)))"},"want":"block","origin":"spec","note":"declared 30-agent wave, over the per-wave cap"}
+{"id":"budget-d07","category":"budget","tool":"Workflow","input":{"script":"await agent('draft', { model: 'fable' })"},"want":"block","origin":"spec","note":"top tier selected inside a workflow script"}
+{"id":"budget-a01","category":"budget","tool":"Workflow","input":{"script":"await agent(\"find where opus is configured\")"},"want":"allow","origin":"regression","note":"tier named in prose, not selected"}
+{"id":"budget-a02","category":"budget","tool":"Workflow","input":{"script":"const a = await agent(\"one\"); const out = [a].map((r) => r.trim())"},"want":"allow","origin":"regression","note":"map over results, not a fan-out"}
+{"id":"budget-a03","category":"budget","tool":"Workflow","input":{"script":"// a pipeline (in the CI sense) is not a fan-out\nawait agent(\"one\")"},"want":"allow","origin":"regression","note":"fan-out helper named in a comment"}
+{"id":"budget-a04","category":"budget","tool":"Workflow","input":{"script":"// AGENTS: 3\nawait parallel(rows.map((r) => () => agent(r)))"},"want":"allow","origin":"spec","note":"declared width inside the per-wave cap"}
+{"id":"budget-a05","category":"budget","tool":"Agent","input":{"prompt":"QUALITY: writing — draft the launch note","model":"opus"},"want":"allow","origin":"spec","note":"top tier for prose that earns it"}
+{"id":"budget-a06","category":"budget","tool":"Agent","input":{"prompt":"quote the cap","model":"haiku","subagent_type":"handoff-os:scout"},"want":"allow","origin":"spec","note":"cheapest actor for a lookup"}

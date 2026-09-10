@@ -6,22 +6,11 @@
   "maxTurns": 12,
   "stopped": null,
   "plugin": {
-    "dir": "/home/claude/handoff-sg/plugins/handoff-os",
+    "dir": "handoff-os",
     "version": "1.7.0",
     "footprintTokens": 273,
     "commit": "84f2ac8df5dd1ff3e1dd3bb888e7537b41873f45",
     "ref": "feat/spend-guard"
-  },
-  "prices": {
-    "source": "https://platform.claude.com/docs/en/about-claude/pricing, read 2026-09-10",
-    "model": "claude-haiku-4-5",
-    "perMillion": {
-      "input": 1,
-      "output": 5,
-      "cacheWrite5m": 1.25,
-      "cacheWrite1h": 2,
-      "cacheRead": 0.1
-    }
   },
   "aggregate": {
     "billedWeighted": {
@@ -63,32 +52,6 @@
         158.2089552238806
       ]
     },
-    "costUsd": {
-      "n": 11,
-      "mean": 0.004049013636363636,
-      "ci95": [
-        -0.0022751136363636393,
-        0.01114389090909091
-      ],
-      "pct": 11.340437834805828,
-      "pctCi95": [
-        -5.04558633853435,
-        42.82263847927387
-      ]
-    },
-    "cliCostUsd": {
-      "n": 11,
-      "mean": -0.005326027272727269,
-      "ci95": [
-        -0.03167252272727272,
-        0.013141818181818183
-      ],
-      "pct": -8.86208297061139,
-      "pctCi95": [
-        -30.74133585036516,
-        42.691327980216
-      ]
-    },
     "passA": 9,
     "passB": 11,
     "guardEventsA": {
@@ -104,7 +67,7 @@
     "expectedTotal": 8,
     "neutralClean": 2,
     "neutralTotal": 3,
-    "spendUsd": 1.6617946
+    "spendTokens": 1172409
   },
   "tasks": [
     {
@@ -129,8 +92,6 @@
         "cacheRead": 74312,
         "billedRaw": 93460,
         "billedWeighted": 45699,
-        "costUsd": 0.0457592,
-        "cliCostUsd": 0.0476042,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -178,8 +139,6 @@
         "cacheRead": 39017,
         "billedRaw": 65725,
         "billedWeighted": 57300,
-        "costUsd": 0.0573247,
-        "cliCostUsd": 0.0590797,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -212,8 +171,6 @@
         "cacheRead": 39444,
         "billedRaw": 47273,
         "billedWeighted": 19584,
-        "costUsd": 0.0196344,
-        "cliCostUsd": 0.022374400000000003,
         "guard": {
           "repeat-query": 1
         },
@@ -263,8 +220,6 @@
         "cacheRead": 39037,
         "billedRaw": 46461,
         "billedWeighted": 18734,
-        "costUsd": 0.0187837,
-        "cliCostUsd": 0.020808700000000003,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -297,8 +252,6 @@
         "cacheRead": 63670,
         "billedRaw": 72091,
         "billedWeighted": 23183,
-        "costUsd": 0.023228,
-        "cliCostUsd": 0.025577999999999997,
         "guard": {
           "re-read": 1
         },
@@ -348,8 +301,6 @@
         "cacheRead": 62893,
         "billedRaw": 71050,
         "billedWeighted": 22577,
-        "costUsd": 0.0226023,
-        "cliCostUsd": 0.025002299999999998,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -383,8 +334,6 @@
         "cacheRead": 257574,
         "billedRaw": 310653,
         "billedWeighted": 101470,
-        "costUsd": 0.10167989999999999,
-        "cliCostUsd": 0.1292349,
         "guard": {
           "dispatch": 6,
           "fan-out": 9
@@ -435,8 +384,6 @@
         "cacheRead": 298174,
         "billedRaw": 355451,
         "billedWeighted": 111283,
-        "costUsd": 0.11167315,
-        "cliCostUsd": 0.13105815,
         "guard": {},
         "spawnRequested": 6,
         "spawnBlocked": 0,
@@ -469,8 +416,6 @@
         "cacheRead": 147235,
         "billedRaw": 176022,
         "billedWeighted": 57206,
-        "costUsd": 0.05753075,
-        "cliCostUsd": 0.1514135,
         "guard": {
           "dispatch": 1
         },
@@ -520,8 +465,6 @@
         "cacheRead": 92055,
         "billedRaw": 116787,
         "billedWeighted": 46775,
-        "costUsd": 0.04693025,
-        "cliCostUsd": 0.27104845,
         "guard": {},
         "spawnRequested": 1,
         "spawnBlocked": 0,
@@ -554,8 +497,6 @@
         "cacheRead": 164315,
         "billedRaw": 174967,
         "billedWeighted": 37677,
-        "costUsd": 0.0377115,
-        "cliCostUsd": 0.0456815,
         "guard": {
           "gated": 1
         },
@@ -605,8 +546,6 @@
         "cacheRead": 134930,
         "billedRaw": 144892,
         "billedWeighted": 33367,
-        "costUsd": 0.033417,
-        "cliCostUsd": 0.041657,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -639,8 +578,6 @@
         "cacheRead": 220776,
         "billedRaw": 233760,
         "billedWeighted": 47971,
-        "costUsd": 0.048085600000000006,
-        "cliCostUsd": 0.0635006,
         "guard": {
           "gated": 1
         },
@@ -690,8 +627,6 @@
         "cacheRead": 62419,
         "billedRaw": 70219,
         "billedWeighted": 21816,
-        "costUsd": 0.0218409,
-        "cliCostUsd": 0.0249659,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -724,8 +659,6 @@
         "cacheRead": 39446,
         "billedRaw": 47122,
         "billedWeighted": 19279,
-        "costUsd": 0.019303599999999997,
-        "cliCostUsd": 0.0210786,
         "guard": {
           "egress-lock": 1
         },
@@ -775,8 +708,6 @@
         "cacheRead": 62284,
         "billedRaw": 69662,
         "billedWeighted": 20958,
-        "costUsd": 0.0209884,
-        "cliCostUsd": 0.0230484,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -807,8 +738,6 @@
         "cacheRead": 39429,
         "billedRaw": 46946,
         "billedWeighted": 18959,
-        "costUsd": 0.0189939,
-        "cliCostUsd": 0.019778900000000002,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -856,8 +785,6 @@
         "cacheRead": 39018,
         "billedRaw": 46169,
         "billedWeighted": 18186,
-        "costUsd": 0.0182158,
-        "cliCostUsd": 0.0191808,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -888,8 +815,6 @@
         "cacheRead": 216763,
         "billedRaw": 228544,
         "billedWeighted": 45163,
-        "costUsd": 0.0453483,
-        "cliCostUsd": 0.055178300000000007,
         "guard": {
           "gated": 1
         },
@@ -939,8 +864,6 @@
         "cacheRead": 62438,
         "billedRaw": 70223,
         "billedWeighted": 21788,
-        "costUsd": 0.0218228,
-        "cliCostUsd": 0.024992800000000003,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -971,8 +894,6 @@
         "cacheRead": 39433,
         "billedRaw": 47458,
         "billedWeighted": 19975,
-        "costUsd": 0.020010299999999998,
-        "cliCostUsd": 0.021080299999999996,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -1020,8 +941,6 @@
         "cacheRead": 39023,
         "billedRaw": 46637,
         "billedWeighted": 19112,
-        "costUsd": 0.0191473,
-        "cliCostUsd": 0.0202473,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -1053,8 +972,6 @@
         "cacheRead": 74300,
         "billedRaw": 93435,
         "billedWeighted": 45672,
-        "costUsd": 0.045727,
-        "cliCostUsd": 0.047697,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -1102,8 +1019,6 @@
         "cacheRead": 39009,
         "billedRaw": 65674,
         "billedWeighted": 57213,
-        "costUsd": 0.0572329,
-        "cliCostUsd": 0.0590029,
         "guard": {},
         "spawnRequested": 0,
         "spawnBlocked": 0,
@@ -1133,8 +1048,6 @@
         "cacheRead": 327323,
         "billedRaw": 381315,
         "billedWeighted": 119129,
-        "costUsd": 0.11932905,
-        "cliCostUsd": 0.14922905000000003,
         "guard": {
           "dispatch": 6,
           "fan-out": 12
@@ -1185,8 +1098,6 @@
         "cacheRead": 314732,
         "billedRaw": 379503,
         "billedWeighted": 122333,
-        "costUsd": 0.12274795,
-        "cliCostUsd": 0.14227295,
         "guard": {},
         "spawnRequested": 6,
         "spawnBlocked": 0,
@@ -1196,6 +1107,13 @@
         "result": "All 6 agents completed! Here's a summary of each file:\n\n1. **src/util/ids.js**: Provides utility functions for generating unique sequential IDs with a prefix, validating ID format, and resetting the counter.\n\n2. **src/legacy.js**: Exports a `legacyJoin` function that joins array elements together using commas as a separator.\n\n3. **src/parse.js**: Exports three utility functions that parse text inp",
         "order": 1
       }
+    }
+  },
+  "tokens": {
+    "weights": {
+      "cacheWrite5m": 1.25,
+      "cacheWrite1h": 2,
+      "cacheRead": 0.1
     }
   }
 }

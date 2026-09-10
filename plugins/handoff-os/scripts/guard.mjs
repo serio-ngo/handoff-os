@@ -4,11 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BASH_OUTPUT_CAP, BIG_FILE_BYTES, CONNECTOR_ALLOW, DELEGATE_BYTES, DESTRUCTIVE, FIXTURES, GIT_SHOW_FILE, GREP_HEAD_LIMIT, INTERPRETER_READ,
-  THINK_ESCALATION, WORKFLOW_AGENT_CALL, UNBOUNDED_FANOUT,
+  THINK_ESCALATION, WORKFLOW_AGENT_CALL, UNBOUNDED_FANOUT, FANOUT_BUDGET,
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
   DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
-  MODEL_BEARING, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
-  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
+  MODEL_BEARING, MODEL_OPTION, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
+  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
   SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WHOLE_FILES_MAX, WRITE_TOOLS, WRITE_VERBS,
 } from './patterns.mjs';
@@ -38,6 +38,7 @@ function split(command, breakers, subshell) {
       continue;
     }
     if (char === '"' || char === "'") { quote = char; buffer += char; continue; }
+    if (char === '&' && REDIRECT_AMP(command[i - 1], command[i + 1])) { buffer += char; continue; }
     if (breakers.includes(char)) { out.push(buffer); buffer = ''; continue; }
     if (subshell && char === '$' && command[i + 1] === '(') { out.push(buffer); buffer = ''; i += 1; continue; }
     buffer += char;
@@ -145,20 +146,41 @@ function fileStats(file) {
   } catch { return null; }
 }
 
+function shellWords(segment) {
+  const out = [];
+  let buffer = '';
+  let quote = null;
+  let open = false;
+  for (const char of String(segment)) {
+    if (quote) {
+      if (char === quote) quote = null; else buffer += char;
+      continue;
+    }
+    if (char === '"' || char === "'") { quote = char; open = true; continue; }
+    if (/\s/.test(char)) { if (open || buffer) out.push(buffer); buffer = ''; open = false; continue; }
+    buffer += char;
+  }
+  if (open || buffer) out.push(buffer);
+  return out;
+}
+
+const shellQuote = (file) => (/[\s'"]/.test(file) ? `"${file.replace(/(["\\$`])/g, '\\$1')}"` : file);
+
 function tokens(segment) {
   const out = [];
   let toFile = false;
-  const raw = segment.split(/\s+/).filter(Boolean);
+  const raw = shellWords(segment).filter(Boolean);
   for (let i = 0; i < raw.length; i += 1) {
     const word = raw[i];
     if (REDIRECT.test(word)) {
-      const target = raw[i + 1] || '';
-      if (word.includes('>') && !word.includes('&') && !target.startsWith('&')) toFile = true;
-      i += 1;
+      const detached = /[<>]&?$/.test(word);
+      const target = detached ? (raw[i + 1] || '') : '';
+      if (TO_FILE.test(word) && !FD_DUP.test(word) && !target.startsWith('&')) toFile = true;
+      if (detached) i += 1;
       continue;
     }
     if (REDIRECTED.test(word)) {
-      if (/^\d*>{1,2}[^&]/.test(word)) toFile = true;
+      if (TO_FILE.test(word)) toFile = true;
       continue;
     }
     out.push(word);
@@ -214,8 +236,11 @@ function shellRead(segment) {
   const words = tokens(segment);
   const cmd = (words[0] || '').toLowerCase();
   if (WHOLE_FILE_CMD.test(cmd)) {
-    const files = words.slice(1).filter((word) => !word.startsWith('-'));
-    return files.map((raw) => ({ file: strip(raw), raw, whole: true, only: files.length === 1 && REWRITABLE_READ.test(cmd) }));
+    const rest = words.slice(1);
+    const files = rest.filter((word) => !word.startsWith('-'));
+    const only = files.length === 1 && files.length === rest.length
+      && !/[<>]/.test(segment) && REWRITABLE_READ.test(cmd);
+    return files.map((raw) => ({ file: strip(raw), whole: true, only }));
   }
   if (SLICE_CMD.test(cmd)) return headTail(words);
   if (cmd === 'sed') return sedSlice(words);
@@ -240,13 +265,16 @@ function bookSlice(payload, file, spec, { shell = false, filtered = false } = {}
 
 function shellReads(command) {
   const out = [];
+  let cursor = 0;
   for (const chunk of pipelines(command)) {
+    const at = command.indexOf(chunk, cursor);
+    if (at >= 0) cursor = at + chunk.length;
     if (chunk.includes('`') || chunk.includes('$(')) continue;
     const piped = PIPE.test(chunk);
     const first = chunk.split('|')[0].trim();
     const segment = unwrap(first);
-    const bare = !piped && segment === first && command.includes(chunk);
-    for (const read of shellRead(segment)) out.push({ ...read, piped, chunk, rewritable: bare && Boolean(read.only) });
+    const bare = !piped && segment === first && at >= 0;
+    for (const read of shellRead(segment)) out.push({ ...read, piped, chunk, at, rewritable: bare && Boolean(read.only) });
   }
   return out;
 }
@@ -297,8 +325,10 @@ function readBudget(payload, input, rewritable = false) {
     throw new Blocked(`READ BUDGET: ${message}\n`);
   };
 
-  if (state.reads[key] === fingerprint) {
-    refuse('rereads', 'bytes', Math.min(stats.size, BIG_FILE_BYTES), 'r',
+  const seen = String(state.reads[key] ?? '');
+  if (seen === fingerprint || seen.startsWith(`${fingerprint}:`)) {
+    const before = Number(seen.slice(fingerprint.length + 1));
+    refuse('rereads', 'bytes', before || Math.min(stats.size, BIG_FILE_BYTES), 'r',
       `${name} is unchanged and already in context${stats.size > BIG_FILE_BYTES ? ` (its first ${kb(BIG_FILE_BYTES)})` : ''}. Read a slice with offset/limit if you need one region.`);
   }
 
@@ -330,7 +360,7 @@ function readBudget(payload, input, rewritable = false) {
     }
   }
 
-  state.reads[key] = fingerprint;
+  state.reads[key] = `${fingerprint}:${bytes}`;
   if (main) {
     state.whole_files = (state.whole_files || 0) + 1;
     state.read_bytes = inThread + bytes;
@@ -377,7 +407,9 @@ function queryBudget(payload, input, tool) {
 }
 
 function claimSlot(dir, bucket, cap) {
-  try { mkdirSync(dir, { recursive: true }); } catch { return 1; }
+  try { mkdirSync(dir, { recursive: true }); } catch {
+    try { rmSync(dir, { force: true, recursive: true }); mkdirSync(dir, { recursive: true }); } catch { return cap + 1; }
+  }
   try {
     for (const name of readdirSync(dir)) {
       if (!name.startsWith(`${bucket}-`)) rmSync(path.join(dir, name), { force: true });
@@ -409,20 +441,24 @@ function judgeWrite(file, content, how = 'a write') {
 
 const spawnText = (input) => SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
 
+const article = (word) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
+
 function deniedVerdict(text, hit) {
-  if (REVIEW.test(text)) return { reason: `blocked a ${hit} review. Review goes to sonnet; ${hit} is for prose you publish`, tier: hit };
+  if (REVIEW.test(text)) return { reason: `blocked ${article(hit)} ${hit} review. Review goes to sonnet; ${hit} is for prose you publish`, tier: hit };
   if (!QUALITY.test(text)) {
-    return { reason: `blocked a ${hit} subagent. Research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`, tier: hit };
+    return { reason: `blocked ${article(hit)} ${hit} subagent. Research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`, tier: hit };
   }
   return null;
 }
+
+const selectedTiers = (text) => [...String(text).matchAll(MODEL_OPTION)].map((hit) => hit[1].toLowerCase());
 
 function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(process.env.HANDOFF_DENY_SUBAGENT_MODELS ?? DENY_SUBAGENT_DEFAULT)) {
   const model = String(input.model || '').trim();
   const text = spawnText(input);
   if (!model) {
     if (!MODEL_BEARING.includes(tool)) {
-      const hit = (text.match(denied) || [])[0]?.toLowerCase();
+      const hit = selectedTiers(text).find((tier) => denied.test(tier));
       return hit ? deniedVerdict(text, hit) : null;
     }
     return { reason: 'blocked a subagent dispatch that names no model. Set one: haiku for lookups, sonnet for research and review, opus or fable only for prose you publish' };
@@ -443,19 +479,29 @@ function bookRedirect(payload, tier) {
   save(root, session, state);
 }
 
+const code = (text) => String(text ?? '')
+  .replace(/\/\*[\s\S]*?\*\//g, ' ')
+  .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
+  .replace(/`(?:\\[\s\S]|[^`\\])*`/g, '``')
+  .replace(/'(?:\\[\s\S]|[^'\\\n])*'/g, "''")
+  .replace(/"(?:\\[\s\S]|[^"\\\n])*"/g, '""');
+
+const declaredAgents = (input) => Number((String(input.script ?? '').match(FANOUT_BUDGET) || [])[1] || 0);
+
 function costBudget(input, tool) {
   const text = spawnText(input);
   if (QUALITY.test(text)) return null;
   const think = (text.match(THINK_ESCALATION) || [])[0];
   if (think) return `blocked a dispatch asking for "${think}". Drop it, or name QUALITY: writing|creative|legal|security`;
-  const fan = tool === 'Workflow' ? (String(input.script ?? '').match(UNBOUNDED_FANOUT) || [])[0] : null;
+  if (tool !== 'Workflow' || declaredAgents(input)) return null;
+  const fan = (code(input.script).match(UNBOUNDED_FANOUT) || [])[0];
   return fan
-    ? { reason: `blocked a workflow fanning out through "${fan.trim()}" — the script never states its agent count. List the agents, ${MAX_PER_WAVE} to a wave` }
+    ? { reason: `blocked a workflow fanning out through "${fan.trim()}" — the script never states how many agents it can spawn. Declare it with a "// AGENTS: <n>" line, then it is capped at ${MAX_PER_WAVE} a wave like any other dispatch` }
     : null;
 }
 
 const agentsRequested = (input, tool) => (tool === 'Workflow'
-  ? Math.max(1, (String(input.script ?? '').match(WORKFLOW_AGENT_CALL) || []).length)
+  ? Math.max(1, declaredAgents(input) || (String(input.script ?? '').match(WORKFLOW_AGENT_CALL) || []).length)
   : 1);
 
 function fanOutCap(payload, count = 1) {
@@ -485,7 +531,8 @@ function receipt(payload, input, tool) {
   });
 }
 
-export function judge(payload = {}) {
+export function judge(raw = {}) {
+  const payload = raw && typeof raw === 'object' ? raw : {};
   const tool = String(payload.tool_name || '');
   const input = payload.tool_input || {};
   current = payload;
@@ -526,13 +573,18 @@ export function judge(payload = {}) {
     let rewrite = null;
     for (const read of shellReads(command)) {
       if (read.unjudged) { bump(payload, 'unjudged'); continue; }
-      const file = path.resolve(payload.cwd || process.cwd(), read.file);
+      const file = path.resolve(typeof payload.cwd === 'string' ? payload.cwd : process.cwd(), read.file);
       if (!read.whole) { bookSlice(payload, file, read, { shell: true, filtered: read.piped }); continue; }
       if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true, filtered: true }); continue; }
       const trim = readBudget(payload, { file_path: file }, tool === 'Bash' && read.rewritable && !rewrite ? 'shell' : false);
       if (trim) {
         rewrite = {
-          updatedInput: { ...input, command: command.replace(read.chunk, `head -c ${BIG_FILE_BYTES} ${read.raw}`) },
+          updatedInput: {
+            ...input,
+            command: command.slice(0, read.at)
+              + `head -c ${BIG_FILE_BYTES} ${shellQuote(read.file)}`
+              + command.slice(read.at + read.chunk.length),
+          },
           reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}. Read a region with sed -n 'a,bp', or dispatch handoff-os:scout.`,
         };
       }

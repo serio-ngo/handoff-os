@@ -1,6 +1,5 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { footprint } from '../plugins/handoff-os/scripts/card.mjs';
 import { sessionLine } from '../plugins/handoff-os/scripts/ledger.mjs';
 import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../plugins/handoff-os/scripts/patterns.mjs';
 import { REPO, inventory, readJson, writeBlock } from './generate.mjs';
@@ -188,8 +187,7 @@ export function demoSvg(r) {
   const W = 860; const LOOP = 12;
   const modules = r.requested;
   const heldBack = modules - MAX_PER_WAVE;
-  const receipt = sessionLine({ saved: { agents: MAX_PER_WAVE, blocked: heldBack, waves: heldBack, agentsCapped: heldBack } },
-    Math.round(footprint('', false).contextChars / 4)).split('\n');
+  const receipt = sessionLine({ saved: { agents: MAX_PER_WAVE, blocked: heldBack, waves: heldBack, agentsCapped: heldBack } }, 0).split('\n');
   const prompt = `> src/ has ${modules} modules. Launch one subagent per module, all ${modules} in parallel.`;
   const reason = wrap(`⨯  ${fanOutReason()}`, 96);
   const rows = [

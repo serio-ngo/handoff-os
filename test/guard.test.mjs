@@ -419,14 +419,6 @@ describe('verify gate', () => {
 });
 
 describe('hooks', () => {
-;
-
-;
-
-;
-
-;
-
   it('routes every judged tool to one guard, audits connector writes but not reads', () => {
     assert.equal(hooks.PreToolUse.length, 1);
     const pre = new RegExp(hooks.PreToolUse[0].matcher);
@@ -436,7 +428,6 @@ describe('hooks', () => {
     const post = new RegExp(hooks.PostToolUse[0].matcher);
     for (const action of ['get_thread', 'list_labels', 'search_threads']) assert.ok(!post.test(`mcp__${SERVER}__${action}`), action);
     for (const action of ['send_message', 'create_update', 'delete_item']) assert.ok(post.test(`mcp__${SERVER}__${action}`), action);
+    for (const tool of WRITE_TOOLS) assert.ok(post.test(tool), tool);
   });
-
-;
 });

@@ -146,7 +146,6 @@ function fileStats(file) {
   } catch { return null; }
 }
 
-// a quoted path is one word: splitting on whitespace loses every file whose name has a space
 function shellWords(segment) {
   const out = [];
   let buffer = '';
@@ -239,7 +238,6 @@ function shellRead(segment) {
   if (WHOLE_FILE_CMD.test(cmd)) {
     const rest = words.slice(1);
     const files = rest.filter((word) => !word.startsWith('-'));
-    // head -c reproduces neither a flag like cat -n nor a redirect, so those are judged, never rewritten
     const only = files.length === 1 && files.length === rest.length
       && !/[<>]/.test(segment) && REWRITABLE_READ.test(cmd);
     return files.map((raw) => ({ file: strip(raw), whole: true, only }));
@@ -269,7 +267,6 @@ function shellReads(command) {
   const out = [];
   let cursor = 0;
   for (const chunk of pipelines(command)) {
-    // anchor each chunk at its own offset: the same text may appear earlier, echoed or quoted
     const at = command.indexOf(chunk, cursor);
     if (at >= 0) cursor = at + chunk.length;
     if (chunk.includes('`') || chunk.includes('$(')) continue;
@@ -330,7 +327,6 @@ function readBudget(payload, input, rewritable = false) {
 
   const seen = String(state.reads[key] ?? '');
   if (seen === fingerprint || seen.startsWith(`${fingerprint}:`)) {
-    // credit what the first read actually admitted, not what the cap would have allowed
     const before = Number(seen.slice(fingerprint.length + 1));
     refuse('rereads', 'bytes', before || Math.min(stats.size, BIG_FILE_BYTES), 'r',
       `${name} is unchanged and already in context${stats.size > BIG_FILE_BYTES ? ` (its first ${kb(BIG_FILE_BYTES)})` : ''}. Read a slice with offset/limit if you need one region.`);
@@ -412,7 +408,6 @@ function queryBudget(payload, input, tool) {
 
 function claimSlot(dir, bucket, cap) {
   try { mkdirSync(dir, { recursive: true }); } catch {
-    // a wave the plugin cannot record is a wave it cannot cap: refuse rather than wave it through
     try { rmSync(dir, { force: true, recursive: true }); mkdirSync(dir, { recursive: true }); } catch { return cap + 1; }
   }
   try {

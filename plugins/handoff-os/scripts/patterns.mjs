@@ -3,7 +3,6 @@ export const WAVE_MS = 90 * 1000;
 export const THINK_ESCALATION = /\b(?:ultrathink|megathink|think\s+(?:hard(?:er)?|deeply)|(?:reasoning[-_ ]?)?effort\s*[=:]\s*(?:high|xhigh|max))\b/i;
 export const WORKFLOW_AGENT_CALL = /(?<![.\w$])agent\s*\(/g;
 export const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)\s*\(/;
-// the declaration that makes a fan-out countable, so the wave cap can count it
 export const FANOUT_BUDGET = /(?:^|\n)\s*\/\/\s*AGENTS:\s*(\d+)\b/;
 export const BIG_FILE_BYTES = 24 * 1024;
 export const GREP_HEAD_LIMIT = 50;
@@ -118,7 +117,6 @@ export const STRONG = ['send', 'pay', 'charge', 'invoice', 'checkout', 'publish'
   'submission', 'deploy', 'tweet', 'broadcast', 'resend', ...DESTRUCTIVE, ...WRITE_VERBS];
 export const SQL_DESTRUCTIVE = /\b(?:drop\s+(?:table|database|index|schema)|truncate\s+table|delete\s+from|alter\s+table)\b/i;
 export const MODEL_TIERS = /\b(?:haiku|sonnet|opus|fable)\b/i;
-// a tool with no model field selects a tier inside its script; a bare mention of the name is prose
 export const MODEL_OPTION = /\bmodel\s*[:=]\s*['"`]?\s*(haiku|sonnet|opus|fable)\b/gi;
 export const OUTWARD_PREFIX = /^(?:request|run|trigger|dispatch|approve)[-_]/;
 export const READ_PREFIX = /^(?:list|get|search|read|fetch|find|describe|count|preview|resolve|export)[-_]/;
@@ -157,10 +155,8 @@ export const REWRITABLE_READ = /^(?:cat|bat|more|less)$/i;
 export const PIPE = /(?<!\|)\|(?!\|)/;
 export const REDIRECT = /^&?\d*[<>]{1,2}&?\d*$/;
 export const REDIRECTED = /^&?\d*[<>]{1,2}/;
-// only stdout leaving for a file hides the read; 2> keeps stdout, >& duplicates a descriptor
 export const TO_FILE = /^(?:&|1?)>{1,2}(?![&])/;
 export const FD_DUP = /[<>]&/;
-// & inside a redirect is not a command separator
 export const REDIRECT_AMP = (prev, next) => /[<>]/.test(prev || '') || next === '>';
 export const SLICE_CMD = /^(?:head|tail)$/i;
 export const SED_QUIET = /^(?:-[a-z]*n[a-z]*|--quiet|--silent)$/i;

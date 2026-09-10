@@ -242,7 +242,6 @@ const AB_STRIP = ['CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD', 'CLAUDE_ADDITI
   'CLAUDE_CODE_REMOTE_SESSION_ID', 'CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_MEMORY_STORES',
   'CLAUDE_COWORK_MEMORY_PATH_OVERRIDE', 'CLAUDE_CODE_EXTRA_METADATA', 'CLAUDE_CODE_DISABLE_BUILTIN_ANTMCP',
   'CLAUDE_CODE_REMOTE_HERMETIC_MODE', 'CLAUDE_PROJECT_DIR', 'CLAUDE_PLUGIN_ROOT', 'HANDOFF_OS_DIR'];
-// billed tokens: raw sum vs weighted cache-read at 0.1x, cache write 1.25x (5m) or 2x (1h); tokens only
 const CACHE_WRITE_5M = 1.25;
 const CACHE_WRITE_1H = 2;
 const CACHE_READ = 0.1;
@@ -690,9 +689,6 @@ const REPLAY_RULES = [
   [/EGRESS LOCK/, 'egress lock'],
 ];
 
-// Re-feeds every judged tool call from this project's real Claude Code transcripts to the guard, in
-// order, one sandbox per session. Open-loop: a refusal cannot change what the agent did next, so the
-// refusal count is what the guard would have caught on that exact stream, not a counterfactual.
 function replay(root) {
   const dir = transcriptDir(root);
   const out = { sessions: 0, calls: 0, judged: 0, blocked: 0, rules: {}, kept: 0, admitted: 0, fresh: 0, cacheRead: 0 };
@@ -806,8 +802,6 @@ for (const part of parts) {
   stamped += part.stamped;
 }
 
-// Ledger lines written before the Stop hook recorded billing carry no `fresh` count, so fall back to
-// the transcripts Claude Code keeps for this project. Measured either way, never estimated.
 function fromTranscripts(root) {
   const dir = transcriptDir(root);
   const out = { fresh: 0, cacheRead: 0, sessions: 0 };
@@ -830,8 +824,6 @@ const net = kept - tax.total;
 const resend = t.fresh ? t.cacheRead / t.fresh : 0;
 const actions = t.blocked + t.rereads + t.slices + t.queries + t.caps + t.agents;
 
-// A byte refused at turn N is a byte the turns after it never re-send. Turn stamps restart with
-// each session, so a drop in the count closes one session and opens the next.
 function resends(rows) {
   let total = 0;
   for (let i = 0, start = 0; i < rows.length; i += 1) {

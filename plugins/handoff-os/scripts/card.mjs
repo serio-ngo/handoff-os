@@ -7,7 +7,6 @@ import { load, rootOf, save, sessionOf } from './ledger.mjs';
 const FREEING = new Set(['compact', 'clear']);
 const VERIFY = fileURLToPath(new URL('./verify.mjs', import.meta.url));
 const DAY_MS = 24 * 60 * 60 * 1000;
-// state the plugin leaves in the user's repo, swept once per session start
 const STALE = [[/^\.wave-/, DAY_MS], [/^\.verif(?:ied|y-gate-count)-/, DAY_MS], [/^\.session-/, 30 * DAY_MS]];
 
 function sweep(root) {

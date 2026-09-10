@@ -383,16 +383,16 @@ function unbook(payload, before) {
   save(root, session, state);
 }
 
-function invalidateQueries(payload) {
+function noteWrite(payload) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
-  let dropped = 0;
   const scope = `${actorOf(payload)}|q:`;
   for (const key of Object.keys(state.reads)) {
-    if (key.startsWith(scope)) { delete state.reads[key]; dropped += 1; }
+    if (key.startsWith(scope)) delete state.reads[key];
   }
-  if (dropped) save(root, session, state);
+  state.written = Date.now();
+  save(root, session, state);
 }
 
 function queryBudget(payload, input, tool) {
@@ -585,7 +585,7 @@ export function judge(raw = {}) {
       const reason = judgeWrite(target, command, 'a shell write');
       if (reason) deny(reason);
     }
-    if (targets.length) invalidateQueries(payload);
+    if (targets.length) noteWrite(payload);
     let rewrite = null;
     const before = load(rootOf(payload), sessionOf(payload));
     try {
@@ -645,12 +645,12 @@ export function judge(raw = {}) {
       deny(`blocked ${tool} — a raw page fetch. Use WebFetch, WebSearch or handoff-os:scout`);
     }
   } else if (WRITE_TOOLS.includes(tool)) {
-    invalidateQueries(payload);
     const edits = Array.isArray(input.edits) ? input.edits.map((edit) => edit?.new_string ?? '') : [];
     const content = [input.content, input.new_string, input.new_source, ...edits]
       .filter((value) => typeof value === 'string').join('\n');
     const reason = judgeWrite(String(input.file_path || input.notebook_path || ''), content);
     if (reason) deny(reason);
+    noteWrite(payload);
   }
   return null;
 }

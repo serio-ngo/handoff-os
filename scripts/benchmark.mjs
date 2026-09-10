@@ -13,7 +13,7 @@ import { inventory, inventoryBlock, writeBlock } from './generate.mjs';
 const flags = { write: false, eval: false, compare: false, latency: false, replay: false, ab: false };
 const AB = {
   tasks: 'eval/tasks.jsonl', n: Infinity, model: 'claude-haiku-4-5-20251001', dryRun: false, out: 'eval/ab-results.json',
-  task: null, micro: true, maxTurns: 12, timeoutMs: 15 * 60 * 1000, budgetUsd: 5, seed: 20260910, keep: false,
+  task: null, micro: true, maxTurns: 12, timeoutMs: 15 * 60 * 1000, budgetUsd: 5, seed: 20260910, keep: false, render: false,
   claude: process.env.HANDOFF_AB_CLAUDE || 'claude',
 };
 const AB_VALUE = { '--tasks': 'tasks', '--n': 'n', '--model': 'model', '--out': 'out', '--task': 'task', '--max-turns': 'maxTurns', '--timeout': 'timeoutMs', '--budget': 'budgetUsd', '--seed': 'seed' };
@@ -30,6 +30,7 @@ for (let i = 0; i < argv.length; i += 1) {
   else if (argv[i] === '--dry-run') AB.dryRun = true;
   else if (argv[i] === '--no-micro') AB.micro = false;
   else if (argv[i] === '--keep') AB.keep = true;
+  else if (argv[i] === '--render') AB.render = true;
   else if (AB_VALUE[argv[i]]) {
     const key = AB_VALUE[argv[i]];
     const value = argv[i + 1];
@@ -242,7 +243,7 @@ const AB_STRIP = ['CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD', 'CLAUDE_ADDITI
   'CLAUDE_CODE_REMOTE_SESSION_ID', 'CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_MEMORY_STORES',
   'CLAUDE_COWORK_MEMORY_PATH_OVERRIDE', 'CLAUDE_CODE_EXTRA_METADATA', 'CLAUDE_CODE_DISABLE_BUILTIN_ANTMCP',
   'CLAUDE_CODE_REMOTE_HERMETIC_MODE', 'CLAUDE_PROJECT_DIR', 'CLAUDE_PLUGIN_ROOT', 'HANDOFF_OS_DIR'];
-// PRICES: USD per 1M tokens · https://platform.claude.com/docs/en/pricing.md · read 2026-09-10 via the claude-api skill (table cached 2026-06-24) · cache write 1.25x (5m) or 2x (1h) of input · cache read 0.1x
+// PRICES: USD per 1M tokens · https://platform.claude.com/docs/en/about-claude/pricing · read 2026-09-10 via the claude-api skill (table cached 2026-06-24) · cache write 1.25x (5m) or 2x (1h) of input · cache read 0.1x
 const PRICES = {
   'claude-haiku-4-5': { input: 1, output: 5 },
   'claude-sonnet-4-6': { input: 3, output: 15 },
@@ -514,7 +515,7 @@ function abDocBlock(r) {
   const lines = [
     `| Status | ${status} |`, '|---|---|',
     `| Plugin | ${r.plugin.version}, footprint ~${tokc(r.plugin.footprintTokens)} tok |`,
-    `| Prices | ${r.prices.source} |`,
+    `| Prices | ${r.prices.source.replace(/https?:\/\/[^\s,]+/, (url) => `<${url}>`)} |`,
     '',
   ];
   if (!r.dryRun) {
@@ -544,7 +545,16 @@ function abDocBlock(r) {
   return lines;
 }
 
+function writeAbBlocks(result) {
+  console.log(`  ${writeBlock(path.join(REPO, 'README.md'), AB_OPEN, AB_CLOSE, abReadmeBlock(result))}`);
+  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result))}`);
+}
+
 function ab(opts) {
+  if (opts.render) {
+    writeAbBlocks(JSON.parse(readFileSync(path.resolve(REPO, opts.out), 'utf8')));
+    return 0;
+  }
   const tasksFile = path.resolve(REPO, opts.tasks);
   let tasks = readFileSync(tasksFile, 'utf8').split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
   if (opts.task) tasks = tasks.filter((t) => t.id === opts.task);
@@ -593,7 +603,7 @@ function ab(opts) {
     maxTurns: opts.maxTurns,
     stopped,
     plugin: { version: JSON.parse(readFileSync(path.join(PLUGIN_DIR, '.claude-plugin', 'plugin.json'), 'utf8')).version, footprintTokens: taxOf(inv).total },
-    prices: { source: 'https://platform.claude.com/docs/en/pricing.md, read 2026-09-10', model: price ? price.key : null, perMillion: price ? { input: price.input, output: price.output, cacheWrite5m: price.input * CACHE_WRITE_5M, cacheWrite1h: price.input * CACHE_WRITE_1H, cacheRead: price.input * CACHE_READ } : null },
+    prices: { source: 'https://platform.claude.com/docs/en/about-claude/pricing, read 2026-09-10', model: price ? price.key : null, perMillion: price ? { input: price.input, output: price.output, cacheWrite5m: price.input * CACHE_WRITE_5M, cacheWrite1h: price.input * CACHE_WRITE_1H, cacheRead: price.input * CACHE_READ } : null },
     aggregate: {
       billedWeighted: bootstrap(pairs, pick('billedWeighted')),
       billedRaw: bootstrap(pairs, pick('billedRaw')),
@@ -621,8 +631,7 @@ function ab(opts) {
     console.log(`  Δ billed (0.1× read) ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} · Δ cost ${fmtUsd(a.costUsd.mean)}${fmtCi(a.costUsd.ci95, fmtUsd)} · pass with ${a.passA}/${rows.length}, without ${a.passB}/${rows.length}`);
     console.log(`  expected guard class hit on ${a.expectedHit}/${a.expectedTotal} provoking tasks · neutral tasks untouched ${a.neutralClean}/${a.neutralTotal} · spend $${spend.toFixed(2)}${stopped ? ` · ${stopped}` : ''}`);
   }
-  console.log(`  ${writeBlock(path.join(REPO, 'README.md'), AB_OPEN, AB_CLOSE, abReadmeBlock(result))}`);
-  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result))}`);
+  writeAbBlocks(result);
   return stopped ? 1 : 0;
 }
 

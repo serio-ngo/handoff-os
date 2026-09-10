@@ -10,7 +10,7 @@
     "footprintTokens": 273
   },
   "prices": {
-    "source": "https://platform.claude.com/docs/en/pricing.md, read 2026-09-10",
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing, read 2026-09-10",
     "model": "claude-haiku-4-5",
     "perMillion": {
       "input": 1,

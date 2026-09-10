@@ -161,6 +161,7 @@ Confusion: TP 39 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
 npm run benchmark:ab                                   # every task, both arms, micro experiments
 npm run benchmark:ab -- --task big-read                # one task
 npm run benchmark:ab -- --dry-run                      # pipeline only, no model call
+npm run benchmark:ab -- --render                       # rewrite the blocks from eval/ab-results.json
 npm run benchmark:ab -- --model <id> --n 5 --no-micro
 ```
 
@@ -168,7 +169,7 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | Status | Run on 2026-09-10 · model `claude-haiku-4-5-20251001` · N = 11 |
 |---|---|
 | Plugin | 1.6.0, footprint ~273 tok |
-| Prices | https://platform.claude.com/docs/en/pricing.md, read 2026-09-10 |
+| Prices | <https://platform.claude.com/docs/en/about-claude/pricing>, read 2026-09-10 |
 
 | Aggregate | Mean Δ (with − without) | 95% CI | Δ % |
 |---|---|---|---|

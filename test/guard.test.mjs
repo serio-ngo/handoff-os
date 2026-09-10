@@ -161,6 +161,7 @@ describe('dispatch budget', () => {
   it('blocks a workflow that never states its agent count, and caps the count it states', () => {
     assert.equal(spawn({ script: "await Promise.all(rows.map((r) => agent('x', { model: 'sonnet' })))" }, 'Workflow'), BLOCKED);
     assert.equal(spawn({ script: '// AGENTS: 30\nawait parallel(rows.map((r) => () => agent(r)))' }, 'Workflow'), BLOCKED);
+    assert.equal(spawn({ prompt: 'the wave a denied workflow claimed is free again', model: 'haiku' }), ALLOWED);
   });
   it('caps the wave when a stale file sits where the wave directory belongs', () => {
     mkdirSync(path.join(box, '.claude'), { recursive: true });
@@ -235,6 +236,8 @@ describe('read and query budgets', () => {
     const cmd = rewritten(echoed).updatedInput.command;
     assert.match(cmd, /^echo "cat /, cmd);
     assert.equal(cmd.match(/head -c/g).length, 1, cmd);
+    const guarded = run('or', { tool_name: 'Bash', tool_input: { command: `cat ${plain} || echo fallback` } });
+    assert.match(rewritten(guarded).updatedInput.command, /^head -c \d+ \S+ \|\| echo fallback$/);
 
     const dir = path.join(box, 'with space');
     mkdirSync(dir, { recursive: true });
@@ -250,6 +253,11 @@ describe('read and query budgets', () => {
     assert.equal(sh('fl', `cat -n ${flagged}`), BLOCKED);
     assert.equal(sh('fl2', `cat ${flagged} 2>&1`), BLOCKED);
     assert.equal(sh('fl3', `cat ${flagged} 1>&2`), BLOCKED);
+    const small = path.join(box, 'beside.txt');
+    writeFileSync(small, 'beside');
+    assert.equal(sh('fl4', `cat ${small}; cat -n ${flagged}`), BLOCKED);
+    assert.equal(sh('fl4', `cat ${small}`), ALLOWED);
+    assert.equal(state('fl4').read_bytes, 6);
   });
   it('leaves a read redirected into a file alone — its bytes never reach the thread', () => {
     const piped = path.join(box, 'piped.txt');
@@ -359,10 +367,13 @@ describe('verify gate', () => {
   };
   const boxed = (root) => ({ ...process.env, HANDOFF_OS_DIR: root, CLAUDE_PROJECT_DIR: root });
   const stop = (root, payload) => fire(GATE, { cwd: root, ...payload }, boxed(root));
+  const wrote = (root, session_id) => guard({ cwd: root, session_id, tool_name: 'Edit', tool_input: { file_path: path.join(root, 'x.md'), old_string: 'a', new_string: 'b' } }, boxed(root));
+  const proved = (root, session) => spawnSync(process.execPath, [GATE, session, root], { env: boxed(root), encoding: 'utf8' }).status;
 
   it('blocks a done-claim no run supports, from the transcript, the payload, or beside a handoff card, and never a sentence that claims nothing', () => {
     const root = repoWith({ verify: 'node --version' });
     const card = 'The refactor is finished.\n\nDONE post drafted\nFILE x.md\nYOU post -> Show HN -> today';
+    for (const session of ['unproven', 'direct', 'carded', 'nonclaim']) wrote(root, session);
     assert.equal(stop(root, { session_id: 'unproven', transcript_path: transcript(root, 'All done, it works now.') }), BLOCKED);
     assert.equal(stop(root, { session_id: 'direct', last_assistant_message: 'Shipped.' }), BLOCKED);
     assert.equal(JSON.parse(readFileSync(path.join(root, '.claude', '.session-direct.json'), 'utf8')).saved.gated, 1);
@@ -370,10 +381,20 @@ describe('verify gate', () => {
     for (const text of ['I am ready to start', 'not fixed yet', 'step is complete; next…', 'nothing was done']) {
       assert.equal(stop(root, { session_id: 'nonclaim', last_assistant_message: text }), ALLOWED, text);
     }
+    assert.equal(stop(root, { session_id: 'lookup-only', last_assistant_message: 'Done.' }), ALLOWED);
+  });
+
+  it('gates a done-claim again once a write follows the proving run', () => {
+    const root = repoWith({ verify: 'node --version' });
+    wrote(root, 'rearm');
+    assert.equal(proved(root, 'rearm'), ALLOWED);
+    wrote(root, 'rearm');
+    assert.equal(stop(root, { session_id: 'rearm', last_assistant_message: 'Done.' }), BLOCKED);
   });
 
   it('stands down after two blocks so a session cannot be trapped', () => {
     const root = repoWith({ verify: 'node --version' });
+    wrote(root, 'stubborn');
     const claim = { session_id: 'stubborn', transcript_path: transcript(root, 'Done.') };
     assert.equal(stop(root, claim), BLOCKED);
     assert.equal(stop(root, claim), BLOCKED);
@@ -398,14 +419,6 @@ describe('verify gate', () => {
 });
 
 describe('hooks', () => {
-;
-
-;
-
-;
-
-;
-
   it('routes every judged tool to one guard, audits connector writes but not reads', () => {
     assert.equal(hooks.PreToolUse.length, 1);
     const pre = new RegExp(hooks.PreToolUse[0].matcher);
@@ -415,7 +428,6 @@ describe('hooks', () => {
     const post = new RegExp(hooks.PostToolUse[0].matcher);
     for (const action of ['get_thread', 'list_labels', 'search_threads']) assert.ok(!post.test(`mcp__${SERVER}__${action}`), action);
     for (const action of ['send_message', 'create_update', 'delete_item']) assert.ok(post.test(`mcp__${SERVER}__${action}`), action);
+    for (const tool of WRITE_TOOLS) assert.ok(post.test(tool), tool);
   });
-
-;
 });

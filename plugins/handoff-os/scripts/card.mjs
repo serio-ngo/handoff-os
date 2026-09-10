@@ -14,6 +14,7 @@ function releaseCeiling(payload) {
   const state = load(root, session);
   if (!state.read_bytes) return false;
   state.read_bytes = 0;
+  state.whole_files = 0;
   state.reads = {};
   save(root, session, state);
   return true;

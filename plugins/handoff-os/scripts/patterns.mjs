@@ -7,6 +7,8 @@ export const BIG_FILE_BYTES = 24 * 1024;
 export const GREP_HEAD_LIMIT = 50;
 export const BASH_OUTPUT_CAP = 30000;
 export const READ_CEILING_BYTES = 500 * 1024;
+export const DELEGATE_BYTES = 150 * 1024;
+export const WHOLE_FILES_MAX = 8;
 export const DENY_SUBAGENT_DEFAULT = 'opus,fable';
 export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
   const names = String(raw ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);

@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps', 'rewrites', 'unjudged',
-  'bytes', 'deferred', 'trimmed', 'offload', 'read', 'scouts', 'runners', 'gated'];
+  'bytes', 'deferred', 'trimmed', 'offload', 'read', 'scouts', 'runners', 'gated', 'offloads'];
 
 export const BYTE_COUNTERS = ['bytes', 'deferred', 'trimmed', 'offload'];
 

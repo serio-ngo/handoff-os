@@ -3,14 +3,14 @@ import { closeSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, rm
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BASH_OUTPUT_CAP, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES, GIT_SHOW_FILE, GREP_HEAD_LIMIT, INTERPRETER_READ,
+  ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BASH_OUTPUT_CAP, BIG_FILE_BYTES, CONNECTOR_ALLOW, DELEGATE_BYTES, DESTRUCTIVE, FIXTURES, GIT_SHOW_FILE, GREP_HEAD_LIMIT, INTERPRETER_READ,
   THINK_ESCALATION, WORKFLOW_AGENT_CALL, UNBOUNDED_FANOUT,
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
   DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
   MODEL_BEARING, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
   SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
-  SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WRITE_TOOLS, WRITE_VERBS,
+  SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WHOLE_FILES_MAX, WRITE_TOOLS, WRITE_VERBS,
 } from './patterns.mjs';
 import { append } from './audit.mjs';
 import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
@@ -109,6 +109,7 @@ const SAMPLE_BYTES = 64 * 1024;
 const SAMPLE_LINES = 200;
 const strip = (token) => token.replace(/^['"]|['"]$/g, '');
 const kb = (bytes) => `${Math.round(bytes / 1024)}KB`;
+const scoutDispatch = (file) => `Agent({ subagent_type: "handoff-os:scout", model: "haiku", prompt: "In ${file}, find <what you need> and quote it with file:line. Under 20 lines." })`;
 
 function lineLength(file, size) {
   if (!size) return 0;
@@ -306,6 +307,11 @@ function readBudget(payload, input, rewritable = false) {
       `${kb(inThread)} of files read into this thread, over the ${kb(READ_CEILING_BYTES)} ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.`);
   }
 
+  if (main && ((state.whole_files || 0) >= WHOLE_FILES_MAX || inThread >= DELEGATE_BYTES)) {
+    refuse('offloads', 'deferred', stats.size, 'd',
+      `${state.whole_files || 0} whole files (${kb(inThread)}) are already in this thread. Hand this one to a scout — paste:\n  ${scoutDispatch(file)}\nOr read one region with offset/limit.`);
+  }
+
   let bytes = stats.size;
   let trim = null;
   if (stats.size > BIG_FILE_BYTES) {
@@ -326,6 +332,7 @@ function readBudget(payload, input, rewritable = false) {
 
   state.reads[key] = fingerprint;
   if (main) {
+    state.whole_files = (state.whole_files || 0) + 1;
     state.read_bytes = inThread + bytes;
     state.saved.read += bytes;
   } else state.saved.offload += bytes;

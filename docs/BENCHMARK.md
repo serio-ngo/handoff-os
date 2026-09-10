@@ -7,7 +7,7 @@
 | Ledger | what the guard refused in live sessions | runs on every Stop hook |
 | Replay | what the guard would refuse on recorded real traffic | `npm run benchmark:replay` |
 | Track A | does the guard block what it claims to | `npm run benchmark:eval`, gated in CI |
-| Track B | does the bill actually fall | **not run** |
+| Track B | does the bill actually fall | `npm run benchmark:ab` |
 
 ## Context savings — what `npm run benchmark` prints
 
@@ -135,29 +135,42 @@ Confusion: TP 39 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
 48 of 68 scored cases are `spec` (rule-derived), 19 `probe`, 1 `regression`; recall here is a regression check, not a detection rate.
 <!-- /eval-results -->
 
-## Track B — protocol, not a result
+## Track B — paired runs, with and without the plugin
 
 | Item | Rule |
 |---|---|
-| Status | Not run |
-| Runner | `npm run benchmark:ab` — planned, `docs/PLAN-1.6.md` row 6 |
-| Tasks | `eval/tasks.jsonl`, N ≥ 10 rows: `id`, `prompt`, `repo`, `pass` — a shell command that exits 0 on success |
-| Arms | each task twice, same prompt and model: `claude -p --output-format json`, then the same with `--plugin-dir plugins/handoff-os` |
-| Order | arms alternate per task; fresh checkout per run |
-| Meter | `usage` blocks from the JSON output, deduplicated by `requestId` |
-| Billed tokens | `input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens` at the cache-read price ratio; `output_tokens` reported apart |
-| Footprint | session card + skill and agent descriptions, the `npm run benchmark` context tax, subtracted from the plugin arm |
-| Δ | billed without − billed with − footprint, per task; mean with bootstrap 95% CI over 10,000 resamples |
-| Verify-gate catches | `gated` blocks where the task's `pass` command fails at that Stop |
-| Citation catches | `gated` blocks where a cited `file:line` is missing on disk |
+| Runner | `npm run benchmark:ab` — `scripts/benchmark.mjs ab` |
+| Tasks | `eval/tasks.jsonl`, one object per line: `id`, `prompt`, `check` (shell, exit 0 = pass, `$AB_RESULT` holds the final reply), `expect_guard` (guard classes the task provokes; empty = neutral), optional `setup` |
+| Fixture | `eval/fixture/`, copied to a fresh temp dir per run, `git init` + one commit; `src/big.js` regenerates from `tools/make-big.mjs` |
+| Arms | A: `claude -p --plugin-dir plugins/handoff-os` · B: same command without it; `--output-format stream-json --max-turns 12 --setting-sources project --strict-mcp-config`, tools `Read,Grep,Glob,Bash,Edit,Write,Agent,Task` |
+| Order | random per task, seeded (`--seed`) |
+| Meter | `usage` of every assistant message, deduplicated by `request_id`; subagent messages included |
+| Billed tokens | raw = `input + cache_write + cache_read`; weighted = `input + 1.25× write(5m) + 2× write(1h) + 0.1× read` |
+| Cost | weighted tokens × `PRICES` (list price, data-comment line in `scripts/benchmark.mjs`); the CLI's `total_cost_usd` recorded beside it |
+| Guard events | `PreToolUse … hook error` tool results classified by rule text; `gated` from the Stop hook |
+| Ledger | arm A only: every counter in `.claude/.session-*.json` of the temp dir, `saved` + `lifetime` |
+| Footprint | session card + skill and agent descriptions, chars / 4; already inside arm A billing — reported, never subtracted |
+| Δ | with − without per task; mean, and share of the without-arm total, bootstrap 95% CI over 10,000 resamples |
 | Quality gate | pass rate per arm beside tokens; a token drop with a pass drop is a loss |
-| Output | `eval/ab.json`, one row per task per arm; README block fields in `docs/PLAN-1.6.md` Proof format |
+| Micro | `micro-a` whole-file read of `src/big.js` · `micro-b` six-subagent fan-out; per arm billed tokens, cost, subagents requested / blocked / spawned |
+| Budget | stops once the CLI's cumulative cost passes `--budget` (default $5); partial results still written |
+| Output | `eval/ab-results.json` · README `<!-- handoff-ab -->` · this file's `<!-- ab-results -->` |
 | Ban | bytes / 4 never reported as billing |
 
 ```bash
-npm run benchmark:ab                    # both arms, every task, writes eval/ab.json
-npm run benchmark:ab -- --task <id>     # one task
+npm run benchmark:ab                                   # every task, both arms, micro experiments
+npm run benchmark:ab -- --task big-read                # one task
+npm run benchmark:ab -- --dry-run                      # pipeline only, no model call
+npm run benchmark:ab -- --model <id> --n 5 --no-micro
 ```
 
-- Cached re-reads price below input; a raw-byte cut can move the bill by nothing.
-- Per-run table or no number. Refusals only until this runs.
+<!-- ab-results -->
+| Status | Not run: dry-run on 2026-09-10 |
+|---|---|
+| Plugin | 1.6.0, footprint ~273 tok |
+| Prices | https://platform.claude.com/docs/en/pricing.md, read 2026-09-10 |
+
+```bash
+npm run benchmark:ab -- --model claude-haiku-4-5-20251001
+```
+<!-- /ab-results -->

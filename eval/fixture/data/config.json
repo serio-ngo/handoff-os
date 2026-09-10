@@ -1,0 +1,5 @@
+{
+  "name": "ab-fixture",
+  "regions": ["north", "south", "east", "west", "central"],
+  "defaultGrade": "beta"
+}

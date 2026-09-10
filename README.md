@@ -36,6 +36,12 @@ keys, no network, no telemetry.
 Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code transcripts, re-fed to the guard in order, one sandbox per session. Open-loop: a refusal cannot change what the agent did next, so this is what the guard catches on that exact stream, not a counterfactual. Reproduce with `npm run benchmark:replay`.
 <!-- /handoff-replay -->
 
+## Measured — paired runs, with and without the plugin
+
+<!-- handoff-ab -->
+Not run. Dry-run pipeline check on 2026-09-10, 2 tasks, model `claude-haiku-4-5-20251001`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md), Track B.
+<!-- /handoff-ab -->
+
 ## Measured — live ledger
 
 <!-- handoff-stats -->

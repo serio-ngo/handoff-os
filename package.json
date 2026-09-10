@@ -30,6 +30,7 @@
     "benchmark:eval": "node scripts/benchmark.mjs --eval",
     "benchmark:compare": "node scripts/benchmark.mjs --eval --compare --write",
     "benchmark:replay": "node scripts/benchmark.mjs --replay --write",
-    "benchmark:ab": "node scripts/benchmark.mjs ab"
+    "benchmark:ab": "node scripts/benchmark.mjs ab",
+    "benchmark:flood": "node scripts/benchmark.mjs flood"
   }
 }

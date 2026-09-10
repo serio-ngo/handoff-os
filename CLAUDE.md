@@ -10,11 +10,11 @@
 | Path | Contents |
 |---|---|
 | `plugins/handoff-os/` | The plugin: 3 skills, 2 agents, 6 hooks, 6 scripts. |
-| `scripts/` | CLI (`handoff.mjs`), generators (`generate.mjs`), benchmark report. |
+| `scripts/` | CLI (`handoff.mjs`), generators (`generate.mjs`, `figures.mjs`), benchmark report. |
 | `settings/policy.json` | Permission rules, one `deny` list. Rules cannot ship inside a plugin. |
 | `test/` | One file, `guard.test.mjs`. Node built-in runner. |
-| `eval/` | `guard-corpus.jsonl`, the labelled corpus. `baselines.mjs`, the four comparators. `scores.json`, generated, feeds the README badges. Outside the suite, run by `npm run benchmark:eval`. |
-| `docs/` | Generated manifest, Claude Code reference, benchmark method, `demo.svg`. |
+| `eval/` | `guard-corpus.jsonl`, the labelled corpus. `baselines.mjs`, the four comparators. `scores.json`, generated, feeds the README badges. `flood-results.json`, the README demo, `npm run benchmark:flood`. Outside the suite, run by `npm run benchmark:eval`. |
+| `docs/` | Generated manifest and SVG figures, Claude Code reference, benchmark method. |
 | `audit/` | `YYYY-MM.jsonl`, one object per line, fields in `scripts/audit.mjs` as `FIELDS`. Gitignored, append-only. |
 
 ## Commands

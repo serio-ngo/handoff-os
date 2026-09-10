@@ -195,5 +195,7 @@ export function manifest() {
     table(['Agent', 'model', 'Tools'], agentRows()), '',
     '## Hooks', '',
     table(['Event', 'Matcher', 'Script'], hookRows()), '',
+    '## Inventory', '',
+    ...inventoryBlock(), '',
   ].join('\n');
 }

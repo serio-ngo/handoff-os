@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 372" width="720" height="372" role="img" aria-label="20 subagents requested, model claude-sonnet-5. One uncapped wave: 20 started, about 490k raw tokens measured (20 × 24,480 per subagent); in a real repo 1M+ tokens, about $5 at Opus list price, an estimate. With the guard: 3 started, 17 held for the next wave, measured." font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<text x="24" y="30" fill="#7d8590" font-size="15" font-weight="600">One uncapped wave</text>
+<text x="384" y="30" fill="#7d8590" font-size="15" font-weight="600">With the guard</text>
+<text x="24" y="48" fill="#7d8590" font-size="11">20 subagents requested · one prompt</text>
+<text x="384" y="48" fill="#7d8590" font-size="11">same prompt, same files</text>
+<rect x="24" y="62" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="58" y="62" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="92" y="62" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="126" y="62" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="160" y="62" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="24" y="100" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="58" y="100" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="92" y="100" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="126" y="100" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="160" y="100" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="24" y="138" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="58" y="138" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="92" y="138" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="126" y="138" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="160" y="138" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="24" y="176" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="58" y="176" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="92" y="176" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="126" y="176" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="160" y="176" width="24" height="28" rx="7" fill="#d95926"/>
+<rect x="384" y="62" width="24" height="28" rx="7" fill="#2a78d6"/>
+<rect x="418" y="62" width="24" height="28" rx="7" fill="#2a78d6"/>
+<rect x="452" y="62" width="24" height="28" rx="7" fill="#2a78d6"/>
+<rect x="486.75" y="62.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="520.75" y="62.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="384.75" y="100.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="418.75" y="100.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="452.75" y="100.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="486.75" y="100.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="520.75" y="100.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="384.75" y="138.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="418.75" y="138.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="452.75" y="138.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="486.75" y="138.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="520.75" y="138.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="384.75" y="176.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="418.75" y="176.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="452.75" y="176.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="486.75" y="176.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<rect x="520.75" y="176.75" width="22.5" height="26.5" rx="7" fill="none" stroke="#7d8590" stroke-opacity=".7" stroke-width="1.5"/>
+<text x="24" y="240" fill="#7d8590" font-size="30" font-weight="700">20</text>
+<text x="82" y="240" fill="#7d8590" font-size="14">started at once</text>
+<text x="24" y="258" fill="#7d8590" font-size="11">measured · claude-sonnet-5</text>
+<text x="24" y="290" fill="#7d8590" font-size="30" font-weight="700">≈ 490k</text>
+<text x="166" y="290" fill="#7d8590" font-size="14">raw tokens, one wave</text>
+<text x="24" y="308" fill="#7d8590" font-size="11">20 × 24,480 per subagent · measured</text>
+<text x="24" y="340" fill="#7d8590" font-size="30" font-weight="700">1M+</text>
+<text x="103" y="340" fill="#7d8590" font-size="14">raw tokens in a real repo</text>
+<text x="24" y="358" fill="#7d8590" font-size="11">20 × 50k · each subagent also reads your files · ≈ $5 at Opus list price · estimate</text>
+<text x="384" y="240" fill="#7d8590" font-size="30" font-weight="700">3</text>
+<text x="421" y="240" fill="#7d8590" font-size="14">started at once</text>
+<text x="384" y="258" fill="#7d8590" font-size="11">measured · claude-sonnet-5</text>
+<text x="384" y="290" fill="#7d8590" font-size="30" font-weight="700">17</text>
+<text x="442" y="290" fill="#7d8590" font-size="14">held for the next wave</text>
+<text x="384" y="308" fill="#7d8590" font-size="11">measured · dispatched after these return</text>
+</svg>

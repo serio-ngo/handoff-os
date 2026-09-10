@@ -1,6 +1,6 @@
 # Manifest
 
-Everything the plugin loads, at version 1.9.1. Generated — `npm run upkeep` rewrites it.
+<sub><b>Answers</b> · everything the plugin loads at version 1.9.1 · generated, `npm run upkeep` rewrites it · <a href="../README.md">README</a></sub>
 
 ## Skills
 

@@ -11,7 +11,7 @@
 | token-optimizer | <https://github.com/alexgreensh/token-optimizer> | PreToolUse delta diffs and skeletons; PolyForm NC | diff instead of file | metered vs counterfactual split, 87 fixtures | 2,222 · 2026-09-09 |
 | claude-context-optimizer | <https://github.com/egorfedorov/claude-context-optimizer> | blocks unchanged re-reads | dashboard | no A/B | 110 · 2026-09-01 |
 | claude-code-thrifty | <https://github.com/soonswan-study/claude-code-thrifty> | blocks re-reads and >1000-line reads, condenses test output | — | none; author's request `anthropics/claude-code#49048` closed not planned | 1 · n/a |
-| claude-budget-guard | <https://github.com/karhuzin-lgtm/claude-budget-guard> | token / USD ceiling from the transcript, `requestId` dedup | block reason | tests | 1 · 2026-07-24 |
+| claude-budget-guard | <https://github.com/karhuzin-lgtm/claude-budget-guard> | token ceiling from the transcript, `requestId` dedup | block reason | tests | 1 · 2026-07-24 |
 | grounded | <https://github.com/Pinperepette/grounded> | 11 hooks: read-before-edit, freshness, Stop confidence check via ripgrep | block reason | no metrics | 28 · 2026-04-25 |
 | no-hallucination | <https://github.com/AlethiaQuizForge/no-hallucination> | ledger-gated Stop guards | block reason | none | 3 · 2026-03-31 |
 | dod-guard | <https://github.com/atoslins/dod-guard> | Stop hook stub / TODO detectors | block reason | 94 assertions | 0 · 2026-05-19 |

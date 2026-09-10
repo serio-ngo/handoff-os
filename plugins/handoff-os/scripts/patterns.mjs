@@ -3,7 +3,7 @@ export const WAVE_MS = 90 * 1000;
 export const THINK_ESCALATION = /\b(?:ultrathink|megathink|think\s+(?:hard(?:er)?|deeply)|(?:reasoning[-_ ]?)?effort\s*[=:]\s*(?:high|xhigh|max))\b/i;
 export const WORKFLOW_AGENT_CALL = /(?<![.\w$])agent\s*\(/g;
 export const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)\s*\(/;
-// the declaration that makes a fan-out countable, so the wave cap can price it
+// the declaration that makes a fan-out countable, so the wave cap can count it
 export const FANOUT_BUDGET = /(?:^|\n)\s*\/\/\s*AGENTS:\s*(\d+)\b/;
 export const BIG_FILE_BYTES = 24 * 1024;
 export const GREP_HEAD_LIMIT = 50;

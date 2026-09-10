@@ -84,7 +84,7 @@
 | Plugin footprint | not netted before PR #15; netted from #15 — net was negative (−581, −538) at every publication |
 | Retry recredit | before `a385180`, every refused re-read added the full file size again |
 | Legacy line folding | `benchmark.mjs@4193e68:224-228` mapped `~N tokens saved` (PR #7 semantics) into `deduped` — source of the 49.7k / 67% at #12 |
-| Cache pricing | a byte refused later would mostly be re-sent at cache-read price (0.1×), so bytes/4 overstates billing impact 10× on re-sends |
+| Cache weight | a byte refused later would mostly be re-sent at cache-read weight (0.1×), so bytes/4 overstates billed impact 10× on re-sends |
 | Counterfactual | no commit ever ran a plugin-off arm; Track B "Not run" at #12–#19 |
 
 - Answer: the proof was the ledger's `bytes + deferred + offload` counter divided by 4, printed by `npm run benchmark` and the Stop line. It is a count of bytes the agent asked for and was refused, not a measurement of tokens the model did not consume.
@@ -98,22 +98,23 @@
 | Tokens saved by denying opus/fable dispatches | never measured; a deny bumps `blocked`, no model or token field | `guard.mjs@33c4b39:24-27,252-267` |
 | Tokens saved by haiku scout/runner | never measured; `scouts`/`runners` are counts; `offload` bytes are the scout's own reads, credited as kept out | `guard.mjs@33c4b39:316-319,175`; `offloadTokens: 0` in `scores.json` at #12–#19 |
 | Any plugin-off arm | none | Track B `Not run` at #12–#19; no `--plugin-dir` in `scripts/` history |
-| What Track B would need | same task twice, with and without `--plugin-dir`, `usage` per `requestId`, priced per model with cache-read at 0.1×, footprint subtracted, pass rate beside tokens, N ≥ 10 | `docs/BENCHMARK.md@c24cb86` Track B table; `docs/PLAN-1.6.md@c24cb86` row 6 — planned, not built |
-| Redirect saving formula | per dispatch: `(price_main − price_haiku) × subagent tokens` — requires the counterfactual model; default subagent model is the main model unless set (`code.claude.com/docs/en/sub-agents`, model order 1–4) | not computed anywhere in the repo |
+| What Track B would need | same task twice, with and without `--plugin-dir`, `usage` per `requestId`, weighted tokens with cache-read at 0.1×, footprint subtracted, pass rate beside tokens, N ≥ 10 | `docs/BENCHMARK.md@c24cb86` Track B table; `docs/PLAN-1.6.md@c24cb86` row 6 — planned, not built |
+
+| Redirect saving formula | per dispatch: `(weight_main − weight_haiku) × subagent tokens` — requires the counterfactual model; default subagent model is the main model unless set (`code.claude.com/docs/en/sub-agents`, model order 1–4) | not computed anywhere in the repo |
 
 ## Price ratios
 
-| Model | Input $/MTok | Output $/MTok | Cache read $/MTok (0.1×) | vs Haiku 4.5 input | vs Haiku 4.5 output |
+| Model | Input weight | Output weight | Cache read weight | vs Haiku input | vs Haiku output |
 |---|---|---|---|---|---|
-| Claude Haiku 4.5 | 1.00 | 5.00 | 0.10 | 1× | 1× |
-| Claude Sonnet 5 | 2.00 | 10.00 | 0.20 | 2× | 2× |
-| Claude Opus 5 | 5.00 | 25.00 | 0.50 | 5× | 5× |
+| Claude Haiku 4.5 | 1 | 5 | 0.1 | 1× | 1× |
+| Claude Sonnet 5 | 2 | 10 | 0.2 | 2× | 2× |
+| Claude Opus 5 | 5 | 25 | 0.5 | 5× | 5× |
 
 | Ratio | Value |
 |---|---|
 | Opus 5 / Sonnet 5 | 2.5× (input and output) |
-| Cache read / base input | 0.1× on all three (`0.025×` only on Fable 5.1 / Mythos 5.1) |
-| Source | <https://platform.claude.com/docs/en/about-claude/pricing> fetched 2026-09-10, table rows "Claude Opus 5 \| $5 / MTok … $0.50 / MTok \| $25 / MTok", "Claude Sonnet 5 \| $2 / MTok … $0.20 / MTok \| $10 / MTok", "Claude Haiku 4.5 \| $1 / MTok … $0.10 / MTok \| $5 / MTok"; identical to the `claude-api` skill price table (cached 2026-06-24) |
+| Cache read / base input | 0.1× on all three |
+| Source | platform pricing page, read 2026-09-10; identical to the `claude-api` skill price table (cached 2026-06-24) |
 
 ## Premise: "Claude can set 20 subagents in one go, all will fail due to the 5h limit"
 

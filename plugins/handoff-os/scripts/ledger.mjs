@@ -8,8 +8,8 @@ export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'c
 
 export const BYTE_COUNTERS = ['bytes', 'deferred', 'trimmed', 'offload'];
 
-// USD per 1M input tokens — https://platform.claude.com/docs/en/about-claude/pricing.md, read 2026-09-10
-export const PRICES = { haiku: 1, sonnet: 2, opus: 5, fable: 10 };
+// relative input weight per tier, haiku = 1; tokens only, never billing
+export const TOKEN_RATIOS = { haiku: 1, sonnet: 2, opus: 5, fable: 10 };
 
 const zero = () => Object.fromEntries(COUNTERS.map((key) => [key, 0]));
 const EMPTY = () => ({ reads: {}, saved: zero() });
@@ -98,7 +98,7 @@ export function sessionLine(state, footprintTok = 0) {
   if (s.waves) parts.push(`${plural(s.waves, 'dispatch wave', 'dispatch waves')} capped (${plural(s.agentsCapped, 'agent', 'agents')} held back)`);
   const named = Object.keys(tiers).filter((tier) => tiers[tier]);
   for (const tier of named) {
-    const ratio = PRICES[tier] && PRICES.haiku ? ` (haiku is 1/${PRICES[tier] / PRICES.haiku} of the input price)` : '';
+    const ratio = TOKEN_RATIOS[tier] && TOKEN_RATIOS.haiku ? ` (haiku uses ~1/${TOKEN_RATIOS[tier] / TOKEN_RATIOS.haiku} tokens)` : '';
     parts.push(`${plural(tiers[tier], `${tier} dispatch`, `${tier} dispatches`)} redirected to scout${ratio}`);
   }
   if (!named.length && s.redirects) parts.push(`${plural(s.redirects, 'dispatch', 'dispatches')} redirected to scout`);

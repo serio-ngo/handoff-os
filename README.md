@@ -97,7 +97,7 @@ Live numbers from this machine's ledger — kept out, footprint, billing, re-sen
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **1371** lines of Node across 7 scripts (1236 non-blank) |
+| Guard logic | **1401** lines of Node across 7 scripts (1264 non-blank) |
 | Pattern rules | **66** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |

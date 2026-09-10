@@ -21,7 +21,7 @@ Everything the plugin loads, at version 1.9.0. Generated — `npm run upkeep` re
 
 | Event | Matcher | Script |
 |---|---|---|
-| `PostToolUse` | `^(Bash\|PowerShell\|Edit\|Write\|mcp__(?!.*[_-](search\|list\|read\|get\|help\|resolve)(_\|-\|$)))` | `scripts/audit.mjs` |
+| `PostToolUse` | `^(Bash\|PowerShell\|Edit\|Write\|NotebookEdit\|MultiEdit\|mcp__(?!.*[_-](search\|list\|read\|get\|help\|resolve)(_\|-\|$)))` | `scripts/audit.mjs` |
 | `PreToolUse` | `^(Read\|Bash\|PowerShell\|Edit\|Write\|NotebookEdit\|MultiEdit\|Task\|Agent\|Workflow\|Grep\|Glob\|mcp__)` | `scripts/guard.mjs` |
 | `SessionStart` | `startup\|resume\|clear\|compact\|fork` | `scripts/card.mjs` |
 | `Stop` | `*` | `scripts/verify.mjs` |

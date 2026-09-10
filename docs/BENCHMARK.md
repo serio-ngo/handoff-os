@@ -1,5 +1,7 @@
 # Benchmark
 
+<sub><b>Answers</b> · what the guard refused, would refuse, blocks, and bills — ledger · replay · track A · track B · <a href="../README.md">README</a></sub>
+
 <!-- ledger · replay · track A · track B -->
 
 | Track | Question | Status |
@@ -211,6 +213,16 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 ```
 
 <!-- ab-results -->
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="ab-delta-dark.svg">
+<img src="ab-delta.svg" width="720" alt="Δ billed tokens vs no plugin, cache-read at 0.1×: build c24cb86 +35.5% [+17.3%, +54.8%], pass 8/11 with, 10/11 without; build 84f2ac8 +11.3% [-5.0%, +42.7%], pass 9/11 with, 11/11 without">
+</picture>
+
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="ab-micro-dark.svg">
+<img src="ab-micro.svg" width="720" alt="Micro experiments, billed tokens with vs without the plugin: micro-a build c24cb86 22,134 vs 57,225; micro-a build 84f2ac8 45,672 vs 57,213; micro-b build c24cb86 89,538 vs 129,661; micro-b build 84f2ac8 119,129 vs 122,333">
+</picture>
+
 | Status | Run 1 — plugin build c24cb86 (main, 1.6.0) · 2026-09-10 · model `claude-haiku-4-5-20251001` · N = 11 |
 |---|---|
 | Footprint | ~273 tok |
@@ -225,6 +237,9 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | Pass rate | with 8/11 · without 10/11 | — | — |
 | Guard events, with plugin | whole-file 3 · dispatch 8 · repeat-query 1 · re-read 1 · fan-out 9 · gated 3 · egress-lock 2 | — | — |
 | Billed tokens, both arms | 1,125,623 | — | — |
+
+<details>
+<summary>Per-task rows · 22 · micro rows · 4</summary>
 
 | Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|
@@ -258,6 +273,8 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | `micro-b` | with | 89,538 | 334,093 | 18 / 15 / 3 | dispatch 6, fan-out 9 | agents 3, blocked 15, offload 1025 |
 | `micro-b` | without | 129,661 | 377,435 | 6 / 0 / 6 | — | — |
 
+</details>
+
 | Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0) |
 |---|
 
@@ -269,6 +286,9 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | Pass rate | with 9/11 · without 11/11 | — | — |
 | Guard events, with plugin | repeat-query 1 · re-read 1 · dispatch 7 · fan-out 9 · gated 3 · egress-lock 1 | — | — |
 | Billed tokens, both arms | 1,172,409 | — | — |
+
+<details>
+<summary>Per-task rows · 22 · micro rows · 4</summary>
 
 | Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|
@@ -301,6 +321,8 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | `micro-a` | without | 57,213 | 65,674 | 0 / 0 / 0 | — | — |
 | `micro-b` | with | 119,129 | 381,315 | 21 / 18 / 3 | dispatch 6, fan-out 12 | agents 3, blocked 18, rewrites 1, trimmed 17974, offload 1025, read 25175, scouts 3, waves 12, agentsCapped 12 |
 | `micro-b` | without | 122,333 | 379,503 | 6 / 0 / 6 | — | — |
+
+</details>
 
 | Task | without, run 1 | without, run 2 | build 1 · c24cb86 | build 2 · 84f2ac8 | Pass b1 / b2 |
 |---|---|---|---|---|---|

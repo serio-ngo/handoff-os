@@ -1,8 +1,13 @@
 # Reference — Claude Code identifiers
 
+<sub><b>Answers</b> · which hook, permission, plugin and auth identifiers Claude Code accepts · <a href="../README.md">README</a></sub>
+
 <!-- verified against `code.claude.com/docs` on 2026-09-04, hooks re-verified 2026-09-10; source per section -->
 
 ## Hooks
+
+<details open>
+<summary>Hook facts · 26 rows</summary>
 
 | Fact | Value |
 |---|---|
@@ -32,6 +37,8 @@
 | `systemMessage` | universal field: warning text shown to the **user**, not model context; Stop honours it |
 | Env | `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT` |
 | Kill switch | `"disableAllHooks": true` |
+
+</details>
 
 ```json
 { "hooks": { "PreToolUse": [ { "matcher": "Bash|Edit|Write",

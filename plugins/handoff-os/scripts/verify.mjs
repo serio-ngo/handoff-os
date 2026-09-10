@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
 import { footprint } from './card.mjs';
@@ -107,6 +107,14 @@ function announce(stats, extra) {
   process.exit(0);
 }
 
+function provedAt(marker) {
+  if (!existsSync(marker)) return 0;
+  try {
+    const text = readFileSync(marker, 'utf8');
+    return Date.parse(text.slice(0, text.indexOf(' '))) || statSync(marker).mtimeMs;
+  } catch { return Date.now(); }
+}
+
 function gate() {
   let payload = {};
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
@@ -129,11 +137,10 @@ function gate() {
   const marker = `${state}/.claude/.verified-${session}`;
   const counter = `${state}/.claude/.verify-gate-count-${session}`;
 
-  if (existsSync(marker)) {
-    try {
-      if (Date.now() - statSync(marker).mtimeMs < MARKER_MAX_AGE_MS) announce(stats);
-    } catch { announce(stats); }
-  }
+  const written = Number(load(state, session).written || 0);
+  if (!written) announce(stats);
+  const proved = provedAt(marker);
+  if (proved && Date.now() - proved < MARKER_MAX_AGE_MS && proved >= written) announce(stats);
 
   let blocks = 0;
   try { blocks = parseInt(readFileSync(counter, 'utf8').trim(), 10) || 0; } catch { blocks = 0; }
@@ -148,7 +155,7 @@ function gate() {
   } catch { }
 
   const shown = process.env.HANDOFF_STATS === '0' ? '' : lifetimeLine(bump(payload, 'gated'));
-  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: you claimed done with no evidence. Run this, then say done again:\n  node "${SELF}" ${session}\nIt runs ${command} and writes the marker only on exit 0. Writing the marker by hand is forbidden.\n`);
+  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: you claimed done with no evidence. Run this, then say done again:\n  node "${SELF}" ${session} "${root}"\nIt runs ${command} and writes the marker only on exit 0. Writing the marker by hand is forbidden.\n`);
   process.exit(2);
 }
 
@@ -174,6 +181,7 @@ function runner(session, root) {
   const state = process.env.HANDOFF_OS_DIR || root;
   mkdirSync(`${state}/.claude`, { recursive: true });
   writeFileSync(`${state}/.claude/.verified-${session}`, `${new Date().toISOString()} ${steps.join(' && ')}\n`, 'utf8');
+  rmSync(`${state}/.claude/.verify-gate-count-${session}`, { force: true });
   console.log(`verify: PASSED ${stepsToCommand(steps)} — marker written.`);
 }
 

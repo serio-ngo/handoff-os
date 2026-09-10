@@ -116,34 +116,12 @@ hooks (`--setting-sources user`), so copy the `deny` list from `settings/policy.
 | Guard events, with plugin | fan-out 9 · dispatch 8 · whole-file 3 · gated 3 · egress-lock 2 · repeat-query 1 · re-read 1 |
 | Plugin footprint, always in context | ~273 tok |
 | Total billed tokens, both arms | 1,125,623 tok |
-
-| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0) — 11 tasks × 2 arms, 2026-09-10, model `claude-haiku-4-5-20251001` | Value |
-|---|---|
-| Δ billed tokens, with − without, cache-read at 0.1× | **+11.3%** [-5.0%, +42.7%] |
-| Δ billed tokens, raw sum of input + cache write + cache read | +34.0% [-0.6%, +98.9%] |
-| Δ output tokens | +31.8% [-24.6%, +158.2%] |
-| Δ billed tokens per task, cache-read at 0.1× | **+4,025 tok** [-2,255 tok, +11,075 tok] |
-| Pass rate, with plugin | 9/11 |
-| Pass rate, without plugin | 11/11 |
-| Guard events, with plugin | fan-out 9 · dispatch 7 · gated 3 · repeat-query 1 · re-read 1 · egress-lock 1 |
-| Plugin footprint, always in context | ~273 tok |
-| Total billed tokens, both arms | 1,172,409 tok |
-
-| Task | without, run 1 | without, run 2 | build 1 · c24cb86 | build 2 · 84f2ac8 | Pass b1 / b2 |
-|---|---|---|---|---|---|
-| `big-read` | 57,350 | 57,300 | 64,261 | 45,699 | no / yes |
-| `grep-twice` | 18,644 | 18,734 | 19,613 | 19,584 | yes / yes |
-| `reread` | 25,035 | 22,577 | 25,723 | 23,183 | yes / yes |
-| `fanout-6` | 67,869 | 111,283 | 95,790 | 101,470 | yes / no |
-| `opus-review` | 50,259 | 46,775 | 73,672 | 57,206 | yes / yes |
-| `done-claim` | 29,766 | 33,367 | 50,425 | 37,677 | yes / yes |
-| `rm-tracked` | 22,322 | 21,816 | 19,708 | 47,971 | no / yes |
-| `git-clean` | 20,928 | 20,958 | 42,958 | 19,279 | no / no |
-| `neutral-lookup` | 18,142 | 18,186 | 18,977 | 18,959 | yes / yes |
-| `neutral-add` | 21,793 | 21,788 | 44,537 | 45,163 | yes / yes |
-| `neutral-slice` | 19,137 | 19,112 | 20,156 | 19,975 | yes / yes |
-
-</details>
+| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ billed tokens, cache-read at 0.1× | **+11.3%** [-5.0%, +42.7%] |
+| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ billed tokens per task | **+4,025 tok** [-2,255 tok, +11,075 tok] |
+| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): pass rate, with / without | 9/11 / 11/11 |
+| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1): Δ billed tokens, cache-read at 0.1× | **+32.5%** [+3.6%, +71.3%] |
+| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1): Δ billed tokens per task | **+11,695 tok** [+1,514 tok, +23,983 tok] |
+| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1): pass rate, with / without | 10/11 / 11/11 |
 
 Same prompt, same model, same fixture, arms in random order per task; 95% CI by bootstrap over paired differences. Negative Δ means the plugin arm billed less. Reproduce with `npm run benchmark:ab`. Per-task rows: `eval/ab-results.json`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 <!-- /handoff-ab -->
@@ -175,7 +153,7 @@ Live numbers from this machine's ledger — kept out, footprint, billing, re-sen
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **1371** lines of Node across 7 scripts (1236 non-blank) |
+| Guard logic | **1401** lines of Node across 7 scripts (1264 non-blank) |
 | Pattern rules | **66** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |

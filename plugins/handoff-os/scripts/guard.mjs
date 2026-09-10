@@ -274,7 +274,7 @@ function shellReads(command) {
     const first = chunk.split('|')[0].trim();
     const segment = unwrap(first);
     const bare = !piped && segment === first && at >= 0;
-    for (const read of shellRead(segment)) out.push({ ...read, piped, chunk, at, rewritable: bare && Boolean(read.only) });
+    for (const read of shellRead(segment)) out.push({ ...read, piped, at, span: first.length, rewritable: bare && Boolean(read.only) });
   }
   return out;
 }
@@ -370,16 +370,29 @@ function readBudget(payload, input, rewritable = false) {
   return trim;
 }
 
-function invalidateQueries(payload) {
+function unbook(payload, before) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
-  let dropped = 0;
+  for (const key of Object.keys(state.reads)) {
+    if (!(key in before.reads) && !key.includes('|x:')) delete state.reads[key];
+  }
+  state.read_bytes = before.read_bytes;
+  state.whole_files = before.whole_files;
+  for (const key of ['read', 'offload', 'rewrites', 'trimmed']) state.saved[key] = before.saved[key];
+  save(root, session, state);
+}
+
+function noteWrite(payload) {
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
   const scope = `${actorOf(payload)}|q:`;
   for (const key of Object.keys(state.reads)) {
-    if (key.startsWith(scope)) { delete state.reads[key]; dropped += 1; }
+    if (key.startsWith(scope)) delete state.reads[key];
   }
-  if (dropped) save(root, session, state);
+  state.written = Date.now();
+  save(root, session, state);
 }
 
 function queryBudget(payload, input, tool) {
@@ -507,16 +520,19 @@ const agentsRequested = (input, tool) => (tool === 'Workflow'
 function fanOutCap(payload, count = 1) {
   const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
   const bucket = Math.floor(Date.now() / WAVE_MS);
-  const first = claimSlot(dir, bucket, MAX_PER_WAVE);
-  let slot = first;
-  for (let n = 1; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
-  if (slot > MAX_PER_WAVE) {
+  const claimed = [];
+  for (let n = 0; n < count; n += 1) {
+    const slot = claimSlot(dir, bucket, MAX_PER_WAVE);
+    if (slot <= MAX_PER_WAVE) { claimed.push(slot); continue; }
+    for (const held of claimed) {
+      try { rmSync(path.join(dir, `${bucket}-${held}`), { force: true }); } catch { }
+    }
     const root = rootOf(payload);
     const session = sessionOf(payload);
     const state = load(root, session);
     state.saved.blocked += 1;
     state.saved.waves += 1;
-    state.saved.agentsCapped += Math.max(1, count - Math.max(0, MAX_PER_WAVE - first + 1));
+    state.saved.agentsCapped += count - claimed.length;
     save(root, session, state);
     throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Let these ${MAX_PER_WAVE} return, then dispatch the rest yourself in the next wave — sequential batches of ${MAX_PER_WAVE}, no waiting for the user.\n`);
   }
@@ -569,25 +585,31 @@ export function judge(raw = {}) {
       const reason = judgeWrite(target, command, 'a shell write');
       if (reason) deny(reason);
     }
-    if (targets.length) invalidateQueries(payload);
+    if (targets.length) noteWrite(payload);
     let rewrite = null;
-    for (const read of shellReads(command)) {
-      if (read.unjudged) { bump(payload, 'unjudged'); continue; }
-      const file = path.resolve(typeof payload.cwd === 'string' ? payload.cwd : process.cwd(), read.file);
-      if (!read.whole) { bookSlice(payload, file, read, { shell: true, filtered: read.piped }); continue; }
-      if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true, filtered: true }); continue; }
-      const trim = readBudget(payload, { file_path: file }, tool === 'Bash' && read.rewritable && !rewrite ? 'shell' : false);
-      if (trim) {
-        rewrite = {
-          updatedInput: {
-            ...input,
-            command: command.slice(0, read.at)
-              + `head -c ${BIG_FILE_BYTES} ${shellQuote(read.file)}`
-              + command.slice(read.at + read.chunk.length),
-          },
-          reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}. Read a region with sed -n 'a,bp', or dispatch handoff-os:scout.`,
-        };
+    const before = load(rootOf(payload), sessionOf(payload));
+    try {
+      for (const read of shellReads(command)) {
+        if (read.unjudged) { bump(payload, 'unjudged'); continue; }
+        const file = path.resolve(typeof payload.cwd === 'string' ? payload.cwd : process.cwd(), read.file);
+        if (!read.whole) { bookSlice(payload, file, read, { shell: true, filtered: read.piped }); continue; }
+        if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true, filtered: true }); continue; }
+        const trim = readBudget(payload, { file_path: file }, tool === 'Bash' && read.rewritable && !rewrite ? 'shell' : false);
+        if (trim) {
+          rewrite = {
+            updatedInput: {
+              ...input,
+              command: command.slice(0, read.at)
+                + `head -c ${BIG_FILE_BYTES} ${shellQuote(read.file)}`
+                + command.slice(read.at + read.span),
+            },
+            reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}. Read a region with sed -n 'a,bp', or dispatch handoff-os:scout.`,
+          };
+        }
       }
+    } catch (error) {
+      if (error instanceof Blocked) unbook(payload, before);
+      throw error;
     }
     return rewrite;
   } else if (tool.startsWith('mcp__')) {
@@ -623,12 +645,12 @@ export function judge(raw = {}) {
       deny(`blocked ${tool} — a raw page fetch. Use WebFetch, WebSearch or handoff-os:scout`);
     }
   } else if (WRITE_TOOLS.includes(tool)) {
-    invalidateQueries(payload);
     const edits = Array.isArray(input.edits) ? input.edits.map((edit) => edit?.new_string ?? '') : [];
     const content = [input.content, input.new_string, input.new_source, ...edits]
       .filter((value) => typeof value === 'string').join('\n');
     const reason = judgeWrite(String(input.file_path || input.notebook_path || ''), content);
     if (reason) deny(reason);
+    noteWrite(payload);
   }
   return null;
 }

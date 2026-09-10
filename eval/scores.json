@@ -43,7 +43,7 @@
   "keptTokens": 0,
   "readVolumeTokens": 0,
   "offloadTokens": 0,
-  "resendRatio": 0,
+  "resendRatio": 33.8,
   "ledgerTurns": 0,
   "resendsRemoved": 0,
   "taxTokens": 273,

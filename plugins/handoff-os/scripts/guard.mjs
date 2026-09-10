@@ -472,7 +472,7 @@ function fanOutCap(payload, count = 1) {
     state.saved.waves += 1;
     state.saved.agentsCapped += Math.max(1, count - Math.max(0, MAX_PER_WAVE - first + 1));
     save(root, session, state);
-    throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Read the returns, then relaunch via /handoff-os:research-budget.\n`);
+    throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Let these ${MAX_PER_WAVE} return, then dispatch the rest yourself in the next wave — sequential batches of ${MAX_PER_WAVE}, no waiting for the user.\n`);
   }
 }
 

@@ -4,7 +4,9 @@ handoff-os is a spend guard for Claude Code. It acts at the `PreToolUse` and `St
 the tokens are spent, and books what it did in four units: a wave of expensive subagents prevented,
 an expensive dispatch redirected to the cheap scout or runner, a whole-file read or re-read trimmed
 or stopped, and a done-claim held until a verification run passes. Every session ends with a
-one-line receipt in those units.
+one-line receipt in those units. Measured paired, with and without the plugin on 11 tasks, it does
+not bill fewer tokens on general work (+11.3%, 95% CI −5.0 to +42.7); it saves on the cases it was
+built for — a whole-file read −20%, a 6-agent fan-out −3% — and stops egress: [Track B](docs/BENCHMARK.md).
 
 What it stops: a fourth agent in a 90-second wave, an opus or fable dispatch with no `QUALITY:`
 flag, a whole-file read over 24 KB (rewritten to the first lines that fit instead of refused), a
@@ -49,6 +51,7 @@ keys, no network, no telemetry.
 | Price ratios on the receipt | the published per-token price table (`PRICES` in `ledger.mjs`), not this repo's traffic |
 | Guard caught, wrongly blocked | regression suite of 68 self-written cases, not a detection rate |
 | Cache re-send | measured on the maintainer's transcripts; Claude Code's caching, not the plugin's |
+| Paired Δ billed tokens, pass rate | measured by `npm run benchmark:ab` at N=11, one model tier; the general-task delta is positive, so no token-savings claim is made here — [Track B](docs/BENCHMARK.md) |
 
 ## Measured — replayed against real traffic
 

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 386" width="860" height="386" role="img" aria-label="handoff-os refusing a 38KB read, capping a 20-agent ultrathink opus wave and blocking a send, then printing session totals">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 386" width="860" height="386" role="img" aria-label="handoff-os trimming an oversize read, holding back 17 of 20 agents in a wave, redirecting an opus dispatch and blocking a send, then printing the session receipt">
   <style>
     text{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;font-size:13.5px;white-space:pre}
     .row{opacity:0;animation:in 20s infinite both}
@@ -14,11 +14,11 @@
     .r9{animation-delay:7.4s}.r10{animation-delay:8.2s}.r11{animation-delay:9.2s}.r12{animation-delay:10.0s}
     .s1{animation-delay:11.0s}.s2{animation-delay:11.7s}.s3{animation-delay:12.4s}
     .bar{opacity:0;animation:flash 20s infinite both}
-    .b6{animation-delay:4.8s}.b10{animation-delay:8.2s}.b12{animation-delay:10.0s}
+    .b8{animation-delay:6.4s}.b10{animation-delay:8.2s}.b12{animation-delay:10.0s}
     .glow{opacity:0;animation:sweep 20s infinite both;transform-box:fill-box;transform-origin:left center}
-    .g6{animation-delay:4.8s}.g10{animation-delay:8.2s}.g12{animation-delay:10.0s}
+    .g8{animation-delay:6.4s}.g10{animation-delay:8.2s}.g12{animation-delay:10.0s}
     .okbar{opacity:0;animation:okflash 20s infinite both}
-    .o8{animation-delay:6.4s}
+    .o6{animation-delay:4.8s}
     .cursor{animation:blink 1s steps(1) infinite}
     .typed{animation:type 1s steps(38) .2s both}
   </style>
@@ -27,11 +27,11 @@
   <path d="M0 34 H860" stroke="#2e2a26"/>
   <text x="22" y="22" fill="#57534e" font-size="11.5">— handoff-os session</text>
 
-  <rect class="okbar o8" x="14" y="179" width="832" height="21" rx="4" fill="#7dc98f" fill-opacity=".45"/>
-  <rect class="bar b6" x="14" y="132" width="832" height="21" rx="4" fill="#e08888" fill-opacity=".07"/>
+  <rect class="okbar o6" x="14" y="132" width="832" height="21" rx="4" fill="#d9a15c" fill-opacity=".45"/>
+  <rect class="bar b8" x="14" y="179" width="832" height="21" rx="4" fill="#e08888" fill-opacity=".07"/>
   <rect class="bar b10" x="14" y="228" width="832" height="21" rx="4" fill="#e08888" fill-opacity=".07"/>
   <rect class="bar b12" x="14" y="276" width="832" height="21" rx="4" fill="#e08888" fill-opacity=".07"/>
-  <rect class="glow g6" x="14" y="132" width="832" height="21" rx="4" fill="#e08888" fill-opacity=".12"/>
+  <rect class="glow g8" x="14" y="179" width="832" height="21" rx="4" fill="#e08888" fill-opacity=".12"/>
   <rect class="glow g10" x="14" y="228" width="832" height="21" rx="4" fill="#e08888" fill-opacity=".12"/>
   <rect class="glow g12" x="14" y="276" width="832" height="21" rx="4" fill="#e08888" fill-opacity=".12"/>
 
@@ -40,20 +40,20 @@
   <clipPath id="t"><rect class="typed" x="22" y="72" height="18"/></clipPath>
   <g class="row r2" clip-path="url(#t)"><text x="22" y="86" fill="#f0ebe3" font-weight="600">&gt; audit the guard, then email the board</text></g>
 
-  <text class="row r5"  x="22" y="122" fill="#d97757">⏺  Read guard.mjs</text>
-  <text class="row r6"  x="22" y="147" fill="#e08888" font-weight="600">⨯  READ BUDGET · 38KB over the 24KB cap</text>
-  <text class="row r7"  x="22" y="172" fill="#d97757">⏺  Agent handoff-os:scout reads it instead</text>
-  <text class="row r8"  x="22" y="194" fill="#7dc98f">✓  answered · 9.5k never entered this thread</text>
-  <text class="row r9"  x="22" y="219" fill="#d97757">⏺  20 × opus agents · ultrathink</text>
-  <text class="row r10" x="22" y="243" fill="#e08888" font-weight="600">⨯  FAN-OUT CAP · 17 blocked, 3 per wave</text>
+  <text class="row r5"  x="22" y="122" fill="#d97757">⏺  Read src/big.js · 35KB</text>
+  <text class="row r6"  x="22" y="147" fill="#d9a15c" font-weight="600">↻  READ BUDGET · trimmed to its first 24KB, runs anyway</text>
+  <text class="row r7"  x="22" y="172" fill="#d97757">⏺  Workflow · 20 agents</text>
+  <text class="row r8"  x="22" y="194" fill="#e08888" font-weight="600">⨯  FAN-OUT CAP · 3 this wave, 17 held back</text>
+  <text class="row r9"  x="22" y="219" fill="#d97757">⏺  Agent model:opus · "review the diff"</text>
+  <text class="row r10" x="22" y="243" fill="#e08888" font-weight="600">⨯  DISPATCH BUDGET · review goes to sonnet</text>
   <text class="row r11" x="22" y="267" fill="#d97757">⏺  gmail send_message</text>
-  <text class="row r12" x="22" y="291" fill="#e08888" font-weight="600">⨯  EGRESS LOCK · send blocked</text>
+  <text class="row r12" x="22" y="291" fill="#e08888" font-weight="600">⨯  EGRESS LOCK · send blocked, hand off</text>
 
   <g>
     <rect class="row s1" x="14" y="303" width="832" height="68" rx="4" fill="#1d1a16" stroke="#2e2a26"/>
-    <text class="row s1" x="22" y="318" fill="#7dc98f" font-weight="600">HANDOFF OS · ~9.5k kept out of context (67%)</text>
-    <text class="row s2" x="22" y="338" fill="#8b8680">19 guard actions</text>
-    <text class="row s3" x="22" y="358" fill="#8b8680">used 1 scout</text>
-    <g class="row s3"><rect class="cursor" x="140" y="347" width="7" height="12" fill="#d97757"/></g>
+    <text class="row s1" x="22" y="318" fill="#7dc98f" font-weight="600">HANDOFF OS · this session: 1 read trimmed (11 KB kept out)</text>
+    <text class="row s2" x="22" y="338" fill="#8b8680">1 dispatch wave capped (17 agents held back)</text>
+    <text class="row s3" x="22" y="358" fill="#8b8680">1 opus dispatch redirected to scout · 1 call blocked</text>
+    <g class="row s3"><rect class="cursor" x="374" y="347" width="7" height="12" fill="#d97757"/></g>
   </g>
 </svg>

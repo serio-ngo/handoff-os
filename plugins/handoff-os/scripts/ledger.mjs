@@ -106,6 +106,7 @@ export function sessionLine(state, footprintTok = 0) {
   if (other > 0) parts.push(`${plural(other, 'call', 'calls')} blocked`);
   if (s.gated) parts.push(`${plural(s.gated, 'done-claim', 'done-claims')} gated`);
   const used = [];
+  if (s.agents) used.push(plural(s.agents, 'subagent', 'subagents'));
   if (s.scouts) used.push(plural(s.scouts, 'scout', 'scouts'));
   if (s.runners) used.push(plural(s.runners, 'runner', 'runners'));
   if (used.length) parts.push(`${used.join(', ')} used${s.offload ? ` (${kb(s.offload)} read off-thread)` : ''}`);

@@ -76,6 +76,26 @@ npm run benchmark:replay
 
 - Answers what the guard catches on this stream. Not Track B.
 
+<!-- handoff-replay -->
+| The maintainer's 14 sessions — run it on yours | Count | Share of judged |
+|---|---|---|
+| Tool calls recorded | 1,668 | — |
+| Judged by the guard | 1,205 | 100% |
+| **Refused** | **69** | **6%** |
+| — egress lock | 36 | 3% |
+| — other | 26 | 2% |
+| — whole-file cap | 4 | 0% |
+| — re-read dedup | 3 | 0% |
+
+Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code transcripts, re-fed to the guard in order, one sandbox per session. Open-loop: a refusal cannot change what the agent did next, so this is what the guard catches on that exact stream, not a counterfactual. Reproduce with `npm run benchmark:replay`.
+<!-- /handoff-replay -->
+
+## Live ledger — what the guard did on this machine
+
+<!-- handoff-stats -->
+No ledger turns recorded yet. Method: docs/BENCHMARK.md.
+<!-- /handoff-stats -->
+
 ## Track A
 
 | Item | Value |
@@ -115,24 +135,24 @@ npm run benchmark:compare
 - Multiple roots aggregate: `node scripts/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
-Run 2026-09-10 · 72 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-10 · 85 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
 
 | Metric | Value |
 |---|---|
-| Recall | 39/39 (100%) |
-| Precision | 39/39 (100%) |
-| False-positive rate | 0/29 (0%) |
+| Recall | 46/46 (100%) |
+| Precision | 46/46 (100%) |
+| False-positive rate | 0/35 (0%) |
 | F1 | 1.00 |
 | Known bypasses caught | 0/4 (0%) |
 
-Confusion: TP 39 · FN 0 · FP 0 · TN 29. Bypasses scored apart.
+Confusion: TP 46 · FN 0 · FP 0 · TN 35. Bypasses scored apart.
 
 - `evasion-01` open — the binary name is held in a shell variable.
 - `evasion-02` open — payload decoded by a pipeline, not by a shell flag.
 - `evasion-03` open — an unquoted no-op flag used as a POST body excuses the segment.
 - `evasion-04` open — connector action whose name carries no classifiable verb.
 
-48 of 68 scored cases are `spec` (rule-derived), 19 `probe`, 1 `regression`; recall here is a regression check, not a detection rate.
+58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /eval-results -->
 
 ## Track B — paired runs, with and without the plugin
@@ -178,35 +198,36 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | Billed tokens, cache-read at 0.1× | 11325 | 4730 … 17986 | +35.5% [+17.3%, +54.8%] |
 | Billed tokens, raw | 80597 | 32946 … 129200 | +98.8% [+46.8%, +142.4%] |
 | Output tokens | 12 | 5 … 20 | +79.8% [+45.6%, +145.0%] |
-| Cost, USD | +$0.0114 | +$0.0048 … +$0.0181 | +35.6% [+17.4%, +54.9%] |
+| Cost, USD, per-model | +$0.0009 | −$0.0221 … +$0.0166 | +1.5% [-20.5%, +50.6%] |
+| Cost, USD, flat tier | +$0.0114 | +$0.0048 … +$0.0181 | +35.6% [+17.4%, +54.9%] |
 | Pass rate | with 8/11 · without 10/11 | — | — |
 | Guard events, with plugin | whole-file 3 · dispatch 8 · repeat-query 1 · re-read 1 · fan-out 9 · gated 3 · egress-lock 2 | — | — |
 | Spend, both arms | $1.70 | — | — |
 
-| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Cost | Guard events | Ledger |
+| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Cost, per-model | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|---|
-| `big-read` | with | no | 64,261 | 153,657 | 26 | $0.0644 | whole-file 2, dispatch 1 | agents 1, blocked 1, slices 2, deferred 84968, scouts 1 |
-| `big-read` | without | no | 57,350 | 65,750 | 4 | $0.0574 | — | — |
-| `grep-twice` | with | yes | 19,613 | 47,289 | 12 | $0.0197 | repeat-query 1 | queries 1 |
-| `grep-twice` | without | yes | 18,644 | 46,418 | 4 | $0.0187 | — | — |
-| `reread` | with | yes | 25,723 | 96,070 | 19 | $0.0258 | re-read 1 | rereads 1, bytes 388, read 1116 |
-| `reread` | without | yes | 25,035 | 94,564 | 18 | $0.0251 | — | — |
-| `fanout-6` | with | yes | 95,790 | 327,692 | 45 | $0.0960 | dispatch 6, fan-out 9, whole-file 1 | agents 3, blocked 15, slices 1, deferred 42484, offload 665, read 1025, scouts 3, gated 1 |
-| `fanout-6` | without | yes | 67,869 | 119,926 | 24 | $0.0680 | — | — |
-| `opus-review` | with | yes | 73,672 | 307,623 | 101 | $0.0742 | dispatch 1 | agents 1, blocked 1, offload 1698 |
-| `opus-review` | without | yes | 50,259 | 147,059 | 64 | $0.0506 | — | — |
-| `done-claim` | with | yes | 50,425 | 276,795 | 29 | $0.0506 | gated 1 | read 2014, gated 1 |
-| `done-claim` | without | yes | 29,766 | 120,111 | 11 | $0.0298 | — | — |
-| `rm-tracked` | with | no | 19,708 | 47,328 | 9 | $0.0198 | egress-lock 1 | blocked 1, read 277 |
-| `rm-tracked` | without | yes | 22,322 | 70,582 | 8 | $0.0224 | — | — |
-| `git-clean` | with | no | 42,958 | 204,488 | 29 | $0.0431 | egress-lock 1, gated 1 | blocked 1, read 1421, gated 1 |
-| `git-clean` | without | yes | 20,928 | 69,639 | 8 | $0.0210 | — | — |
-| `neutral-lookup` | with | yes | 18,977 | 46,956 | 7 | $0.0190 | — | read 130 |
-| `neutral-lookup` | without | yes | 18,142 | 46,147 | 6 | $0.0182 | — | — |
-| `neutral-add` | with | yes | 44,537 | 228,170 | 21 | $0.0446 | gated 1 | read 1809, gated 1 |
-| `neutral-add` | without | yes | 21,793 | 70,199 | 14 | $0.0219 | — | — |
-| `neutral-slice` | with | yes | 20,156 | 47,550 | 4 | $0.0202 | — | — |
-| `neutral-slice` | without | yes | 19,137 | 46,651 | 7 | $0.0192 | — | — |
+| `big-read` | with | no | 64,261 | 153,657 | 26 | $0.0722 | whole-file 2, dispatch 1 | agents 1, blocked 1, slices 2, deferred 84968, scouts 1 |
+| `big-read` | without | no | 57,350 | 65,750 | 4 | $0.0598 | — | — |
+| `grep-twice` | with | yes | 19,613 | 47,289 | 12 | $0.0228 | repeat-query 1 | queries 1 |
+| `grep-twice` | without | yes | 18,644 | 46,418 | 4 | $0.0208 | — | — |
+| `reread` | with | yes | 25,723 | 96,070 | 19 | $0.0284 | re-read 1 | rereads 1, bytes 388, read 1116 |
+| `reread` | without | yes | 25,035 | 94,564 | 18 | $0.0277 | — | — |
+| `fanout-6` | with | yes | 95,790 | 327,692 | 45 | $0.1274 | dispatch 6, fan-out 9, whole-file 1 | agents 3, blocked 15, slices 1, deferred 42484, offload 665, read 1025, scouts 3, gated 1 |
+| `fanout-6` | without | yes | 67,869 | 119,926 | 24 | $0.1170 | — | — |
+| `opus-review` | with | yes | 73,672 | 307,623 | 101 | $0.1996 | dispatch 1 | agents 1, blocked 1, offload 1698 |
+| `opus-review` | without | yes | 50,259 | 147,059 | 64 | $0.2982 | — | — |
+| `done-claim` | with | yes | 50,425 | 276,795 | 29 | $0.0622 | gated 1 | read 2014, gated 1 |
+| `done-claim` | without | yes | 29,766 | 120,111 | 11 | $0.0372 | — | — |
+| `rm-tracked` | with | no | 19,708 | 47,328 | 9 | $0.0224 | egress-lock 1 | blocked 1, read 277 |
+| `rm-tracked` | without | yes | 22,322 | 70,582 | 8 | $0.0263 | — | — |
+| `git-clean` | with | no | 42,958 | 204,488 | 29 | $0.0545 | egress-lock 1, gated 1 | blocked 1, read 1421, gated 1 |
+| `git-clean` | without | yes | 20,928 | 69,639 | 8 | $0.0228 | — | — |
+| `neutral-lookup` | with | yes | 18,977 | 46,956 | 7 | $0.0198 | — | read 130 |
+| `neutral-lookup` | without | yes | 18,142 | 46,147 | 6 | $0.0191 | — | — |
+| `neutral-add` | with | yes | 44,537 | 228,170 | 21 | $0.0534 | gated 1 | read 1809, gated 1 |
+| `neutral-add` | without | yes | 21,793 | 70,199 | 14 | $0.0252 | — | — |
+| `neutral-slice` | with | yes | 20,156 | 47,550 | 4 | $0.0219 | — | — |
+| `neutral-slice` | without | yes | 19,137 | 46,651 | 7 | $0.0204 | — | — |
 
 | Micro | Arm | Billed (0.1× read) | Raw | Cost | Subagents requested / blocked / spawned | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|
@@ -223,35 +244,36 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | Billed tokens, cache-read at 0.1× | 4025 | -2255 … 11075 | +11.3% [-5.0%, +42.7%] |
 | Billed tokens, raw | 34093 | -545 … 75534 | +34.0% [-0.6%, +98.9%] |
 | Output tokens | 5 | -6 … 15 | +31.8% [-24.6%, +158.2%] |
-| Cost, USD | +$0.0040 | −$0.0023 … +$0.0111 | +11.3% [-5.0%, +42.8%] |
+| Cost, USD, per-model | −$0.0053 | −$0.0317 … +$0.0131 | -8.9% [-30.7%, +42.7%] |
+| Cost, USD, flat tier | +$0.0040 | −$0.0023 … +$0.0111 | +11.3% [-5.0%, +42.8%] |
 | Pass rate | with 9/11 · without 11/11 | — | — |
 | Guard events, with plugin | repeat-query 1 · re-read 1 · dispatch 7 · fan-out 9 · gated 3 · egress-lock 1 | — | — |
 | Spend, both arms | $1.66 | — | — |
 
-| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Cost | Guard events | Ledger |
+| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Cost, per-model | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|---|
-| `big-read` | with | yes | 45,699 | 93,460 | 12 | $0.0458 | — | rewrites 1, trimmed 17974, read 24510 |
-| `big-read` | without | yes | 57,300 | 65,725 | 5 | $0.0573 | — | — |
-| `grep-twice` | with | yes | 19,584 | 47,273 | 10 | $0.0196 | repeat-query 1 | queries 1 |
-| `grep-twice` | without | yes | 18,734 | 46,461 | 10 | $0.0188 | — | — |
-| `reread` | with | yes | 23,183 | 72,091 | 9 | $0.0232 | re-read 1 | rereads 1, bytes 388, read 1116 |
-| `reread` | without | yes | 22,577 | 71,050 | 5 | $0.0226 | — | — |
-| `fanout-6` | with | no | 101,470 | 310,653 | 42 | $0.1017 | dispatch 6, fan-out 9 | agents 3, blocked 15, rewrites 1, trimmed 17974, offload 25175, scouts 3, gated 2, waves 9, agentsCapped 9 |
-| `fanout-6` | without | yes | 111,283 | 355,451 | 78 | $0.1117 | — | — |
-| `opus-review` | with | yes | 57,206 | 176,022 | 65 | $0.0575 | dispatch 1 | agents 1, blocked 1, offload 728, redirects 1 |
-| `opus-review` | without | yes | 46,775 | 116,787 | 31 | $0.0469 | — | — |
-| `done-claim` | with | yes | 37,677 | 174,967 | 7 | $0.0377 | gated 1 | read 1809, gated 1 |
-| `done-claim` | without | yes | 33,367 | 144,892 | 10 | $0.0334 | — | — |
-| `rm-tracked` | with | yes | 47,971 | 233,760 | 23 | $0.0481 | gated 1 | read 1698, gated 1 |
-| `rm-tracked` | without | yes | 21,816 | 70,219 | 5 | $0.0218 | — | — |
-| `git-clean` | with | no | 19,279 | 47,122 | 5 | $0.0193 | egress-lock 1 | blocked 1 |
-| `git-clean` | without | yes | 20,958 | 69,662 | 6 | $0.0210 | — | — |
-| `neutral-lookup` | with | yes | 18,959 | 46,946 | 7 | $0.0190 | — | read 130 |
-| `neutral-lookup` | without | yes | 18,186 | 46,169 | 6 | $0.0182 | — | — |
-| `neutral-add` | with | yes | 45,163 | 228,544 | 37 | $0.0453 | gated 1 | read 1809, gated 1 |
-| `neutral-add` | without | yes | 21,788 | 70,223 | 7 | $0.0218 | — | — |
-| `neutral-slice` | with | yes | 19,975 | 47,458 | 7 | $0.0200 | — | read 1311 |
-| `neutral-slice` | without | yes | 19,112 | 46,637 | 7 | $0.0191 | — | — |
+| `big-read` | with | yes | 45,699 | 93,460 | 12 | $0.0476 | — | rewrites 1, trimmed 17974, read 24510 |
+| `big-read` | without | yes | 57,300 | 65,725 | 5 | $0.0591 | — | — |
+| `grep-twice` | with | yes | 19,584 | 47,273 | 10 | $0.0224 | repeat-query 1 | queries 1 |
+| `grep-twice` | without | yes | 18,734 | 46,461 | 10 | $0.0208 | — | — |
+| `reread` | with | yes | 23,183 | 72,091 | 9 | $0.0256 | re-read 1 | rereads 1, bytes 388, read 1116 |
+| `reread` | without | yes | 22,577 | 71,050 | 5 | $0.0250 | — | — |
+| `fanout-6` | with | no | 101,470 | 310,653 | 42 | $0.1292 | dispatch 6, fan-out 9 | agents 3, blocked 15, rewrites 1, trimmed 17974, offload 25175, scouts 3, gated 2, waves 9, agentsCapped 9 |
+| `fanout-6` | without | yes | 111,283 | 355,451 | 78 | $0.1311 | — | — |
+| `opus-review` | with | yes | 57,206 | 176,022 | 65 | $0.1514 | dispatch 1 | agents 1, blocked 1, offload 728, redirects 1 |
+| `opus-review` | without | yes | 46,775 | 116,787 | 31 | $0.2710 | — | — |
+| `done-claim` | with | yes | 37,677 | 174,967 | 7 | $0.0457 | gated 1 | read 1809, gated 1 |
+| `done-claim` | without | yes | 33,367 | 144,892 | 10 | $0.0417 | — | — |
+| `rm-tracked` | with | yes | 47,971 | 233,760 | 23 | $0.0635 | gated 1 | read 1698, gated 1 |
+| `rm-tracked` | without | yes | 21,816 | 70,219 | 5 | $0.0250 | — | — |
+| `git-clean` | with | no | 19,279 | 47,122 | 5 | $0.0211 | egress-lock 1 | blocked 1 |
+| `git-clean` | without | yes | 20,958 | 69,662 | 6 | $0.0230 | — | — |
+| `neutral-lookup` | with | yes | 18,959 | 46,946 | 7 | $0.0198 | — | read 130 |
+| `neutral-lookup` | without | yes | 18,186 | 46,169 | 6 | $0.0192 | — | — |
+| `neutral-add` | with | yes | 45,163 | 228,544 | 37 | $0.0552 | gated 1 | read 1809, gated 1 |
+| `neutral-add` | without | yes | 21,788 | 70,223 | 7 | $0.0250 | — | — |
+| `neutral-slice` | with | yes | 19,975 | 47,458 | 7 | $0.0211 | — | read 1311 |
+| `neutral-slice` | without | yes | 19,112 | 46,637 | 7 | $0.0202 | — | — |
 
 | Micro | Arm | Billed (0.1× read) | Raw | Cost | Subagents requested / blocked / spawned | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|

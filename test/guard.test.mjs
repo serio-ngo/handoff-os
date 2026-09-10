@@ -1,7 +1,7 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -156,9 +156,19 @@ describe('dispatch budget', () => {
     assert.equal(state.saved.redirects, 1);
     assert.equal(state.tiers.opus, 1);
     assert.equal(spawn({ prompt: 'ultrathink about the schema', model: 'sonnet' }), BLOCKED);
+    assert.equal(spawn({ script: 'agent("find where opus is configured")' }, 'Workflow'), ALLOWED);
   });
-  it('blocks a workflow that never states its agent count', () => assert.equal(
-    spawn({ script: "await Promise.all(rows.map((r) => agent('x', { model: 'sonnet' })))" }, 'Workflow'), BLOCKED));
+  it('blocks a workflow that never states its agent count, and caps the count it states', () => {
+    assert.equal(spawn({ script: "await Promise.all(rows.map((r) => agent('x', { model: 'sonnet' })))" }, 'Workflow'), BLOCKED);
+    assert.equal(spawn({ script: '// AGENTS: 30\nawait parallel(rows.map((r) => () => agent(r)))' }, 'Workflow'), BLOCKED);
+  });
+  it('caps the wave when a stale file sits where the wave directory belongs', () => {
+    mkdirSync(path.join(box, '.claude'), { recursive: true });
+    writeFileSync(path.join(box, '.claude', '.wave-stale'), 'not a directory', 'utf8');
+    const run = () => at('stale', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
+    run(); run(); run();
+    assert.equal(run(), BLOCKED);
+  });
   it('blocks the fourth agent in one wave', () => {
     for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
     assert.equal(spawn({ prompt: 'fourth', model: 'haiku' }), BLOCKED);
@@ -216,6 +226,28 @@ describe('read and query budgets', () => {
     assert.equal(sh('sl', `sed -n '11,20p' ${file}`), ALLOWED);
     assert.equal(state('sl').saved.read, 640);
     assert.equal(state('sl').saved.trimmed + state('sl').saved.deferred + state('sl').saved.bytes, 0);
+  });
+  it('rewrites the read it judged, not an earlier copy of the same text, and keeps a spaced path whole', () => {
+    const big = `${'x'.repeat(70)}\n`.repeat(500);
+    const plain = path.join(box, 'echoed.txt');
+    writeFileSync(plain, big);
+    const echoed = run('ec', { tool_name: 'Bash', tool_input: { command: `echo "cat ${plain}" ; cat ${plain}` } });
+    const cmd = rewritten(echoed).updatedInput.command;
+    assert.match(cmd, /^echo "cat /, cmd);
+    assert.equal(cmd.match(/head -c/g).length, 1, cmd);
+
+    const dir = path.join(box, 'with space');
+    mkdirSync(dir, { recursive: true });
+    const spaced = path.join(dir, 'big file.txt');
+    writeFileSync(spaced, big);
+    const quoted = run('sp', { tool_name: 'Bash', tool_input: { command: `cat "${spaced}"` } });
+    assert.match(rewritten(quoted).updatedInput.command, /^head -c \d+ "/);
+    assert.equal(state('sp').saved.rewrites, 1);
+  });
+  it('refuses an oversize read carrying a flag head -c cannot reproduce', () => {
+    const flagged = path.join(box, 'flagged.txt');
+    writeFileSync(flagged, `${'x'.repeat(70)}\n`.repeat(500));
+    assert.equal(sh('fl', `cat -n ${flagged}`), BLOCKED);
   });
   it('denies the ninth whole-file read with a scout dispatch to paste', () => {
     for (let n = 0; n < 8; n += 1) {
@@ -392,6 +424,24 @@ describe('hooks', () => {
         { ...process.env, HANDOFF_OS_DIR: root });
       assert.equal(JSON.parse(readFileSync(ledger, 'utf8')).read_bytes, want, source);
     }
+  });
+
+  it('sweeps its own stale state out of the repo, keeps fresh state and foreign files', () => {
+    const root = sandbox('sweep-');
+    const dot = path.join(root, '.claude');
+    mkdirSync(dot, { recursive: true });
+    const stale = (Date.now() - 40 * 24 * 60 * 60 * 1000) / 1000;
+    for (const name of ['.session-old.json', '.verified-old', '.wave-old', 'keep.json']) {
+      writeFileSync(path.join(dot, name), '{}', 'utf8');
+      utimesSync(path.join(dot, name), stale, stale);
+    }
+    writeFileSync(path.join(dot, '.session-new.json'), '{}', 'utf8');
+    fire(script('card.mjs'), { session_id: 'sw', cwd: root, hook_event_name: 'SessionStart', source: 'startup' },
+      { ...process.env, HANDOFF_OS_DIR: root });
+    for (const gone of ['.session-old.json', '.verified-old', '.wave-old']) {
+      assert.ok(!existsSync(path.join(dot, gone)), gone);
+    }
+    for (const kept of ['.session-new.json', 'keep.json']) assert.ok(existsSync(path.join(dot, kept)), kept);
   });
 
   it('routes every judged tool to one guard, audits connector writes but not reads', () => {

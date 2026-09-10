@@ -2,7 +2,9 @@ export const MAX_PER_WAVE = 3;
 export const WAVE_MS = 90 * 1000;
 export const THINK_ESCALATION = /\b(?:ultrathink|megathink|think\s+(?:hard(?:er)?|deeply)|(?:reasoning[-_ ]?)?effort\s*[=:]\s*(?:high|xhigh|max))\b/i;
 export const WORKFLOW_AGENT_CALL = /(?<![.\w$])agent\s*\(/g;
-export const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)\s*\(|\.\s*(?:flat)?map\s*\(/;
+export const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)\s*\(/;
+// the declaration that makes a fan-out countable, so the wave cap can price it
+export const FANOUT_BUDGET = /(?:^|\n)\s*\/\/\s*AGENTS:\s*(\d+)\b/;
 export const BIG_FILE_BYTES = 24 * 1024;
 export const GREP_HEAD_LIMIT = 50;
 export const BASH_OUTPUT_CAP = 30000;
@@ -116,6 +118,8 @@ export const STRONG = ['send', 'pay', 'charge', 'invoice', 'checkout', 'publish'
   'submission', 'deploy', 'tweet', 'broadcast', 'resend', ...DESTRUCTIVE, ...WRITE_VERBS];
 export const SQL_DESTRUCTIVE = /\b(?:drop\s+(?:table|database|index|schema)|truncate\s+table|delete\s+from|alter\s+table)\b/i;
 export const MODEL_TIERS = /\b(?:haiku|sonnet|opus|fable)\b/i;
+// a tool with no model field selects a tier inside its script; a bare mention of the name is prose
+export const MODEL_OPTION = /\bmodel\s*[:=]\s*['"`]?\s*(haiku|sonnet|opus|fable)\b/gi;
 export const OUTWARD_PREFIX = /^(?:request|run|trigger|dispatch|approve)[-_]/;
 export const READ_PREFIX = /^(?:list|get|search|read|fetch|find|describe|count|preview|resolve|export)[-_]/;
 export const RESTORATIVE = /^un(?:trash|archive|delete|hide|mark)[-_]/;

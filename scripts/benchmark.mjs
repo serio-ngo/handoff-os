@@ -495,7 +495,8 @@ function abReadmeBlock(r, extra = []) {
     `| Δ billed tokens, with − without, cache-read at 0.1× | **${fmtPct(a.billedWeighted.pct)}**${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
     `| Δ billed tokens, raw sum of input + cache write + cache read | ${fmtPct(a.billedRaw.pct)}${fmtCi(a.billedRaw.pctCi95, fmtPct)} |`,
     `| Δ output tokens | ${fmtPct(a.output.pct)}${fmtCi(a.output.pctCi95, fmtPct)} |`,
-    `| Δ cost per task, list price | **${fmtUsd(a.costUsd.mean)}**${fmtCi(a.costUsd.ci95, fmtUsd)} |`,
+    `| Δ cost per task, each message at its own model's price | **${fmtUsd(a.cliCostUsd.mean)}**${fmtCi(a.cliCostUsd.ci95, fmtUsd)} |`,
+    `| Δ cost per task, every message at the run's flat tier — blind to a redirect | ${fmtUsd(a.costUsd.mean)}${fmtCi(a.costUsd.ci95, fmtUsd)} |`,
     `| Pass rate, with plugin | ${a.passA}/${r.n} |`,
     `| Pass rate, without plugin | ${a.passB}/${r.n} |`,
     `| Guard events, with plugin | ${guard.length ? guard.map(([rule, count]) => `${rule} ${count}`).join(' · ') : 'none'} |`,
@@ -521,13 +522,14 @@ function runTables(r) {
     `| Billed tokens, cache-read at 0.1× | ${Math.round(a.billedWeighted.mean)} | ${a.billedWeighted.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
     `| Billed tokens, raw | ${Math.round(a.billedRaw.mean)} | ${a.billedRaw.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedRaw.pct)}${fmtCi(a.billedRaw.pctCi95, fmtPct)} |`,
     `| Output tokens | ${Math.round(a.output.mean)} | ${a.output.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.output.pct)}${fmtCi(a.output.pctCi95, fmtPct)} |`,
-    `| Cost, USD | ${fmtUsd(a.costUsd.mean)} | ${a.costUsd.ci95.map((x) => fmtUsd(x)).join(' … ')} | ${fmtPct(a.costUsd.pct)}${fmtCi(a.costUsd.pctCi95, fmtPct)} |`,
+    `| Cost, USD, per-model | ${fmtUsd(a.cliCostUsd.mean)} | ${a.cliCostUsd.ci95.map((x) => fmtUsd(x)).join(' … ')} | ${fmtPct(a.cliCostUsd.pct)}${fmtCi(a.cliCostUsd.pctCi95, fmtPct)} |`,
+    `| Cost, USD, flat tier | ${fmtUsd(a.costUsd.mean)} | ${a.costUsd.ci95.map((x) => fmtUsd(x)).join(' … ')} | ${fmtPct(a.costUsd.pct)}${fmtCi(a.costUsd.pctCi95, fmtPct)} |`,
     `| Pass rate | with ${a.passA}/${r.n} · without ${a.passB}/${r.n} | — | — |`,
     `| Guard events, with plugin | ${Object.entries(a.guardEventsA).map(([k, v]) => `${k} ${v}`).join(' · ') || 'none'} | — | — |`,
     `| Spend, both arms | $${a.spendUsd.toFixed(2)} | — | — |`,
     '',
-    '| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Cost | Guard events | Ledger |', '|---|---|---|---|---|---|---|---|---|',
-    ...r.tasks.flatMap((t) => [t.A, t.B].map((row) => `| \`${row.task}\` | ${row.plugin ? 'with' : 'without'} | ${row.pass ? 'yes' : 'no'}${row.error ? ` (${row.error.split(':')[0]})` : ''} | ${num(row.billedWeighted)} | ${num(row.billedRaw)} | ${num(row.output)} | ${cost4(row.costUsd)} | ${guardCell(row)} | ${ledgerCell(row)} |`)),
+    '| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Cost, per-model | Guard events | Ledger |', '|---|---|---|---|---|---|---|---|---|',
+    ...r.tasks.flatMap((t) => [t.A, t.B].map((row) => `| \`${row.task}\` | ${row.plugin ? 'with' : 'without'} | ${row.pass ? 'yes' : 'no'}${row.error ? ` (${row.error.split(':')[0]})` : ''} | ${num(row.billedWeighted)} | ${num(row.billedRaw)} | ${num(row.output)} | ${cost4(row.cliCostUsd ?? row.costUsd)} | ${guardCell(row)} | ${ledgerCell(row)} |`)),
     '',
   ];
   if (r.micro) {
@@ -583,7 +585,7 @@ function abReadmeExtra(extra) {
     const a = x.aggregate;
     return [
       `| ${runLabel(x, i + 2)}: Δ billed tokens, cache-read at 0.1× | **${fmtPct(a.billedWeighted.pct)}**${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
-      `| ${runLabel(x, i + 2)}: Δ cost per task | **${fmtUsd(a.costUsd.mean)}**${fmtCi(a.costUsd.ci95, fmtUsd)} |`,
+      `| ${runLabel(x, i + 2)}: Δ cost per task, each message at its own model's price | **${fmtUsd(a.cliCostUsd.mean)}**${fmtCi(a.cliCostUsd.ci95, fmtUsd)} |`,
       `| ${runLabel(x, i + 2)}: pass rate, with / without | ${a.passA}/${x.n} / ${a.passB}/${x.n} |`,
     ];
   });
@@ -662,7 +664,7 @@ function ab(opts) {
     maxTurns: opts.maxTurns,
     stopped,
     plugin: {
-      dir: pluginDir,
+      dir: path.basename(pluginDir),
       version: JSON.parse(readFileSync(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8')).version,
       commit: gitAt(pluginRoot, ['rev-parse', 'HEAD']),
       ref: gitAt(pluginRoot, ['rev-parse', '--abbrev-ref', 'HEAD']),
@@ -919,7 +921,7 @@ if (flags.replay) {
   row('bytes kept out', `~${tokc(tok4(r.kept))}`, 'tok');
   row('bytes admitted', `~${tokc(tok4(r.admitted))}`, 'tok');
   if (flags.write) {
-    console.log(`  ${writeBlock(path.join(REPO, 'README.md'), REPLAY_OPEN, REPLAY_CLOSE, [
+    console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), REPLAY_OPEN, REPLAY_CLOSE, [
       `| The maintainer's ${num(r.sessions)} sessions${scope} — run it on yours | Count | Share of judged |`,
       '|---|---|---|',
       `| Tool calls recorded | ${num(r.calls)} | — |`,
@@ -984,7 +986,7 @@ const statsBlock = () => {
 };
 
 if (flags.write) {
-  console.log(`  ${writeBlock(path.join(REPO, 'README.md'), OPEN, CLOSE, statsBlock())}`);
+  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), OPEN, CLOSE, statsBlock())}`);
   mergeScores(REPO, {
     keptPct,
     keptTokens: kept,

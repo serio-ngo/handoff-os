@@ -6,7 +6,7 @@
   "maxTurns": 12,
   "stopped": null,
   "plugin": {
-    "dir": "/home/claude/handoff-sg/plugins/handoff-os",
+    "dir": "handoff-os",
     "version": "1.7.0",
     "footprintTokens": 273,
     "commit": "84f2ac8df5dd1ff3e1dd3bb888e7537b41873f45",

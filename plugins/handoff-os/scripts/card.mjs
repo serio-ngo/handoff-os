@@ -1,11 +1,31 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load, rootOf, save, sessionOf } from './ledger.mjs';
 
 const FREEING = new Set(['compact', 'clear']);
 const VERIFY = fileURLToPath(new URL('./verify.mjs', import.meta.url));
+const DAY_MS = 24 * 60 * 60 * 1000;
+// state the plugin leaves in the user's repo, swept once per session start
+const STALE = [[/^\.wave-/, DAY_MS], [/^\.verif(?:ied|y-gate-count)-/, DAY_MS], [/^\.session-/, 30 * DAY_MS]];
+
+function sweep(root) {
+  const dir = path.join(root, '.claude');
+  let names = [];
+  try { names = readdirSync(dir); } catch { return 0; }
+  let swept = 0;
+  for (const name of names) {
+    const age = (STALE.find(([rx]) => rx.test(name)) || [])[1];
+    if (age === undefined) continue;
+    try {
+      if (Date.now() - statSync(path.join(dir, name)).mtimeMs < age) continue;
+      rmSync(path.join(dir, name), { recursive: true, force: true });
+      swept += 1;
+    } catch { }
+  }
+  return swept;
+}
 
 function releaseCeiling(payload) {
   if (!FREEING.has(String(payload.source || ''))) return false;
@@ -74,6 +94,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { }
 
   releaseCeiling(payload);
+  sweep(rootOf(payload));
   process.stdout.write(`${card()}\n`);
   process.exit(0);
 }

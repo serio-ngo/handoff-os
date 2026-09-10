@@ -29,7 +29,9 @@
 | PreToolUse `additionalContext` | string added to Claude's context alongside the tool result — the only rewrite field the model sees |
 | PostToolUse `hookSpecificOutput.updatedToolOutput` | replaces the tool result Claude sees; must match the tool's output shape; the tool has already run |
 | PostToolUse `updatedMCPToolOutput` | MCP tools only; prefer `updatedToolOutput` |
-| `systemMessage` | universal field: warning text shown to the **user**, not model context; Stop honours it; capped at 10,000 chars |
+| `systemMessage` | universal field: warning text shown to the **user**, not model context; Stop honours it |
+| Subagents | settings, policy and **plugin** hooks all fire inside a subagent; a subagent's tool call raises `PreToolUse` like any other |
+| `Workflow` | a real tool name, valid in a hook matcher and in permission rules |
 | Env | `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT` |
 | Kill switch | `"disableAllHooks": true` |
 
@@ -74,6 +76,21 @@
 | Skill context | description always in; body on invocation only |
 | Subagent | `<plugin-root>/agents/<name>.md` → `<plugin>:<agent>` |
 | Plugin subagents ignore | `hooks`, `mcpServers`, `permissionMode` — block with `deny: ["Agent(name)"]` |
+
+## Limits already in the product
+
+| Fact | Value |
+|---|---|
+| Concurrent subagents | 20, then `Concurrent subagent limit reached`; raise with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`. No time window |
+| Bash output | ~30,000 chars inline, then a file path; `BASH_MAX_OUTPUT_LENGTH` |
+| `Read` whole-file | a dynamic token budget, not a fixed line count — over it, a `PARTIAL view` first page |
+| Unchanged-file re-read | suppressed by the `Read` tool; real but **undocumented** upstream (`anthropics/claude-code#60684`) |
+| `Grep` `head_limit`, `Read` `offset`/`limit` | built in |
+| Usage allowance | rolling 5-hour **and** weekly, drawn at the same time; a single burst such as a **large workflow fanout** can exhaust the weekly allowance before the session window resets |
+| Subagent past the allowance | its request fails terminally and the subagent stops before finishing |
+
+- Source: <https://code.claude.com/docs/en/sub-agents.md>, <https://code.claude.com/docs/en/errors.md>,
+  <https://code.claude.com/docs/en/tools-reference.md>
 
 ## Auth
 

@@ -75,14 +75,15 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 | Δ billed tokens, with − without, cache-read at 0.1× | **+35.5%** [+17.3%, +54.8%] |
 | Δ billed tokens, raw sum of input + cache write + cache read | +98.8% [+46.8%, +142.4%] |
 | Δ output tokens | +79.8% [+45.6%, +145.0%] |
-| Δ cost per task, list price | **+$0.0114** [+$0.0048, +$0.0181] |
+| Δ cost per task, each message at its own model's price | **+$0.0009** [−$0.0221, +$0.0166] |
+| Δ cost per task, every message at the run's flat tier — blind to a redirect | +$0.0114 [+$0.0048, +$0.0181] |
 | Pass rate, with plugin | 8/11 |
 | Pass rate, without plugin | 10/11 |
 | Guard events, with plugin | fan-out 9 · dispatch 8 · whole-file 3 · gated 3 · egress-lock 2 · repeat-query 1 · re-read 1 |
 | Plugin footprint, always in context | ~273 tok |
 | Total spend, both arms | $1.70 |
 | Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ billed tokens, cache-read at 0.1× | **+11.3%** [-5.0%, +42.7%] |
-| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ cost per task | **+$0.0040** [−$0.0023, +$0.0111] |
+| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ cost per task, each message at its own model's price | **−$0.0053** [−$0.0317, +$0.0131] |
 | Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): pass rate, with / without | 9/11 / 11/11 |
 
 Same prompt, same model, same fixture, arms in random order per task; 95% CI by bootstrap over paired differences. Negative Δ means the plugin arm billed less. Reproduce with `npm run benchmark:ab`. Per-task rows: `eval/ab-results.json`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
@@ -102,14 +103,14 @@ No ledger turns recorded yet. Method: docs/BENCHMARK.md.
 | Guard | Caught | Wrongly blocked | F1 |
 |---|---|---|---|
 | no guard, permission prompts only | 0% | 0% | 0.00 |
-| Claude Code permissions.deny globs | 21% | 7% | 0.33 |
-| a pattern-list PreToolUse hook | 46% | 14% | 0.59 |
-| block every tool call | 100% | 100% | 0.73 |
+| Claude Code permissions.deny globs | 17% | 6% | 0.29 |
+| a pattern-list PreToolUse hook | 39% | 11% | 0.53 |
+| block every tool call | 100% | 100% | 0.72 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-72 cases, 2026-09-10; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code. [Method](docs/BENCHMARK.md).
+85 cases, 2026-09-10; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code. [Method](docs/BENCHMARK.md).
 
-48 of 68 scored cases are `spec` (rule-derived), 19 `probe`, 1 `regression`; recall here is a regression check, not a detection rate.
+58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
 
 > Shell wrappers are unwrapped first, so `powershell -Command`, `cmd /c`, `bash -c` and
@@ -120,8 +121,8 @@ No ledger turns recorded yet. Method: docs/BENCHMARK.md.
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **1304** lines of Node across 7 scripts (1174 non-blank) |
-| Pattern rules | **61** |
+| Guard logic | **1383** lines of Node across 7 scripts (1238 non-blank) |
+| Pattern rules | **63** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |
 | Subagents | **2** |

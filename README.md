@@ -66,8 +66,11 @@ Zero dependencies, fully offline, no model calls, no network, no telemetry.
 | Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ billed tokens, cache-read at 0.1× | **+11.3%** [-5.0%, +42.7%] |
 | Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ billed tokens per task | **+4,025 tok** [-2,255 tok, +11,075 tok] |
 | Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): pass rate, with / without | 9/11 / 11/11 |
+| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1): Δ billed tokens, cache-read at 0.1× | **+32.5%** [+3.6%, +71.3%] |
+| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1): Δ billed tokens per task | **+11,695 tok** [+1,514 tok, +23,983 tok] |
+| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1): pass rate, with / without | 10/11 / 11/11 |
 
-Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
+Same prompt, same model, same fixture, arms in random order per task; 95% CI by bootstrap over paired differences. Negative Δ means the plugin arm billed less. Reproduce with `npm run benchmark:ab`. Per-task rows: `eval/ab-results.json`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 <!-- /handoff-ab -->
 
 ## Measured — live ledger

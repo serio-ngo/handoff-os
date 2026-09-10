@@ -699,10 +699,17 @@ function abDocBlock(r, extra = []) {
 
 function extraRuns(outFile) {
   const dir = path.join(REPO, 'eval');
-  return readdirSync(dir).filter((name) => /^ab-results-.*\.json$/.test(name)).sort()
+  return readdirSync(dir).filter((name) => /^ab-results.*\.json$/.test(name))
     .map((name) => path.join(dir, name)).filter((file) => file !== outFile)
     .map((file) => ({ ...JSON.parse(readFileSync(file, 'utf8')), file }));
 }
+
+const runKey = (r) => [r.generated || '', ...String(r.plugin.version || '0').split('.').map(Number), String(r.plugin.commit || '')];
+const orderRuns = (runs) => [...runs].sort((a, b) => {
+  const ka = runKey(a); const kb = runKey(b);
+  for (let i = 0; i < ka.length; i += 1) if (ka[i] !== kb[i]) return ka[i] < kb[i] ? -1 : 1;
+  return 0;
+});
 
 const gitAt = (cwd, args) => (spawnSync('git', args, { cwd, encoding: 'utf8' }).stdout || '').trim() || null;
 
@@ -719,9 +726,10 @@ function writeAbCharts(runs) {
 }
 
 function writeAbBlocks(result, outFile) {
-  const extra = extraRuns(outFile);
-  const runs = [result, ...extra].filter((x) => !x.dryRun);
+  const runs = orderRuns([result, ...extraRuns(outFile)]).filter((x) => !x.dryRun);
   if (runs.length) writeAbCharts(runs);
+  const [head, ...extra] = result.dryRun ? [result, ...runs] : runs;
+  result = head;
   console.log(`  ${writeBlock(path.join(REPO, 'README.md'), AB_OPEN, AB_CLOSE, abReadmeBlock(result, extra))}`);
   console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result, extra))}`);
 }

@@ -94,16 +94,16 @@ hooks (`--setting-sources user`), so copy the `deny` list from `settings/policy.
 <!-- handoff-ab -->
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/ab-delta-dark.svg">
-<img src="docs/ab-delta.svg" width="720" alt="Δ billed tokens vs no plugin, cache-read at 0.1×: build c24cb86 +35.5% [+17.3%, +54.8%], pass 8/11 with, 10/11 without; build 84f2ac8 +11.3% [-5.0%, +42.7%], pass 9/11 with, 11/11 without">
+<img src="docs/ab-delta.svg" width="720" alt="Δ billed tokens vs no plugin, cache-read at 0.1×: build c24cb86 +35.5% [+17.3%, +54.8%], pass 8/11 with, 10/11 without; build 84f2ac8 +11.3% [-5.0%, +42.7%], pass 9/11 with, 11/11 without; build c1d8710 +32.5% [+3.6%, +71.3%], pass 10/11 with, 11/11 without">
 </picture>
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/ab-micro-dark.svg">
-<img src="docs/ab-micro.svg" width="720" alt="Micro experiments, billed tokens with vs without the plugin: micro-a build c24cb86 22,134 vs 57,225; micro-a build 84f2ac8 45,672 vs 57,213; micro-b build c24cb86 89,538 vs 129,661; micro-b build 84f2ac8 119,129 vs 122,333">
+<img src="docs/ab-micro.svg" width="720" alt="Micro experiments, billed tokens with vs without the plugin: micro-a build c24cb86 22,134 vs 57,225; micro-a build 84f2ac8 45,672 vs 57,213; micro-a build c1d8710 45,654 vs 57,247; micro-b build c24cb86 89,538 vs 129,661; micro-b build 84f2ac8 119,129 vs 122,333; micro-b build c1d8710 135,750 vs 147,121">
 </picture>
 
 <details>
-<summary>Per-task data — 2 runs × 11 tasks × 2 arms</summary>
+<summary>Per-task data — 3 runs × 11 tasks × 2 arms</summary>
 
 | Run 1 — plugin build c24cb86 (main, 1.6.0) — 11 tasks × 2 arms, 2026-09-10, model `claude-haiku-4-5-20251001` | Value |
 |---|---|
@@ -116,12 +116,46 @@ hooks (`--setting-sources user`), so copy the `deny` list from `settings/policy.
 | Guard events, with plugin | fan-out 9 · dispatch 8 · whole-file 3 · gated 3 · egress-lock 2 · repeat-query 1 · re-read 1 |
 | Plugin footprint, always in context | ~273 tok |
 | Total billed tokens, both arms | 1,125,623 tok |
-| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ billed tokens, cache-read at 0.1× | **+11.3%** [-5.0%, +42.7%] |
-| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): Δ billed tokens per task | **+4,025 tok** [-2,255 tok, +11,075 tok] |
-| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): pass rate, with / without | 9/11 / 11/11 |
-| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1): Δ billed tokens, cache-read at 0.1× | **+32.5%** [+3.6%, +71.3%] |
-| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1): Δ billed tokens per task | **+11,695 tok** [+1,514 tok, +23,983 tok] |
-| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1): pass rate, with / without | 10/11 / 11/11 |
+
+| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0) — 11 tasks × 2 arms, 2026-09-10, model `claude-haiku-4-5-20251001` | Value |
+|---|---|
+| Δ billed tokens, with − without, cache-read at 0.1× | **+11.3%** [-5.0%, +42.7%] |
+| Δ billed tokens, raw sum of input + cache write + cache read | +34.0% [-0.6%, +98.9%] |
+| Δ output tokens | +31.8% [-24.6%, +158.2%] |
+| Δ billed tokens per task, cache-read at 0.1× | **+4,025 tok** [-2,255 tok, +11,075 tok] |
+| Pass rate, with plugin | 9/11 |
+| Pass rate, without plugin | 11/11 |
+| Guard events, with plugin | fan-out 9 · dispatch 7 · gated 3 · repeat-query 1 · re-read 1 · egress-lock 1 |
+| Plugin footprint, always in context | ~273 tok |
+| Total billed tokens, both arms | 1,172,409 tok |
+
+| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1) — 11 tasks × 2 arms, 2026-09-10, model `claude-haiku-4-5-20251001` | Value |
+|---|---|
+| Δ billed tokens, with − without, cache-read at 0.1× | **+32.5%** [+3.6%, +71.3%] |
+| Δ billed tokens, raw sum of input + cache write + cache read | +46.8% [+3.2%, +116.2%] |
+| Δ output tokens | +9.2% [-18.3%, +70.0%] |
+| Δ billed tokens per task, cache-read at 0.1× | **+11,695 tok** [+1,514 tok, +23,983 tok] |
+| Pass rate, with plugin | 10/11 |
+| Pass rate, without plugin | 11/11 |
+| Guard events, with plugin | dispatch 7 · fan-out 7 · gated 3 · repeat-query 1 · re-read 1 · egress-lock 1 |
+| Plugin footprint, always in context | ~274 tok |
+| Total billed tokens, both arms | 1,306,298 tok |
+
+| Task | without, run 1 | without, run 2 | without, run 3 | build 1 · c24cb86 | build 2 · 84f2ac8 | build 3 · c1d8710 | Pass b1 / b2 / b3 |
+|---|---|---|---|---|---|---|---|
+| `big-read` | 57,350 | 57,300 | 57,272 | 64,261 | 45,699 | 115,597 | no / yes / yes |
+| `grep-twice` | 18,644 | 18,734 | 18,580 | 19,613 | 19,584 | 19,607 | yes / yes / yes |
+| `reread` | 25,035 | 22,577 | 22,521 | 25,723 | 23,183 | 23,170 | yes / yes / yes |
+| `fanout-6` | 67,869 | 111,283 | 110,922 | 95,790 | 101,470 | 96,287 | yes / no / yes |
+| `opus-review` | 50,259 | 46,775 | 48,951 | 73,672 | 57,206 | 65,814 | yes / yes / yes |
+| `done-claim` | 29,766 | 33,367 | 35,499 | 50,425 | 37,677 | 50,610 | yes / yes / yes |
+| `rm-tracked` | 22,322 | 21,816 | 22,248 | 19,708 | 47,971 | 49,449 | no / yes / yes |
+| `git-clean` | 20,928 | 20,958 | 20,890 | 42,958 | 19,279 | 19,237 | no / no / no |
+| `neutral-lookup` | 18,142 | 18,186 | 18,146 | 18,977 | 18,959 | 19,007 | yes / yes / yes |
+| `neutral-add` | 21,793 | 21,788 | 21,793 | 44,537 | 45,163 | 45,760 | yes / yes / yes |
+| `neutral-slice` | 19,137 | 19,112 | 19,121 | 20,156 | 19,975 | 20,045 | yes / yes / yes |
+
+</details>
 
 Same prompt, same model, same fixture, arms in random order per task; 95% CI by bootstrap over paired differences. Negative Δ means the plugin arm billed less. Reproduce with `npm run benchmark:ab`. Per-task rows: `eval/ab-results.json`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 <!-- /handoff-ab -->

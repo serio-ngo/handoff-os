@@ -215,12 +215,12 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 <!-- ab-results -->
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="ab-delta-dark.svg">
-<img src="ab-delta.svg" width="720" alt="Δ billed tokens vs no plugin, cache-read at 0.1×: build c24cb86 +35.5% [+17.3%, +54.8%], pass 8/11 with, 10/11 without; build 84f2ac8 +11.3% [-5.0%, +42.7%], pass 9/11 with, 11/11 without">
+<img src="ab-delta.svg" width="720" alt="Δ billed tokens vs no plugin, cache-read at 0.1×: build c24cb86 +35.5% [+17.3%, +54.8%], pass 8/11 with, 10/11 without; build 84f2ac8 +11.3% [-5.0%, +42.7%], pass 9/11 with, 11/11 without; build c1d8710 +32.5% [+3.6%, +71.3%], pass 10/11 with, 11/11 without">
 </picture>
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="ab-micro-dark.svg">
-<img src="ab-micro.svg" width="720" alt="Micro experiments, billed tokens with vs without the plugin: micro-a build c24cb86 22,134 vs 57,225; micro-a build 84f2ac8 45,672 vs 57,213; micro-b build c24cb86 89,538 vs 129,661; micro-b build 84f2ac8 119,129 vs 122,333">
+<img src="ab-micro.svg" width="720" alt="Micro experiments, billed tokens with vs without the plugin: micro-a build c24cb86 22,134 vs 57,225; micro-a build 84f2ac8 45,672 vs 57,213; micro-a build c1d8710 45,654 vs 57,247; micro-b build c24cb86 89,538 vs 129,661; micro-b build 84f2ac8 119,129 vs 122,333; micro-b build c1d8710 135,750 vs 147,121">
 </picture>
 
 | Status | Run 1 — plugin build c24cb86 (main, 1.6.0) · 2026-09-10 · model `claude-haiku-4-5-20251001` · N = 11 |
@@ -323,6 +323,8 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | `micro-b` | with | 119,129 | 381,315 | 21 / 18 / 3 | dispatch 6, fan-out 12 | agents 3, blocked 18, rewrites 1, trimmed 17974, offload 1025, read 25175, scouts 3, waves 12, agentsCapped 12 |
 | `micro-b` | without | 122,333 | 379,503 | 6 / 0 / 6 | — | — |
 
+</details>
+
 | Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1) |
 |---|
 
@@ -334,6 +336,9 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | Pass rate | with 10/11 · without 11/11 | — | — |
 | Guard events, with plugin | repeat-query 1 · re-read 1 · dispatch 7 · fan-out 7 · gated 3 · egress-lock 1 | — | — |
 | Billed tokens, both arms | 1,306,298 | — | — |
+
+<details>
+<summary>Per-task rows · 22 · micro rows · 4</summary>
 
 | Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|
@@ -366,6 +371,8 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 | `micro-a` | without | 57,247 | 65,692 | 0 / 0 / 0 | — | — |
 | `micro-b` | with | 135,750 | 397,216 | 15 / 9 / 6 | dispatch 6, fan-out 3 | agents 6, blocked 9, rewrites 1, trimmed 17974, offload 26200, scouts 6, gated 3, waves 3, agentsCapped 3 |
 | `micro-b` | without | 147,121 | 538,675 | 5 / 0 / 5 | — | — |
+
+</details>
 
 | Task | without, run 1 | without, run 2 | without, run 3 | build 1 · c24cb86 | build 2 · 84f2ac8 | build 3 · c1d8710 | Pass b1 / b2 / b3 |
 |---|---|---|---|---|---|---|---|

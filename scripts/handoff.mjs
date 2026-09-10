@@ -211,10 +211,13 @@ function normalise() {
   return touched;
 }
 
+const bench = (...args) => spawnSync(process.execPath, [path.join(REPO, 'scripts', 'benchmark.mjs'), REPO, ...args], { stdio: 'inherit' });
+
 function upkeep() {
   const touched = normalise();
   writeFileSync(path.join(REPO, 'docs', 'MANIFEST.md'), manifest(), 'utf8');
   writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock());
+  if (existsSync(path.join(REPO, 'eval', 'ab-results.json'))) bench('ab', '--render');
   row('formatted', `${touched} file(s)`);
 }
 
@@ -332,7 +335,6 @@ function release(args) {
   writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock());
   row('released', plugin.version);
   report();
-  const bench = (...args) => spawnSync(process.execPath, [path.join(REPO, 'scripts', 'benchmark.mjs'), REPO, ...args], { stdio: 'inherit' });
   bench('--eval', '--compare', '--write');
   bench('--write');
 }

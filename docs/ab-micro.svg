@@ -1,25 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 374" width="760" height="374" role="img" aria-label="Micro experiments, billed tokens with vs without the plugin: micro-a build c24cb86 22,134 vs 57,225; micro-a build 84f2ac8 45,672 vs 57,213; micro-b build c24cb86 89,538 vs 129,661; micro-b build 84f2ac8 119,129 vs 122,333" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
-<rect x="0.5" y="0.5" width="759" height="373" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 466" width="760" height="466" role="img" aria-label="Micro experiments, billed tokens with vs without the plugin: micro-a build c24cb86 22,134 vs 57,225; micro-a build 84f2ac8 45,672 vs 57,213; micro-a build c1d8710 45,654 vs 57,247; micro-b build c24cb86 89,538 vs 129,661; micro-b build 84f2ac8 119,129 vs 122,333; micro-b build c1d8710 135,750 vs 147,121" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
+<rect x="0.5" y="0.5" width="759" height="465" rx="8" fill="#ffffff" stroke="#d0d7de"/>
 <text x="20" y="30" fill="#1f2328" font-size="15" font-weight="600">Micro experiments — billed tokens per arm, cache-read at 0.1×</text>
 <text x="20" y="50" fill="#656d76" font-size="11">model claude-haiku-4-5-20251001 · one prompt per arm · lower is cheaper</text>
 <rect x="542" y="22" width="10" height="10" rx="2" fill="#2a78d6"/>
 <text x="557" y="31" fill="#656d76" font-size="11">with plugin</text>
 <rect x="642" y="22" width="10" height="10" rx="2" fill="#8c959f"/>
 <text x="657" y="31" fill="#656d76" font-size="11">without</text>
-<line x1="300" y1="66" x2="300" y2="322" stroke="#8c959f" stroke-width="1"/>
-<text x="300" y="338" fill="#656d76" font-size="11" text-anchor="middle">0</text>
-<line x1="351.7" y1="66" x2="351.7" y2="322" stroke="#eaeef2" stroke-width="1"/>
-<text x="351.7" y="338" fill="#656d76" font-size="11" text-anchor="middle">25k</text>
-<line x1="403.3" y1="66" x2="403.3" y2="322" stroke="#eaeef2" stroke-width="1"/>
-<text x="403.3" y="338" fill="#656d76" font-size="11" text-anchor="middle">50k</text>
-<line x1="455" y1="66" x2="455" y2="322" stroke="#eaeef2" stroke-width="1"/>
-<text x="455" y="338" fill="#656d76" font-size="11" text-anchor="middle">75k</text>
-<line x1="506.7" y1="66" x2="506.7" y2="322" stroke="#eaeef2" stroke-width="1"/>
-<text x="506.7" y="338" fill="#656d76" font-size="11" text-anchor="middle">100k</text>
-<line x1="558.3" y1="66" x2="558.3" y2="322" stroke="#eaeef2" stroke-width="1"/>
-<text x="558.3" y="338" fill="#656d76" font-size="11" text-anchor="middle">125k</text>
-<line x1="610" y1="66" x2="610" y2="322" stroke="#eaeef2" stroke-width="1"/>
-<text x="610" y="338" fill="#656d76" font-size="11" text-anchor="middle">150k</text>
+<line x1="300" y1="66" x2="300" y2="414" stroke="#8c959f" stroke-width="1"/>
+<text x="300" y="430" fill="#656d76" font-size="11" text-anchor="middle">0</text>
+<line x1="351.7" y1="66" x2="351.7" y2="414" stroke="#eaeef2" stroke-width="1"/>
+<text x="351.7" y="430" fill="#656d76" font-size="11" text-anchor="middle">25k</text>
+<line x1="403.3" y1="66" x2="403.3" y2="414" stroke="#eaeef2" stroke-width="1"/>
+<text x="403.3" y="430" fill="#656d76" font-size="11" text-anchor="middle">50k</text>
+<line x1="455" y1="66" x2="455" y2="414" stroke="#eaeef2" stroke-width="1"/>
+<text x="455" y="430" fill="#656d76" font-size="11" text-anchor="middle">75k</text>
+<line x1="506.7" y1="66" x2="506.7" y2="414" stroke="#eaeef2" stroke-width="1"/>
+<text x="506.7" y="430" fill="#656d76" font-size="11" text-anchor="middle">100k</text>
+<line x1="558.3" y1="66" x2="558.3" y2="414" stroke="#eaeef2" stroke-width="1"/>
+<text x="558.3" y="430" fill="#656d76" font-size="11" text-anchor="middle">125k</text>
+<line x1="610" y1="66" x2="610" y2="414" stroke="#eaeef2" stroke-width="1"/>
+<text x="610" y="430" fill="#656d76" font-size="11" text-anchor="middle">150k</text>
 <text x="20" y="86" fill="#1f2328" font-size="12" font-weight="600">micro-a — whole-file read of src/big.js</text>
 <text x="20" y="118" fill="#1f2328" font-size="11.5">build c24cb86 · 1.6.0</text>
 <text x="20" y="133" fill="#656d76" font-size="11">guard events whole-file 1</text>
@@ -33,18 +33,30 @@
 <text x="400.4" y="167" fill="#1f2328" font-size="11" font-weight="600">45.7k</text>
 <path d="M300,171 H414.2 A4,4 0 0 1 418.2,175 V179 A4,4 0 0 1 414.2,183 H300 Z" fill="#8c959f"/>
 <text x="424.2" y="181" fill="#656d76" font-size="11">57.2k</text>
-<text x="20" y="206" fill="#1f2328" font-size="12" font-weight="600">micro-b — six-subagent fan-out</text>
-<text x="20" y="238" fill="#1f2328" font-size="11.5">build c24cb86 · 1.6.0</text>
-<text x="20" y="253" fill="#656d76" font-size="11">subagents 3 of 18 spawned vs 6 of 6</text>
-<path d="M300,231 H481 A4,4 0 0 1 485,235 V239 A4,4 0 0 1 481,243 H300 Z" fill="#2a78d6"/>
-<text x="491" y="241" fill="#1f2328" font-size="11" font-weight="600">89.5k</text>
-<path d="M300,245 H564 A4,4 0 0 1 568,249 V253 A4,4 0 0 1 564,257 H300 Z" fill="#8c959f"/>
-<text x="574" y="255" fill="#656d76" font-size="11">129.7k</text>
-<text x="20" y="284" fill="#1f2328" font-size="11.5">build 84f2ac8 · 1.7.0</text>
-<text x="20" y="299" fill="#656d76" font-size="11">subagents 3 of 21 spawned vs 6 of 6</text>
-<path d="M300,277 H542.2 A4,4 0 0 1 546.2,281 V285 A4,4 0 0 1 542.2,289 H300 Z" fill="#2a78d6"/>
-<text x="552.2" y="287" fill="#1f2328" font-size="11" font-weight="600">119.1k</text>
-<path d="M300,291 H548.8 A4,4 0 0 1 552.8,295 V299 A4,4 0 0 1 548.8,303 H300 Z" fill="#8c959f"/>
-<text x="558.8" y="301" fill="#656d76" font-size="11">122.3k</text>
-<text x="20" y="356" fill="#656d76" font-size="11">billed = input + 1.25× / 2× cache write + 0.1× cache read, from transcript usage · same fixture, same model, one prompt per arm</text>
+<text x="20" y="210" fill="#1f2328" font-size="11.5">build c1d8710 · 1.9.1</text>
+<text x="20" y="225" fill="#656d76" font-size="11">ledger rewrites 1, trimmed 17974, read 24510</text>
+<path d="M300,203 H390.4 A4,4 0 0 1 394.4,207 V211 A4,4 0 0 1 390.4,215 H300 Z" fill="#2a78d6"/>
+<text x="400.4" y="213" fill="#1f2328" font-size="11" font-weight="600">45.7k</text>
+<path d="M300,217 H414.3 A4,4 0 0 1 418.3,221 V225 A4,4 0 0 1 414.3,229 H300 Z" fill="#8c959f"/>
+<text x="424.3" y="227" fill="#656d76" font-size="11">57.2k</text>
+<text x="20" y="252" fill="#1f2328" font-size="12" font-weight="600">micro-b — six-subagent fan-out</text>
+<text x="20" y="284" fill="#1f2328" font-size="11.5">build c24cb86 · 1.6.0</text>
+<text x="20" y="299" fill="#656d76" font-size="11">subagents 3 of 18 spawned vs 6 of 6</text>
+<path d="M300,277 H481 A4,4 0 0 1 485,281 V285 A4,4 0 0 1 481,289 H300 Z" fill="#2a78d6"/>
+<text x="491" y="287" fill="#1f2328" font-size="11" font-weight="600">89.5k</text>
+<path d="M300,291 H564 A4,4 0 0 1 568,295 V299 A4,4 0 0 1 564,303 H300 Z" fill="#8c959f"/>
+<text x="574" y="301" fill="#656d76" font-size="11">129.7k</text>
+<text x="20" y="330" fill="#1f2328" font-size="11.5">build 84f2ac8 · 1.7.0</text>
+<text x="20" y="345" fill="#656d76" font-size="11">subagents 3 of 21 spawned vs 6 of 6</text>
+<path d="M300,323 H542.2 A4,4 0 0 1 546.2,327 V331 A4,4 0 0 1 542.2,335 H300 Z" fill="#2a78d6"/>
+<text x="552.2" y="333" fill="#1f2328" font-size="11" font-weight="600">119.1k</text>
+<path d="M300,337 H548.8 A4,4 0 0 1 552.8,341 V345 A4,4 0 0 1 548.8,349 H300 Z" fill="#8c959f"/>
+<text x="558.8" y="347" fill="#656d76" font-size="11">122.3k</text>
+<text x="20" y="376" fill="#1f2328" font-size="11.5">build c1d8710 · 1.9.1</text>
+<text x="20" y="391" fill="#656d76" font-size="11">subagents 6 of 15 spawned vs 5 of 5</text>
+<path d="M300,369 H576.6 A4,4 0 0 1 580.6,373 V377 A4,4 0 0 1 576.6,381 H300 Z" fill="#2a78d6"/>
+<text x="586.6" y="379" fill="#1f2328" font-size="11" font-weight="600">135.8k</text>
+<path d="M300,383 H600.1 A4,4 0 0 1 604.1,387 V391 A4,4 0 0 1 600.1,395 H300 Z" fill="#8c959f"/>
+<text x="610.1" y="393" fill="#656d76" font-size="11">147.1k</text>
+<text x="20" y="448" fill="#656d76" font-size="11">billed = input + 1.25× / 2× cache write + 0.1× cache read, from transcript usage · same fixture, same model, one prompt per arm</text>
 </svg>

@@ -1,6 +1,6 @@
 # Plan — 1.6
 
-<!-- follow-up to PR #18; rows 0 and 1 land in this PR, the rest are the plan -->
+<!-- follow-up to PR #18; rows 0 and 1 landed in PR #19, rows 2–5 and 8 in the spend-guard PR; status per row -->
 
 | Item | Value |
 |---|---|
@@ -42,14 +42,18 @@
 |---|---|---|---|---|---|
 | 0 | Version 1.6.0 — done in this PR | `plugin.json`, `package.json`, `CHANGELOG.md` | `npm run doctor` registers 1.6.0 | — | 2 |
 | 1 | `gated` counter for verify gate + citation contract — done in this PR | `ledger.mjs`, `verify.mjs` | Stop line `N gated` | one blocking case | 8 |
-| 2 | `sessionLine(state)`: per-session receipt — stops by class, admitted tok and share of ceiling, bytes trimmed, actors used, footprint; Stop prints it only when totals changed since last print; `lifetimeLine` stays for the benchmark | `ledger.mjs`, `verify.mjs` | receipt fields | one blocking case: silent Stop when nothing changed | 40 |
-| 3 | Rewrite instead of refuse via PreToolUse `updatedInput`: oversize `Read` → `{offset, limit}`; `cat\|bat\|less f` over cap → `head -c 24576 f`; content `Grep` without `head_limit` → `head_limit: 50`; book `trimmed = size − admitted` per event | `guard.mjs` | deterministic byte delta, no refusal round-trip | one case per rewrite shape | 60 |
-| 4 | Book every read shape: `sed -n a,bp`, `head -n/-c`, `tail`, first segment of a pipe, `Read offset/limit`, `cat a b` → estimated admitted bytes; interpreter and `git show` reads → `unjudged` counter, the denominator | `patterns.mjs`, `guard.mjs` | `read` and `unjudged` counters | one case: `sed -n` books admitted bytes | 50 |
-| 5 | Enforced delegation: after 8 whole files or 150 KB admitted, deny the next whole-file read and print a ready-to-paste `handoff-os:scout` dispatch naming the file; counted as `offload` | `guard.mjs` | `offload` counter | one case: ninth whole file denied | 25 |
+| 2 | `sessionLine(state)`: per-session receipt — done in the spend-guard PR — stops by class, admitted tok and share of ceiling, bytes trimmed, actors used, footprint; Stop prints it only when totals changed since last print; `lifetimeLine` stays for the benchmark | `ledger.mjs`, `verify.mjs` | receipt fields | one blocking case: silent Stop when nothing changed | 40 |
+| 3 | Rewrite instead of refuse via PreToolUse `updatedInput` — done in the spend-guard PR: oversize `Read` → `{offset, limit}`; `cat\|bat\|less f` over cap → `head -c 24576 f`; content `Grep` without `head_limit` → `head_limit: 50`; book `trimmed = size − admitted` per event | `guard.mjs` | deterministic byte delta, no refusal round-trip | one case per rewrite shape | 60 |
+| 4 | Book every read shape — done in the spend-guard PR: `sed -n a,bp`, `head -n/-c`, `tail`, first segment of a pipe, `Read offset/limit`, `cat a b` → estimated admitted bytes; interpreter and `git show` reads → `unjudged` counter, the denominator | `patterns.mjs`, `guard.mjs` | `read` and `unjudged` counters | one case: `sed -n` books admitted bytes | 50 |
+| 5 | Enforced delegation — done in the spend-guard PR, counter `offloads`: after 8 whole files or 150 KB admitted, deny the next whole-file read and print a ready-to-paste `handoff-os:scout` dispatch naming the file | `guard.mjs` | `offloads` counter | one case: ninth whole file denied | 25 |
 | 6 | Track B runner `npm run benchmark:ab` over `eval/tasks.jsonl`, paired arms with and without `--plugin-dir` — the proof | `scripts/benchmark.mjs`, `eval/tasks.jsonl` | `docs/BENCHMARK.md` Track B | outside the suite, like `benchmark:eval` | 200 |
 | 7 | OTEL attribution recipe | `docs/BENCHMARK.md` | `claude_code.tool_decision` with `decision_source: hook`; `claude_code.token.usage` with `plugin.name` — third-party names need `OTEL_LOG_TOOL_DETAILS=1` | — | 0 |
-| 8 | README honesty: badge relabel (`68-case regression suite`, not `100% caught`); savings net of footprint and per session length; Cowork hooks inert with issue refs; OpenCode subagent bypass; bytes / 4 is an estimate | `README.md` | — | — | 0 |
-| 9 | Go/no-go after row 6: if Δ billed ≤ footprint and `gated` + citation catches = 0 over N tasks, drop the optimisation positioning and ship as guard + verify gate only | `README.md`, `plugin.json` description | row 6 output | — | 0 |
+| 8 | README honesty — done in the spend-guard PR: badge relabel (`68-case regression suite`, not `100% caught`); savings net of footprint and per session length; Cowork hooks inert with issue refs; OpenCode subagent bypass; bytes / 4 is an estimate | `README.md` | — | — | 0 |
+| 9 | Go/no-go after row 6 — measured in PR #21 (`npm run benchmark:ab`, N=11, cheapest tier): 1.6.0 vs no plugin +35.5% billed [+17.3, +54.8], pass 8/11 vs 10/11; 1.7.0 (`84f2ac8`) +11.3% [−5.0, +42.7], pass 9/11 vs 11/11; micro whole-file −61% (scout) vs −20% (slice), fan-out −31% vs −3%. Verdict: token-optimisation positioning **no-go** at N=11 (neither build bills less on the general set); spend-guard positioning **go** (fan-out and whole-file cases save, egress stops work) | `README.md`, `plugin.json` description | row 6 output | — | 0 |
+| 10 | Verify gate scoping: fire only when the session wrote code and no test or verify run followed; never on a bare "Done." after a lookup (largest cost driver in both builds; 1 of 3 neutral tasks tripped) | `verify.mjs` | `gated` vs Track B pass rate | one case: bare "Done." after reads only passes | 20 |
+| 11 | Hybrid read path: rewrite to a slice up to ~2× cap, deny with the scout remedy above it (scout path −61% vs slice −20%) | `guard.mjs`, `patterns.mjs` | Track B micro whole-file | one case: 3× cap is denied, not rewritten | 10 |
+| 12 | Fan-out cap remedy text — done in the spend-guard PR: dispatch the rest in the next wave after these return, never wait for the user (`fanout-6` stopped at "waiting for the next wave" on 1.7.0) | `guard.mjs` | Track B `fanout-6` pass | — | 1 |
+| 13 | Track B at N ≥ 30 with two model tiers before any % claim enters the README | `scripts/benchmark.mjs`, `eval/tasks.jsonl` | `eval/ab-results.json` CI width | — | 0 |
 
 ## Proof format
 

@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin.json",
   "name": "handoff-os",
   "displayName": "Handoff OS",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "A deterministic gate on Claude Code tool calls. Sends, payments, publishes, merges, deletes and credential writes are blocked before they run, a done-claim needs a real verification run, and read and subagent budgets cap waste. Pattern matching in Node: no model call, no API key, no telemetry.",
   "author": {
     "name": "Serio NGO",

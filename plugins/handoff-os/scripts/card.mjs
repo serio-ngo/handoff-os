@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load, rootOf, save, sessionOf } from './ledger.mjs';
@@ -14,6 +14,7 @@ function releaseCeiling(payload) {
   const state = load(root, session);
   if (!state.read_bytes) return false;
   state.read_bytes = 0;
+  state.whole_files = 0;
   state.reads = {};
   save(root, session, state);
   return true;
@@ -34,7 +35,26 @@ function memory() {
   return '';
 }
 
-export function card(text = memory()) {
+export const frontmatter = (text, key) => {
+  const hit = new RegExp(`^${key}:\\s*([\\s\\S]*?)(?=^[a-z_]+:|^---)`, 'm').exec(text);
+  return (hit ? hit[1] : '').trim().replace(/^["']|["']$/g, '');
+};
+
+function descriptionChars(dir, pick) {
+  try {
+    return readdirSync(dir).flatMap(pick).reduce((sum, file) => sum + frontmatter(readFileSync(file, 'utf8'), 'description').length, 0);
+  } catch { return 0; }
+}
+
+export function footprint(text = memory(), locked = process.env.HANDOFF_LOCK_GIT === '1') {
+  const plugin = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const cardChars = card(text, locked).length;
+  const skillChars = descriptionChars(path.join(plugin, 'skills'), (name) => [path.join(plugin, 'skills', name, 'SKILL.md')]);
+  const agentChars = descriptionChars(path.join(plugin, 'agents'), (name) => (name.endsWith('.md') ? [path.join(plugin, 'agents', name)] : []));
+  return { cardChars, skillChars, agentChars, contextChars: cardChars + skillChars + agentChars };
+}
+
+export function card(text = memory(), locked = process.env.HANDOFF_LOCK_GIT === '1') {
   const lines = text.trim() === '' ? 0 : text.trim().split('\n').length;
   const status = lines
     ? `set (${lines} lines) — read memory.md when owner context is needed`
@@ -43,7 +63,7 @@ export function card(text = memory()) {
 TIERS  GREEN inward, reversible → act · YELLOW outside the repo → act, audit one line
        RED sends, pays, submits, publishes or is irreversible → STOP, hand off
 HANDOFF three lines, nothing else: DONE <prepared> · FILE <path> · YOU <verb> -> <where> -> <when>
-NEVER  send · pay · submit · publish · git merge / delete${process.env.HANDOFF_LOCK_GIT === '1' ? ' · every state-changing git (locked)' : ''} · set ANTHROPIC_API_KEY /
+NEVER  send · pay · submit · publish · git merge / delete${locked ? ' · every state-changing git (locked)' : ''} · set ANTHROPIC_API_KEY /
        ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN / apiKeyHelper · put org data in git
 MEMORY ${status}
 PROOF  a "done" claim needs a real run: node "${VERIFY}" <session_id>`;

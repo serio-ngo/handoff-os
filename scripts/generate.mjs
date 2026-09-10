@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { card } from '../plugins/handoff-os/scripts/card.mjs';
+import { footprint, frontmatter } from '../plugins/handoff-os/scripts/card.mjs';
 
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const PLUGIN = path.join(REPO, 'plugins', 'handoff-os');
@@ -101,11 +101,6 @@ export function writeBlock(file, open, close, lines) {
   return `refreshed ${path.basename(file)}`;
 }
 
-const frontmatter = (text, key) => {
-  const hit = new RegExp(`^${key}:\\s*([\\s\\S]*?)(?=^[a-z_]+:|^---)`, 'm').exec(text);
-  return (hit ? hit[1] : '').trim().replace(/^["']|["']$/g, '');
-};
-
 export function inventory(root = REPO) {
   const plugin = path.join(root, 'plugins', 'handoff-os');
   const scripts = readdirSync(path.join(plugin, 'scripts')).filter((f) => f.endsWith('.mjs'));
@@ -118,12 +113,7 @@ export function inventory(root = REPO) {
   }
 
   const skills = readdirSync(path.join(plugin, 'skills'));
-  const skillChars = skills.reduce((sum, name) => sum
-    + frontmatter(readFileSync(path.join(plugin, 'skills', name, 'SKILL.md'), 'utf8'), 'description').length, 0);
-
   const agents = readdirSync(path.join(plugin, 'agents')).filter((f) => f.endsWith('.md'));
-  const agentChars = agents.reduce((sum, name) => sum
-    + frontmatter(readFileSync(path.join(plugin, 'agents', name), 'utf8'), 'description').length, 0);
 
   const events = Object.entries(JSON.parse(readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')).hooks);
   const handlers = events.reduce((sum, [, group]) => sum
@@ -131,13 +121,7 @@ export function inventory(root = REPO) {
 
   const patterns = (readFileSync(path.join(plugin, 'scripts', 'patterns.mjs'), 'utf8').match(/^export const/gm) || []).length;
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
-  // The card grows when git is locked, so measure the shipped default or the count is env-dependent
-  // and `upkeep` stops being idempotent.
-  const lock = process.env.HANDOFF_LOCK_GIT;
-  delete process.env.HANDOFF_LOCK_GIT;
-  const cardChars = card('').length;
-  if (lock !== undefined) process.env.HANDOFF_LOCK_GIT = lock;
-  const contextChars = cardChars + skillChars + agentChars;
+  const { cardChars, skillChars, agentChars, contextChars } = footprint('', false);
 
   return {
     skills: skills.length,

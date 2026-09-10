@@ -26,7 +26,14 @@ export function toPayload(tool, args = {}, sessionID = '', cwd = process.cwd()) 
 export function verdictFor(tool, args, sessionID, cwd) {
   const payload = toPayload(tool, args, sessionID, cwd);
   try {
-    judge(payload);
+    const rewrite = judge(payload);
+    if (rewrite && args && typeof args === 'object') {
+      for (const [key, value] of Object.entries(rewrite.updatedInput)) {
+        const camel = Object.keys(ALIAS).find((from) => ALIAS[from] === key);
+        if (camel && camel in args) args[camel] = value;
+        else args[key] = value;
+      }
+    }
     return null;
   } catch (error) {
     if (!(error instanceof Blocked)) throw error;

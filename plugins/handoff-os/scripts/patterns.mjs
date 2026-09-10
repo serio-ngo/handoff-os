@@ -4,7 +4,11 @@ export const THINK_ESCALATION = /\b(?:ultrathink|megathink|think\s+(?:hard(?:er)
 export const WORKFLOW_AGENT_CALL = /(?<![.\w$])agent\s*\(/g;
 export const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)\s*\(|\.\s*(?:flat)?map\s*\(/;
 export const BIG_FILE_BYTES = 24 * 1024;
+export const GREP_HEAD_LIMIT = 50;
+export const BASH_OUTPUT_CAP = 30000;
 export const READ_CEILING_BYTES = 500 * 1024;
+export const DELEGATE_BYTES = 150 * 1024;
+export const WHOLE_FILES_MAX = 8;
 export const DENY_SUBAGENT_DEFAULT = 'opus,fable';
 export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
   const names = String(raw ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -144,6 +148,15 @@ export const FIXTURES = [
 ];
 export const ACCOUNT_NUMBER = /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,4})?\b/;
 
-export const WHOLE_FILE_READ = /^(?:cat|bat|more|less|type|gc|Get-Content)\s+(?:-\S+\s+)*(\S+)$/i;
+export const WHOLE_FILE_CMD = /^(?:cat|bat|more|less|type|gc|get-content)$/i;
+export const REWRITABLE_READ = /^(?:cat|bat|more|less)$/i;
+export const PIPE = /(?<!\|)\|(?!\|)/;
+export const REDIRECT = /^\d*&?[<>]{1,2}&?\d*$/;
+export const REDIRECTED = /^\d*[<>]{1,2}/;
+export const SLICE_CMD = /^(?:head|tail)$/i;
+export const SED_QUIET = /^(?:-[a-z]*n[a-z]*|--quiet|--silent)$/i;
+export const SED_RANGE = /^(\d+)(?:,(\d+|\$))?p$/;
+export const INTERPRETER_READ = /^(?:python[\d.]*|node|deno|bun|ruby|perl|php)\b[^\n]*\s--?(?:c|e|eval)\b[\s\S]*(?:\bopen\s*\(|readFile|read_text|readlines|File\.read|IO\.read|file_get_contents|\bslurp\b)/i;
+export const GIT_SHOW_FILE = /^git\b[^\n]*\b(?:show\s+\S*:\S+|cat-file\s+-p\b)/i;
 
 export const WEB_FETCH_SERVER = /^(?:.*[-_])?(?:fetch|crawl|firecrawl|scrape|scraper|search|websearch|serp|reader|tavily|exa|jina|duckduckgo|ddg|brave|browserbase|puppeteer|playwright)(?:[-_].*)?$/i;

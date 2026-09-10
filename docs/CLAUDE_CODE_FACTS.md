@@ -1,6 +1,6 @@
 # Reference — Claude Code identifiers
 
-<!-- verified against `code.claude.com/docs` on 2026-09-04; source per section -->
+<!-- verified against `code.claude.com/docs` on 2026-09-04, hooks re-verified 2026-09-10; source per section -->
 
 ## Hooks
 
@@ -23,6 +23,13 @@
 | PostToolUse | cannot block |
 | `stderr` | exit-2 block reason only |
 | Exit `0` | stdout parsed as JSON when it starts `{`, ends `}` |
+| JSON output | exit `0`, stdout holds only the JSON object; exit `2` keeps blocking and the JSON fields are still read |
+| PreToolUse `hookSpecificOutput.updatedInput` | **replaces the entire `tool_input`** — include unchanged fields; pair with `permissionDecision: "allow"` (auto-approve) or `"ask"` (show the rewritten input); deny/ask permission rules re-evaluate against the returned input |
+| PreToolUse `permissionDecisionReason` | `allow` / `ask`: shown to the user, not Claude; `deny`: shown to Claude |
+| PreToolUse `additionalContext` | string added to Claude's context alongside the tool result — the only rewrite field the model sees |
+| PostToolUse `hookSpecificOutput.updatedToolOutput` | replaces the tool result Claude sees; must match the tool's output shape; the tool has already run |
+| PostToolUse `updatedMCPToolOutput` | MCP tools only; prefer `updatedToolOutput` |
+| `systemMessage` | universal field: warning text shown to the **user**, not model context; Stop honours it; capped at 10,000 chars |
 | Env | `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT` |
 | Kill switch | `"disableAllHooks": true` |
 

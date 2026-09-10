@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES,
+  ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BASH_OUTPUT_CAP, BIG_FILE_BYTES, CONNECTOR_ALLOW, DELEGATE_BYTES, DESTRUCTIVE, FIXTURES, GIT_SHOW_FILE, GREP_HEAD_LIMIT, INTERPRETER_READ,
   THINK_ESCALATION, WORKFLOW_AGENT_CALL, UNBOUNDED_FANOUT,
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
   DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
   MODEL_BEARING, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
-  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG,
+  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
-  SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_READ, WRITE_TOOLS, WRITE_VERBS,
+  SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WHOLE_FILES_MAX, WRITE_TOOLS, WRITE_VERBS,
 } from './patterns.mjs';
 import { append } from './audit.mjs';
 import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
@@ -105,12 +105,148 @@ function judgeShell(command, depth = 0) {
   return null;
 }
 
-function wholeFileReads(command) {
+const SAMPLE_BYTES = 64 * 1024;
+const SAMPLE_LINES = 200;
+const strip = (token) => token.replace(/^['"]|['"]$/g, '');
+const kb = (bytes) => `${Math.round(bytes / 1024)}KB`;
+const scoutDispatch = (file) => `Agent({ subagent_type: "handoff-os:scout", model: "haiku", prompt: "In ${file}, find <what you need> and quote it with file:line. Under 20 lines." })`;
+
+function lineLength(file, size) {
+  if (!size) return 0;
+  const buffer = Buffer.alloc(Math.min(size, SAMPLE_BYTES));
+  let n = 0;
+  try {
+    const fd = openSync(file, 'r');
+    n = readSync(fd, buffer, 0, buffer.length, 0);
+    closeSync(fd);
+  } catch { return size; }
+  let lines = 0;
+  let end = 0;
+  for (let i = 0; i < n && lines < SAMPLE_LINES; i += 1) {
+    if (buffer[i] === 10) { lines += 1; end = i + 1; }
+  }
+  return lines ? end / lines : n;
+}
+
+function sliceBytes(file, size, { from = 0, lines, bytes }) {
+  if (bytes !== undefined) return Math.min(bytes, size);
+  const avg = lineLength(file, size);
+  if (!avg) return 0;
+  const total = size / avg;
+  const start = Math.min(from, total);
+  const count = lines === undefined ? total - start : Math.min(lines, total - start);
+  return Math.max(0, Math.min(size, Math.round(count * avg)));
+}
+
+function fileStats(file) {
+  try {
+    const stats = statSync(file);
+    return stats.isFile() ? stats : null;
+  } catch { return null; }
+}
+
+function tokens(segment) {
+  const out = [];
+  let toFile = false;
+  const raw = segment.split(/\s+/).filter(Boolean);
+  for (let i = 0; i < raw.length; i += 1) {
+    const word = raw[i];
+    if (REDIRECT.test(word)) {
+      const target = raw[i + 1] || '';
+      if (word.includes('>') && !word.includes('&') && !target.startsWith('&')) toFile = true;
+      i += 1;
+      continue;
+    }
+    if (REDIRECTED.test(word)) {
+      if (/^\d*>{1,2}[^&]/.test(word)) toFile = true;
+      continue;
+    }
+    out.push(word);
+  }
+  return toFile ? [] : out;
+}
+
+function headTail(words) {
+  const spec = { lines: 10 };
+  const files = [];
+  const count = (value, key) => {
+    if (value === undefined || !/^\+?\d+$/.test(value)) return;
+    delete spec.lines;
+    delete spec.bytes;
+    delete spec.from;
+    if (value.startsWith('+')) spec.from = Math.max(0, Number(value.slice(1)) - 1);
+    else spec[key] = Number(value);
+  };
+  for (let i = 1; i < words.length; i += 1) {
+    const word = words[i];
+    let hit = /^(?:-n|--lines=?)(\+?\d+)?$/.exec(word);
+    if (hit) { count(hit[1] ?? words[++i], 'lines'); continue; }
+    hit = /^(?:-c|--bytes=?)(\d+)?$/.exec(word);
+    if (hit) { count(hit[1] ?? words[++i], 'bytes'); continue; }
+    hit = /^-(\d+)$/.exec(word);
+    if (hit) { count(hit[1], 'lines'); continue; }
+    if (word.startsWith('-')) continue;
+    files.push(strip(word));
+  }
+  return files.map((file) => ({ file, ...spec }));
+}
+
+function sedSlice(words) {
+  if (!words.some((word, i) => i > 0 && SED_QUIET.test(word))) return [];
+  let range = null;
+  const files = [];
+  for (let i = 1; i < words.length; i += 1) {
+    const word = words[i];
+    if (/^(?:-e|--expression)$/.test(word)) { range = range || SED_RANGE.exec(strip(words[++i] || '')); continue; }
+    if (word.startsWith('-')) continue;
+    const hit = range ? null : SED_RANGE.exec(strip(word));
+    if (hit) range = hit;
+    else files.push(strip(word));
+  }
+  if (!range || files.length !== 1) return [];
+  const from = Number(range[1]) - 1;
+  const lines = range[2] === undefined ? 1 : range[2] === '$' ? undefined : Math.max(0, Number(range[2]) - from);
+  return [{ file: files[0], from, lines }];
+}
+
+function shellRead(segment) {
+  if (INTERPRETER_READ.test(segment) || GIT_SHOW_FILE.test(segment)) return [{ unjudged: true }];
+  const words = tokens(segment);
+  const cmd = (words[0] || '').toLowerCase();
+  if (WHOLE_FILE_CMD.test(cmd)) {
+    const files = words.slice(1).filter((word) => !word.startsWith('-'));
+    return files.map((raw) => ({ file: strip(raw), raw, whole: true, only: files.length === 1 && REWRITABLE_READ.test(cmd) }));
+  }
+  if (SLICE_CMD.test(cmd)) return headTail(words);
+  if (cmd === 'sed') return sedSlice(words);
+  return [];
+}
+
+function bookSlice(payload, file, spec, { shell = false, filtered = false } = {}) {
+  const stats = fileStats(file);
+  if (!stats) return;
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  let bytes = spec.whole ? stats.size : sliceBytes(file, stats.size, spec);
+  if (shell) bytes = Math.min(bytes, BASH_OUTPUT_CAP);
+  if (actorOf(payload) !== 'main') state.saved.offload += bytes;
+  else {
+    state.saved.read += bytes;
+    if (!filtered) state.read_bytes = (state.read_bytes || 0) + bytes;
+  }
+  save(root, session, state);
+}
+
+function shellReads(command) {
   const out = [];
   for (const chunk of pipelines(command)) {
-    if (/[|`]/.test(chunk) || chunk.includes('$(')) continue;
-    const hit = WHOLE_FILE_READ.exec(unwrap(chunk));
-    if (hit && !hit[1].startsWith('-')) out.push(hit[1]);
+    if (chunk.includes('`') || chunk.includes('$(')) continue;
+    const piped = PIPE.test(chunk);
+    const first = chunk.split('|')[0].trim();
+    const segment = unwrap(first);
+    const bare = !piped && segment === first && command.includes(chunk);
+    for (const read of shellRead(segment)) out.push({ ...read, piped, chunk, rewritable: bare && Boolean(read.only) });
   }
   return out;
 }
@@ -126,55 +262,82 @@ function shellWriteTargets(command) {
   return out;
 }
 
-function readBudget(payload, input) {
+function readBudget(payload, input, rewritable = false) {
   const file = String(input.file_path || '');
-  if (!file) return;
-  const sliced = input.offset !== undefined || input.limit !== undefined;
-  let stats;
-  try { stats = statSync(file); } catch { return; }
+  if (!file) return null;
+  if (input.offset !== undefined || input.limit !== undefined || input.pages !== undefined) {
+    bookSlice(payload, file, {
+      from: Math.max(0, Number(input.offset || 0) - 1),
+      lines: input.limit === undefined ? undefined : Number(input.limit),
+    });
+    return null;
+  }
+  const stats = fileStats(file);
+  if (!stats) return null;
 
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
   const actor = actorOf(payload);
+  const main = actor === 'main';
   const resolved = path.resolve(file);
   const key = `${actor}|${resolved}`;
   const fingerprint = `${stats.mtimeMs}:${stats.size}`;
+  const name = path.basename(file);
+  const inThread = state.read_bytes || 0;
 
-  const refuse = (action, bucket, tag, message) => {
+  const refuse = (action, bucket, credit, tag, message) => {
     const stamp = `${fingerprint}:${tag}`;
     if (state.reads[`${actor}|x:${resolved}`] !== stamp) {
       state.reads[`${actor}|x:${resolved}`] = stamp;
       state.saved[action] += 1;
-      state.saved[bucket] += stats.size;
+      state.saved[bucket] += credit;
     }
     save(root, session, state);
     throw new Blocked(`READ BUDGET: ${message}\n`);
   };
 
-  if (!sliced && state.reads[key] === fingerprint) {
-    refuse('rereads', 'bytes', 'r',
-      `${path.basename(file)} is unchanged and already in context. Read a slice with offset/limit if you need one region.`);
+  if (state.reads[key] === fingerprint) {
+    refuse('rereads', 'bytes', Math.min(stats.size, BIG_FILE_BYTES), 'r',
+      `${name} is unchanged and already in context${stats.size > BIG_FILE_BYTES ? ` (its first ${kb(BIG_FILE_BYTES)})` : ''}. Read a slice with offset/limit if you need one region.`);
   }
 
-  if (!sliced && stats.size > BIG_FILE_BYTES) {
-    refuse('slices', 'deferred', 's',
-      `${path.basename(file)} is ${Math.round(stats.size / 1024)}KB, over the ${BIG_FILE_BYTES / 1024}KB whole-file limit. Read the region you need with offset/limit, or dispatch handoff-os:scout to answer from it.`);
+  if (main && inThread >= READ_CEILING_BYTES) {
+    refuse('slices', 'deferred', stats.size, 'c',
+      `${kb(inThread)} of files read into this thread, over the ${kb(READ_CEILING_BYTES)} ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.`);
   }
 
-  if (!sliced && actor === 'main' && (state.read_bytes || 0) >= READ_CEILING_BYTES) {
-    refuse('slices', 'deferred', 'c',
-      `${Math.round((state.read_bytes || 0) / 1024)}KB of whole files read into this thread, over the ${READ_CEILING_BYTES / 1024}KB ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.`);
+  if (main && ((state.whole_files || 0) >= WHOLE_FILES_MAX || inThread >= DELEGATE_BYTES)) {
+    refuse('offloads', 'deferred', stats.size, 'd',
+      `${state.whole_files || 0} whole files (${kb(inThread)}) are already in this thread. Hand this one to a scout — paste:\n  ${scoutDispatch(file)}\nOr read one region with offset/limit.`);
   }
 
-  if (!sliced) {
-    state.reads[key] = fingerprint;
-    if (actor === 'main') {
-      state.read_bytes = (state.read_bytes || 0) + stats.size;
-      state.saved.read += stats.size;
-    } else state.saved.offload += stats.size;
+  let bytes = stats.size;
+  let trim = null;
+  if (stats.size > BIG_FILE_BYTES) {
+    if (!rewritable) {
+      refuse('slices', 'deferred', stats.size, 's',
+        `${name} is ${kb(stats.size)}, over the ${kb(BIG_FILE_BYTES)} whole-file limit. Read the region you need with offset/limit, or dispatch handoff-os:scout to answer from it.`);
+    }
+    const avg = lineLength(resolved, stats.size);
+    const lines = Math.max(1, Math.floor(BIG_FILE_BYTES / (avg || stats.size)));
+    const admitted = rewritable === 'shell' ? BIG_FILE_BYTES : Math.min(stats.size, Math.round(lines * avg));
+    if (admitted < stats.size) {
+      trim = { lines, admitted, size: stats.size, name };
+      bytes = admitted;
+      state.saved.rewrites += 1;
+      state.saved.trimmed += stats.size - admitted;
+    }
   }
+
+  state.reads[key] = fingerprint;
+  if (main) {
+    state.whole_files = (state.whole_files || 0) + 1;
+    state.read_bytes = inThread + bytes;
+    state.saved.read += bytes;
+  } else state.saved.offload += bytes;
   save(root, session, state);
+  return trim;
 }
 
 function invalidateQueries(payload) {
@@ -200,14 +363,17 @@ function queryBudget(payload, input, tool) {
     save(root, session, state);
     throw new Blocked(`READ BUDGET: this exact ${tool} already ran and nothing has been written since. Change the query, or read the file you are checking.\n`);
   }
-  if (tool === 'Grep' && input.output_mode === 'content' && input.head_limit === undefined) {
-    if (!state.reads[`${key}|cap`]) state.saved.caps += 1;
-    state.reads[`${key}|cap`] = 1;
-    save(root, session, state);
-    throw new Blocked('READ BUDGET: set head_limit on a content-mode Grep so the match list cannot run away (30 is plenty).\n');
-  }
   state.reads[key] = 1;
+  if (tool === 'Grep' && input.output_mode === 'content' && input.head_limit === undefined) {
+    state.saved.caps += 1;
+    save(root, session, state);
+    return {
+      updatedInput: { ...input, head_limit: GREP_HEAD_LIMIT },
+      reason: `HANDOFF OS: head_limit ${GREP_HEAD_LIMIT} set on this content-mode Grep so the match list cannot run away.`,
+    };
+  }
   save(root, session, state);
+  return null;
 }
 
 function claimSlot(dir, bucket, cap) {
@@ -244,9 +410,9 @@ function judgeWrite(file, content, how = 'a write') {
 const spawnText = (input) => SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
 
 function deniedVerdict(text, hit) {
-  if (REVIEW.test(text)) return `blocked a ${hit} review. Review goes to sonnet; ${hit} is for prose you publish`;
+  if (REVIEW.test(text)) return { reason: `blocked a ${hit} review. Review goes to sonnet; ${hit} is for prose you publish`, tier: hit };
   if (!QUALITY.test(text)) {
-    return `blocked a ${hit} subagent. Research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`;
+    return { reason: `blocked a ${hit} subagent. Research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`, tier: hit };
   }
   return null;
 }
@@ -259,13 +425,22 @@ function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(process
       const hit = (text.match(denied) || [])[0]?.toLowerCase();
       return hit ? deniedVerdict(text, hit) : null;
     }
-    return 'blocked a subagent dispatch that names no model. Set one: haiku for lookups, sonnet for research and review, opus or fable only for prose you publish';
+    return { reason: 'blocked a subagent dispatch that names no model. Set one: haiku for lookups, sonnet for research and review, opus or fable only for prose you publish' };
   }
   if (!MODEL_TIERS.test(model)) {
-    return `blocked a subagent dispatch whose model "${model}" names no tier. Use haiku, sonnet, opus or fable`;
+    return { reason: `blocked a subagent dispatch whose model "${model}" names no tier. Use haiku, sonnet, opus or fable` };
   }
   const hit = (model.match(denied) || [])[0]?.toLowerCase();
   return hit ? deniedVerdict(text, hit) : null;
+}
+
+function bookRedirect(payload, tier) {
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  state.saved.redirects += 1;
+  state.tiers = { ...(state.tiers || {}), [tier]: ((state.tiers || {})[tier] || 0) + 1 };
+  save(root, session, state);
 }
 
 function costBudget(input, tool) {
@@ -275,7 +450,7 @@ function costBudget(input, tool) {
   if (think) return `blocked a dispatch asking for "${think}". Drop it, or name QUALITY: writing|creative|legal|security`;
   const fan = tool === 'Workflow' ? (String(input.script ?? '').match(UNBOUNDED_FANOUT) || [])[0] : null;
   return fan
-    ? `blocked a workflow fanning out through "${fan.trim()}" — the script never states its agent count. List the agents, ${MAX_PER_WAVE} to a wave`
+    ? { reason: `blocked a workflow fanning out through "${fan.trim()}" — the script never states its agent count. List the agents, ${MAX_PER_WAVE} to a wave` }
     : null;
 }
 
@@ -286,11 +461,18 @@ const agentsRequested = (input, tool) => (tool === 'Workflow'
 function fanOutCap(payload, count = 1) {
   const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
   const bucket = Math.floor(Date.now() / WAVE_MS);
-  let slot = 0;
-  for (let n = 0; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
+  const first = claimSlot(dir, bucket, MAX_PER_WAVE);
+  let slot = first;
+  for (let n = 1; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
   if (slot > MAX_PER_WAVE) {
-    bump(payload, 'blocked');
-    throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Read the returns, then relaunch via /handoff-os:research-budget.\n`);
+    const root = rootOf(payload);
+    const session = sessionOf(payload);
+    const state = load(root, session);
+    state.saved.blocked += 1;
+    state.saved.waves += 1;
+    state.saved.agentsCapped += Math.max(1, count - Math.max(0, MAX_PER_WAVE - first + 1));
+    save(root, session, state);
+    throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Let these ${MAX_PER_WAVE} return, then dispatch the rest yourself in the next wave — sequential batches of ${MAX_PER_WAVE}, no waiting for the user.\n`);
   }
 }
 
@@ -308,11 +490,20 @@ export function judge(payload = {}) {
   const input = payload.tool_input || {};
   current = payload;
 
-  if (tool === 'Read') readBudget(payload, input);
-  else if (tool === 'Grep' || tool === 'Glob') queryBudget(payload, input, tool);
-  else if (SPAWN_TOOLS.includes(tool)) {
+  if (tool === 'Read') {
+    const trim = readBudget(payload, input, 'read');
+    return trim ? {
+      updatedInput: { ...input, offset: 0, limit: trim.lines },
+      reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to its first ${trim.lines} lines (${kb(trim.admitted)}). Read further regions with offset/limit, or dispatch handoff-os:scout.`,
+    } : null;
+  }
+  if (tool === 'Grep' || tool === 'Glob') return queryBudget(payload, input, tool);
+  if (SPAWN_TOOLS.includes(tool)) {
     const verdict = dispatchBudget(input, tool) || costBudget(input, tool);
-    if (verdict) deny(verdict, 'DISPATCH BUDGET');
+    if (verdict) {
+      if (verdict.tier) bookRedirect(payload, verdict.tier);
+      deny(verdict.reason, 'DISPATCH BUDGET');
+    }
     const count = agentsRequested(input, tool);
     fanOutCap(payload, count);
     bump(payload, 'agents', count);
@@ -332,9 +523,21 @@ export function judge(payload = {}) {
       if (reason) deny(reason);
     }
     if (targets.length) invalidateQueries(payload);
-    for (const target of wholeFileReads(command)) {
-      readBudget(payload, { file_path: path.resolve(payload.cwd || process.cwd(), target.replace(/^['"]|['"]$/g, '')) });
+    let rewrite = null;
+    for (const read of shellReads(command)) {
+      if (read.unjudged) { bump(payload, 'unjudged'); continue; }
+      const file = path.resolve(payload.cwd || process.cwd(), read.file);
+      if (!read.whole) { bookSlice(payload, file, read, { shell: true, filtered: read.piped }); continue; }
+      if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true, filtered: true }); continue; }
+      const trim = readBudget(payload, { file_path: file }, tool === 'Bash' && read.rewritable && !rewrite ? 'shell' : false);
+      if (trim) {
+        rewrite = {
+          updatedInput: { ...input, command: command.replace(read.chunk, `head -c ${BIG_FILE_BYTES} ${read.raw}`) },
+          reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}. Read a region with sed -n 'a,bp', or dispatch handoff-os:scout.`,
+        };
+      }
     }
+    return rewrite;
   } else if (tool.startsWith('mcp__')) {
     const action = tool.split('__').slice(2).join('__').toLowerCase();
     if ((process.env.HANDOFF_MCP_ALLOW || '').split(',').map((s) => s.trim().toLowerCase()).includes(action)) return;
@@ -375,6 +578,7 @@ export function judge(payload = {}) {
     const reason = judgeWrite(String(input.file_path || input.notebook_path || ''), content);
     if (reason) deny(reason);
   }
+  return null;
 }
 
 function main() {
@@ -397,11 +601,23 @@ function main() {
     process.exit(0);
   }
 
+  let rewrite = null;
   try {
-    judge(payload);
+    rewrite = judge(payload);
   } catch (error) {
     if (error instanceof Blocked) { process.stderr.write(error.message); process.exit(2); }
     throw error;
+  }
+  if (rewrite) {
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'allow',
+        permissionDecisionReason: rewrite.reason,
+        updatedInput: rewrite.updatedInput,
+        additionalContext: rewrite.reason,
+      },
+    }));
   }
   process.exit(0);
 }

@@ -1,6 +1,6 @@
 # Manifest
 
-Everything the plugin loads, at version 1.9.1. Generated — `npm run upkeep` rewrites it.
+<sub><b>Answers</b> · everything the plugin loads at version 1.9.1 · generated, `npm run upkeep` rewrites it · <a href="../README.md">README</a></sub>
 
 ## Skills
 
@@ -26,3 +26,15 @@ Everything the plugin loads, at version 1.9.1. Generated — `npm run upkeep` re
 | `SessionStart` | `startup\|resume\|clear\|compact\|fork` | `scripts/card.mjs` |
 | `Stop` | `*` | `scripts/verify.mjs` |
 | `SubagentStop` | `scout$` | `scripts/verify.mjs` |
+
+## Inventory
+
+| What ships | Count |
+|---|---|
+| Guard logic | **1401** lines of Node across 7 scripts (1264 non-blank) |
+| Pattern rules | **66** |
+| Hooks | **5** handlers on 5 events |
+| Skills | **3** |
+| Subagents | **2** |
+| Third-party packages | **0** |
+| Network calls, API keys, model calls | **0** |

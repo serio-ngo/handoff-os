@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { homedir } from 'node:os';
@@ -8,18 +8,19 @@ import { MODES } from '../eval/baselines.mjs';
 import { BYTE_COUNTERS, COUNTERS } from '../plugins/handoff-os/scripts/ledger.mjs';
 import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
 import { usage } from '../plugins/handoff-os/scripts/verify.mjs';
-import { inventory, inventoryBlock, writeBlock } from './generate.mjs';
+import { inventory, writeBlock } from './generate.mjs';
 
-const flags = { write: false, eval: false, compare: false, latency: false, replay: false, ab: false };
+const flags = { write: false, eval: false, compare: false, latency: false, replay: false, ab: false, flood: false };
 const AB = {
   tasks: 'eval/tasks.jsonl', n: Infinity, model: 'claude-haiku-4-5-20251001', dryRun: false, out: 'eval/ab-results.json',
   task: null, micro: true, maxTurns: 12, timeoutMs: 15 * 60 * 1000, budgetTokens: 2000000, seed: 20260910, keep: false, render: false,
-  claude: process.env.HANDOFF_AB_CLAUDE || 'claude', pluginDir: null,
+  claude: process.env.HANDOFF_AB_CLAUDE || 'claude', pluginDir: null, budgetUsd: 10,
 };
-const AB_VALUE = { '--tasks': 'tasks', '--n': 'n', '--model': 'model', '--out': 'out', '--task': 'task', '--max-turns': 'maxTurns', '--timeout': 'timeoutMs', '--budget': 'budgetTokens', '--seed': 'seed', '--plugin-dir': 'pluginDir' };
+const AB_VALUE = { '--tasks': 'tasks', '--n': 'n', '--model': 'model', '--out': 'out', '--task': 'task', '--max-turns': 'maxTurns', '--timeout': 'timeoutMs', '--budget': 'budgetTokens', '--budget-usd': 'budgetUsd', '--seed': 'seed', '--plugin-dir': 'pluginDir' };
 let REPO = process.cwd();
 const REPOS = [];
 const argv = process.argv.slice(2);
+if (argv.includes('flood')) Object.assign(AB, { model: 'claude-sonnet-5', maxTurns: 25, out: 'eval/flood-results.json' });
 for (let i = 0; i < argv.length; i += 1) {
   if (argv[i] === '--write') flags.write = true;
   else if (argv[i] === '--eval') flags.eval = true;
@@ -27,6 +28,7 @@ for (let i = 0; i < argv.length; i += 1) {
   else if (argv[i] === '--latency') flags.latency = true;
   else if (argv[i] === '--replay') flags.replay = true;
   else if (argv[i] === 'ab') flags.ab = true;
+  else if (argv[i] === 'flood') flags.flood = true;
   else if (argv[i] === '--dry-run') AB.dryRun = true;
   else if (argv[i] === '--no-micro') AB.micro = false;
   else if (argv[i] === '--keep') AB.keep = true;
@@ -173,7 +175,7 @@ function compareBlock(own, baselines) {
     line('**handoff-os**', own),
     '',
     `${own.cases} cases, ${new Date().toISOString().slice(0, 10)}; the comparators are mechanism baselines in `
-    + '`eval/baselines.mjs`, not vendor code. [Method](docs/BENCHMARK.md).',
+    + '`eval/baselines.mjs`, not vendor code.',
     '', provenance(own.origins),
   ];
 }
@@ -204,7 +206,7 @@ function run() {
   if (flags.write) {
     console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), '<!-- eval-results -->', '<!-- /eval-results -->', evalBlock(own, label))}`);
     if (flags.compare) {
-      console.log(`  ${writeBlock(path.join(REPO, 'README.md'), '<!-- guard-scores -->', '<!-- /guard-scores -->', compareBlock(own, baselines))}`);
+      console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), '<!-- guard-scores -->', '<!-- /guard-scores -->', compareBlock(own, baselines))}`);
       const inv = inventory(REPO);
       mergeScores(REPO, {
         generated: new Date().toISOString().slice(0, 10),
@@ -225,14 +227,11 @@ function run() {
         baselines: Object.fromEntries(Object.entries(baselines)
           .map(([mode, s]) => [mode, { recall: s.recall, fpRate: s.fpRate, f1: s.f1 }])),
       });
-      console.log(`  ${writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock(inv))}`);
     }
   }
   return own.misses.length ? 1 : 0;
 }
 
-const AB_OPEN = '<!-- handoff-ab -->';
-const AB_CLOSE = '<!-- /handoff-ab -->';
 const AB_DOC_OPEN = '<!-- ab-results -->';
 const AB_DOC_CLOSE = '<!-- /ab-results -->';
 const AB_TOOLS = 'Read,Grep,Glob,Bash,Edit,Write,Agent,Task';
@@ -281,7 +280,7 @@ const textOf = (content) => (typeof content === 'string' ? content
 function parseStream(stdout) {
   const out = {
     usage: zeroUsage(), guard: {}, spawnRequested: 0, spawnBlocked: 0, toolCalls: 0, subagentMessages: 0,
-    turns: 0, durationMs: 0, result: '', subtype: null, spawned: null,
+    turns: 0, durationMs: 0, result: '', subtype: null, spawned: null, cost: 0,
   };
   const seen = new Set();
   const spawnIds = new Set();
@@ -315,6 +314,7 @@ function parseStream(stdout) {
       }
     } else if (event.type === 'result') {
       out.turns += Number(event.num_turns || 0);
+      out.cost += Number(event.total_cost_usd || 0);
       out.durationMs += Number(event.duration_ms || 0);
       if (event.result) out.result = String(event.result);
       out.subtype = event.subtype || null;
@@ -352,6 +352,11 @@ function sh(command, cwd, env = process.env) {
 function runArm(task, arm, opts) {
   const dir = mkdtempSync(path.join(tmpdir(), `handoff-ab-${task.id}-${arm}-`));
   cpSync(path.join(REPO, 'eval', 'fixture'), dir, { recursive: true });
+  for (const rel of task.prune || []) rmSync(path.join(dir, rel), { recursive: true, force: true });
+  for (const [rel, text] of Object.entries(task.files || {})) {
+    mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+    writeFileSync(path.join(dir, rel), text, 'utf8');
+  }
   for (const cmd of [['init', '-q'], ['add', '-A'], ['-c', 'user.email=ab@fixture', '-c', 'user.name=ab', 'commit', '-q', '-m', 'fixture']]) {
     spawnSync('git', cmd, { cwd: dir, encoding: 'utf8' });
   }
@@ -393,6 +398,9 @@ function runArm(task, arm, opts) {
     cacheRead: u.cacheRead,
     billedRaw: u.input + u.cache5m + u.cache1h + u.cacheRead,
     billedWeighted: Math.round(u.input + (u.cache5m * CACHE_WRITE_5M) + (u.cache1h * CACHE_WRITE_1H) + (u.cacheRead * CACHE_READ)),
+    billed: Math.round(u.input + u.cache5m + u.cache1h + (u.cacheRead * CACHE_READ)),
+    cost: parsed.cost,
+    finished: !error && parsed.subtype === 'success',
     guard: parsed.guard,
     spawnRequested: parsed.spawnRequested,
     spawnBlocked: parsed.spawnBlocked,
@@ -465,131 +473,24 @@ const shortCommit = (r) => String(r.plugin.commit || 'unknown').slice(0, 7);
 const runLabel = (r, n) => `Run ${n} — plugin build ${shortCommit(r)} (${r.plugin.ref || 'local'}, ${r.plugin.version})`;
 const guardCell = (row) => Object.entries(row.guard).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
 const ledgerCell = (row) => Object.entries(row.ledger).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
-const uniq = (xs) => [...new Set(xs)].join(' / ');
 
 const THEMES = {
-  light: { suffix: '', surface: '#ffffff', border: '#d0d7de', ink: '#1f2328', muted: '#656d76', grid: '#eaeef2', axis: '#8c959f', up: '#eb6834', down: '#2a78d6', a: '#2a78d6', b: '#8c959f' },
-  dark: { suffix: '-dark', surface: '#161b22', border: '#30363d', ink: '#e6edf3', muted: '#8d96a0', grid: '#21262d', axis: '#6e7681', up: '#d95926', down: '#3987e5', a: '#3987e5', b: '#adb5bd' },
+  light: { suffix: '', surface: '#ffffff', border: '#d0d7de', ink: '#1f2328', muted: '#656d76', without: '#eb6834', with: '#2a78d6' },
+  dark: { suffix: '-dark', surface: '#161b22', border: '#30363d', ink: '#e6edf3', muted: '#8d96a0', without: '#d95926', with: '#3987e5' },
 };
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
-const MICRO_LABEL = { 'micro-a': 'whole-file read of src/big.js', 'micro-b': 'six-subagent fan-out' };
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const px = (v) => Math.round(v * 10) / 10;
 const svgText = (x, y, s, o = {}) => `<text x="${px(x)}" y="${px(y)}" fill="${o.fill}" font-size="${o.size ?? 12}"${o.weight ? ` font-weight="${o.weight}"` : ''}${o.anchor ? ` text-anchor="${o.anchor}"` : ''}>${esc(s)}</text>`;
-const svgLine = (x1, y1, x2, y2, stroke, width = 1) => `<line x1="${px(x1)}" y1="${px(y1)}" x2="${px(x2)}" y2="${px(y2)}" stroke="${stroke}" stroke-width="${width}"/>`;
 const svgBar = (x0, x1, y, h, fill) => {
   const r = Math.min(4, Math.abs(x1 - x0));
   if (r < 1) return '';
-  const d = x1 >= x0
-    ? `M${px(x0)},${px(y)} H${px(x1 - r)} A${r},${r} 0 0 1 ${px(x1)},${px(y + r)} V${px(y + h - r)} A${r},${r} 0 0 1 ${px(x1 - r)},${px(y + h)} H${px(x0)} Z`
-    : `M${px(x0)},${px(y)} H${px(x1 + r)} A${r},${r} 0 0 0 ${px(x1)},${px(y + r)} V${px(y + h - r)} A${r},${r} 0 0 0 ${px(x1 + r)},${px(y + h)} H${px(x0)} Z`;
-  return `<path d="${d}" fill="${fill}"/>`;
+  return `<path d="M${px(x0)},${px(y)} H${px(x1 - r)} A${r},${r} 0 0 1 ${px(x1)},${px(y + r)} V${px(y + h - r)} A${r},${r} 0 0 1 ${px(x1 - r)},${px(y + h)} H${px(x0)} Z" fill="${fill}"/>`;
 };
 const svgOpen = (w, h, t, label) => [
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(label)}" font-family="${FONT}">`,
   `<rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="8" fill="${t.surface}" stroke="${t.border}"/>`,
 ];
-
-function scale(values, L, R) {
-  const lo = Math.min(0, ...values);
-  const hi = Math.max(0, ...values);
-  const span = hi - lo || 1;
-  const mag = 10 ** Math.floor(Math.log10(span / 5));
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= 6);
-  const min = Math.floor(lo / step + 1e-9) * step;
-  const max = Math.ceil(hi / step - 1e-9) * step;
-  const ticks = [];
-  for (let i = 0; min + i * step <= max + 1e-9; i += 1) ticks.push(Math.round((min + i * step) * 1000) / 1000);
-  return { x: (v) => L + ((v - min) / (max - min)) * (R - L), ticks };
-}
-
-const tickPct = (v) => (v === 0 ? '0' : `${v > 0 ? '+' : ''}${v}%`);
-const tickTok = (v) => (v >= 1000 ? `${v / 1000}k` : String(v));
-const passLine = (r) => `pass ${r.aggregate.passA}/${r.n} with, ${r.aggregate.passB}/${r.n} without`;
-
-function axis(out, s, t, fmt, yTop, yBottom) {
-  for (const v of s.ticks) {
-    out.push(svgLine(s.x(v), yTop, s.x(v), yBottom, v === 0 ? t.axis : t.grid));
-    out.push(svgText(s.x(v), yBottom + 16, fmt(v), { fill: t.muted, size: 11, anchor: 'middle' }));
-  }
-}
-
-function deltaSvg(runs, t) {
-  const W = 760; const L = 300; const R = 580; const rowH = 56; const top = 70; const bottom = 66;
-  const H = top + runs.length * rowH + bottom;
-  const s = scale(runs.flatMap((r) => [r.aggregate.billedWeighted.pct, ...r.aggregate.billedWeighted.pctCi95]), L, R);
-  const out = svgOpen(W, H, t, deltaAlt(runs));
-  out.push(svgText(20, 30, 'Δ billed tokens vs no plugin — cache-read at 0.1×', { fill: t.ink, size: 15, weight: 600 }));
-  out.push(svgText(20, 50, `model ${uniq(runs.map((r) => r.model))} · ${uniq(runs.map((r) => r.n))} tasks × 2 arms · ${uniq(runs.map((r) => r.generated))} · measured from transcript usage`, { fill: t.muted, size: 11 }));
-  axis(out, s, t, tickPct, top - 6, H - bottom + 8);
-  runs.forEach((r, i) => {
-    const a = r.aggregate.billedWeighted;
-    const y = top + i * rowH + rowH / 2;
-    out.push(svgText(20, y - 3, `build ${shortCommit(r)} · ${r.plugin.version}`, { fill: t.ink, weight: 600 }));
-    out.push(svgText(20, y + 14, `${r.plugin.ref || 'local'} · ${passLine(r)}`, { fill: t.muted, size: 11 }));
-    out.push(svgBar(s.x(0), s.x(a.pct), y - 10, 20, a.pct >= 0 ? t.up : t.down));
-    const [lo, hi] = a.pctCi95;
-    out.push(svgLine(s.x(lo), y, s.x(hi), y, t.ink, 1.5), svgLine(s.x(lo), y - 5, s.x(lo), y + 5, t.ink, 1.5), svgLine(s.x(hi), y - 5, s.x(hi), y + 5, t.ink, 1.5));
-    const lx = Math.max(s.x(0), s.x(a.pct), s.x(hi)) + 10;
-    out.push(`<text x="${px(lx)}" y="${px(y + 4)}" font-size="12"><tspan fill="${t.ink}" font-weight="600">${esc(fmtPct(a.pct))}</tspan><tspan fill="${t.muted}" dx="6">[${esc(fmtPct(lo))}, ${esc(fmtPct(hi))}]</tspan></text>`);
-  });
-  out.push(svgText(20, H - 18, 'Δ = with − without, share of the without-arm total · whisker = 95% CI, bootstrap over paired differences · negative = the plugin arm billed less', { fill: t.muted, size: 11 }));
-  out.push('</svg>');
-  return `${out.join('\n')}\n`;
-}
-
-const microRows = (runs) => Object.keys(MICRO_LABEL).map((id) => ({ id, runs: runs.filter((r) => r.micro && r.micro[id]) })).filter((g) => g.runs.length);
-
-function microSvg(runs, t) {
-  const W = 760; const L = 300; const R = 610; const top = 74; const bottom = 60; const groupH = 28; const rowH = 46; const barH = 12; const gap = 2;
-  const groups = microRows(runs);
-  const rows = groups.reduce((n, g) => n + g.runs.length, 0);
-  const H = top + groups.length * groupH + rows * rowH + bottom;
-  const s = scale(groups.flatMap((g) => g.runs.flatMap((r) => [r.micro[g.id].A.billedWeighted, r.micro[g.id].B.billedWeighted])), L, R);
-  const out = svgOpen(W, H, t, microAlt(runs));
-  out.push(svgText(20, 30, 'Micro experiments — billed tokens per arm, cache-read at 0.1×', { fill: t.ink, size: 15, weight: 600 }));
-  out.push(svgText(20, 50, `model ${uniq(runs.map((r) => r.model))} · one prompt per arm · lower is cheaper`, { fill: t.muted, size: 11 }));
-  out.push(`<rect x="${W - 218}" y="22" width="10" height="10" rx="2" fill="${t.a}"/>`, svgText(W - 203, 31, 'with plugin', { fill: t.muted, size: 11 }));
-  out.push(`<rect x="${W - 118}" y="22" width="10" height="10" rx="2" fill="${t.b}"/>`, svgText(W - 103, 31, 'without', { fill: t.muted, size: 11 }));
-  axis(out, s, t, tickTok, top - 8, H - bottom + 8);
-  let y = top;
-  for (const g of groups) {
-    out.push(svgText(20, y + 12, `${g.id} — ${MICRO_LABEL[g.id]}`, { fill: t.ink, size: 12, weight: 600 }));
-    y += groupH;
-    for (const r of g.runs) {
-      const { A, B } = r.micro[g.id];
-      const note = g.id === 'micro-b'
-        ? `subagents ${A.spawned ?? 'n/a'} of ${A.spawnRequested} spawned vs ${B.spawned ?? 'n/a'} of ${B.spawnRequested}`
-        : (guardCell(A) === '—' ? `ledger ${ledgerCell(A)}` : `guard events ${guardCell(A)}`);
-      out.push(svgText(20, y + 16, `build ${shortCommit(r)} · ${r.plugin.version}`, { fill: t.ink, size: 11.5 }));
-      out.push(svgText(20, y + 31, note, { fill: t.muted, size: 11 }));
-      out.push(svgBar(s.x(0), s.x(A.billedWeighted), y + 9, barH, t.a));
-      out.push(svgText(s.x(A.billedWeighted) + 6, y + 9 + barH - 2, tokc(A.billedWeighted), { fill: t.ink, size: 11, weight: 600 }));
-      out.push(svgBar(s.x(0), s.x(B.billedWeighted), y + 9 + barH + gap, barH, t.b));
-      out.push(svgText(s.x(B.billedWeighted) + 6, y + 9 + 2 * barH + gap - 2, tokc(B.billedWeighted), { fill: t.muted, size: 11 }));
-      y += rowH;
-    }
-  }
-  out.push(svgText(20, H - 18, 'billed = input + 1.25× / 2× cache write + 0.1× cache read, from transcript usage · same fixture, same model, one prompt per arm', { fill: t.muted, size: 11 }));
-  out.push('</svg>');
-  return `${out.join('\n')}\n`;
-}
-
-const deltaAlt = (runs) => `Δ billed tokens vs no plugin, cache-read at 0.1×: ${runs.map((r) => `build ${shortCommit(r)} ${fmtPct(r.aggregate.billedWeighted.pct)} [${r.aggregate.billedWeighted.pctCi95.map(fmtPct).join(', ')}], ${passLine(r)}`).join('; ')}`;
-const microAlt = (runs) => `Micro experiments, billed tokens with vs without the plugin: ${microRows(runs).flatMap((g) => g.runs.map((r) => `${g.id} build ${shortCommit(r)} ${num(r.micro[g.id].A.billedWeighted)} vs ${num(r.micro[g.id].B.billedWeighted)}`)).join('; ')}`;
-
-const CHARTS = [
-  { name: 'ab-delta', svg: deltaSvg, alt: deltaAlt, when: () => true },
-  { name: 'ab-micro', svg: microSvg, alt: microAlt, when: (runs) => microRows(runs).length > 0 },
-];
-
-const chartTags = (prefix, runs) => CHARTS.filter((c) => c.when(runs)).flatMap((c) => [
-  '<picture>',
-  `<source media="(prefers-color-scheme: dark)" srcset="${prefix}${c.name}-dark.svg">`,
-  `<img src="${prefix}${c.name}.svg" width="720" alt="${esc(c.alt(runs))}">`,
-  '</picture>',
-  '',
-]);
 
 function aggregateTable(r, n) {
   const a = r.aggregate;
@@ -606,24 +507,6 @@ function aggregateTable(r, n) {
     `| Guard events, with plugin | ${guard.length ? guard.map(([rule, count]) => `${rule} ${count}`).join(' · ') : 'none'} |`,
     `| Plugin footprint, always in context | ~${tokc(r.plugin.footprintTokens)} tok |`,
     `| Total billed tokens, both arms | ${num(a.spendTokens)} tok |`,
-  ];
-}
-
-function abReadmeBlock(r, extra = []) {
-  if (r.dryRun) return [`Not run. Dry-run pipeline check on ${r.generated}, ${r.n} tasks, model \`${r.model}\`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md), Track B.`];
-  const runs = [r, ...extra.filter((x) => !x.dryRun)];
-  return [
-    ...chartTags('docs/', runs),
-    '<details>',
-    `<summary>Per-task data — ${runs.length} run${runs.length === 1 ? '' : 's'} × ${uniq(runs.map((x) => x.n))} tasks × 2 arms</summary>`,
-    '',
-    ...runs.flatMap((x, i) => [...aggregateTable(x, i + 1), '']),
-    ...(runs.length > 1 ? buildsTable(runs) : []),
-    '</details>',
-    '',
-    'Same prompt, same model, same fixture, arms in random order per task; 95% CI by bootstrap over paired '
-    + 'differences. Negative Δ means the plugin arm billed less. Reproduce with `npm run benchmark:ab`. '
-    + 'Per-task rows: `eval/ab-results.json`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).',
   ];
 }
 
@@ -675,10 +558,8 @@ function buildsTable(runs) {
 }
 
 function abDocBlock(r, extra = []) {
-  const runs = [r, ...extra].filter((x) => !x.dryRun);
   const status = r.dryRun ? `Not run: dry-run on ${r.generated}` : `${runLabel(r, 1)} · ${r.generated} · model \`${r.model}\` · N = ${r.n}${r.stopped ? ` · stopped: ${r.stopped}` : ''}`;
   const lines = [
-    ...(runs.length ? chartTags('', runs) : []),
     `| Status | ${status} |`, '|---|---|',
     `| Footprint | ~${tokc(r.plugin.footprintTokens)} tok |`,
     `| Tokens | billed = input + cache write + cache read from transcript usage; weighted = 1× + 1.25×/2× write + 0.1× read |`,
@@ -708,22 +589,8 @@ const gitAt = (cwd, args) => (spawnSync('git', args, { cwd, encoding: 'utf8' }).
 
 const abPluginDir = (opts) => path.resolve(opts.pluginDir || path.join(REPO, 'plugins', 'handoff-os'));
 
-function writeAbCharts(runs) {
-  for (const chart of CHARTS.filter((c) => c.when(runs))) {
-    for (const theme of Object.values(THEMES)) {
-      const file = path.join('docs', `${chart.name}${theme.suffix}.svg`);
-      writeFileSync(path.join(REPO, file), chart.svg(runs, theme), 'utf8');
-      console.log(`  wrote ${file}`);
-    }
-  }
-}
-
 function writeAbBlocks(result, outFile) {
-  const extra = extraRuns(outFile);
-  const runs = [result, ...extra].filter((x) => !x.dryRun);
-  if (runs.length) writeAbCharts(runs);
-  console.log(`  ${writeBlock(path.join(REPO, 'README.md'), AB_OPEN, AB_CLOSE, abReadmeBlock(result, extra))}`);
-  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result, extra))}`);
+  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result, extraRuns(outFile)))}`);
 }
 
 function ab(opts) {
@@ -815,6 +682,144 @@ function ab(opts) {
   if (!path.relative(REPO, outFile).startsWith('..')) writeAbBlocks(result, outFile);
   return stopped ? 1 : 0;
 }
+
+const FLOOD_OPEN = '<!-- handoff-flood -->';
+const FLOOD_CLOSE = '<!-- /handoff-flood -->';
+const FLOOD_DOC_OPEN = '<!-- flood-results -->';
+const FLOOD_DOC_CLOSE = '<!-- /flood-results -->';
+const FLOOD_MODULES = 20;
+const FLOOD_PROMPT = `There are ${FLOOD_MODULES} modules in src/. Launch one subagent per module, all ${FLOOD_MODULES} in parallel, each returns the module's exported names. Then print one line per module.`;
+
+const floodFiles = () => Object.fromEntries(Array.from({ length: FLOOD_MODULES }, (_, i) => {
+  const id = String(i + 1).padStart(2, '0');
+  return [`src/mod${id}.js`, `export const name = 'mod${id}';\nexport function run${id}() {\n  return ${i + 1};\n}\nexport const size${id} = ${(i + 1) * 8};\n`];
+}));
+
+const floodTask = () => ({
+  id: 'flood',
+  prompt: FLOOD_PROMPT,
+  check: `test "$(grep -oE 'mod[0-9]{2}' "$AB_RESULT" | sort -u | wc -l)" -ge ${FLOOD_MODULES}`,
+  prune: ['src', 'tests', 'tools'],
+  files: floodFiles(),
+});
+
+const started = (row) => row.spawned ?? Math.max(0, row.spawnRequested - row.spawnBlocked);
+const secs = (ms) => `${Math.round(ms / 1000)}s`;
+const usd = (x) => `$${Number(x || 0).toFixed(2)}`;
+
+const held = (r) => Math.max(0, r.requested - started(r.arms.with));
+const outcome = (r) => (r.arms.with.pass ? 'all done' : `${started(r.arms.with)} of ${r.requested} done, ${held(r)} held for the next wave`);
+const floodAlt = (r) => `${r.requested} subagents requested, model ${r.model}. Without handoff-os: ${started(r.arms.without)} started at once, `
+  + `${num(r.arms.without.billed)} tokens billed. With handoff-os: ${started(r.arms.with)} started at once, ${num(r.arms.with.billed)} tokens billed, ${outcome(r)}.`;
+
+function floodSvg(r, t) {
+  const W = 720; const H = 296; const L = 150; const R = 610; const barH = 22;
+  const groups = [
+    { title: 'Subagents started at once', y: 64, value: started, fmt: String, note: () => (held(r) ? `${held(r)} held for the next wave` : '') },
+    { title: 'Tokens billed, this turn', y: 172, value: (row) => row.billed, fmt: tokc, note: () => (r.arms.with.pass ? '' : `${started(r.arms.with)} of ${r.requested} modules done`) },
+  ];
+  const out = svgOpen(W, H, t, floodAlt(r));
+  out.push(`<rect x="${W - 232}" y="24" width="10" height="10" rx="2" fill="${t.without}"/>`, svgText(W - 217, 33, 'without handoff-os', { fill: t.muted, size: 12 }));
+  out.push(`<rect x="${W - 104}" y="24" width="10" height="10" rx="2" fill="${t.with}"/>`, svgText(W - 89, 33, 'with', { fill: t.muted, size: 12 }));
+  for (const g of groups) {
+    out.push(svgText(24, g.y, g.title, { fill: t.ink, size: 15, weight: 600 }));
+    const rows = [['without', r.arms.without, t.without], ['with', r.arms.with, t.with]];
+    const max = Math.max(1, ...rows.map(([, row]) => g.value(row)));
+    rows.forEach(([label, row, fill], i) => {
+      const y = g.y + 14 + i * (barH + 12);
+      const v = g.value(row);
+      const x1 = L + ((v / max) * (R - L));
+      out.push(svgText(L - 14, y + barH - 6, label, { fill: t.muted, size: 13, anchor: 'end' }));
+      out.push(svgBar(L, x1, y, barH, fill));
+      const value = g.fmt(v);
+      const vx = Math.max(x1, L) + 10;
+      out.push(svgText(vx, y + barH - 4, value, { fill: t.ink, size: 22, weight: 700 }));
+      const note = label === 'with' ? g.note() : '';
+      if (note) out.push(svgText(vx + value.length * 13 + 8, y + barH - 6, note, { fill: t.muted, size: 12 }));
+    });
+  }
+  out.push(svgText(24, H - 18, `${r.requested} subagents requested · one prompt, same files, model ${r.model}`, { fill: t.muted, size: 12 }));
+  out.push('</svg>');
+  return out.join('\n');
+}
+
+const floodCaption = (r) => `${r.requested} subagents requested, model \`${r.model}\`. Started at once: **${started(r.arms.without)}** without, **${started(r.arms.with)}** with. `
+  + `Tokens billed this turn: **${tokc(r.arms.without.billed)}** without, **${tokc(r.arms.with.billed)}** with — ${outcome(r)}.`;
+
+const floodRow = (label, row) => `| ${label} | ${row.spawnRequested} | ${started(row)} | ${row.spawnBlocked} | ${num(row.billed)} | ${usd(row.cost)} | ${secs(row.durationMs)} | ${row.pass ? 'yes' : 'no'}${row.error ? ` (${row.error.split(':')[0]})` : ''} |`;
+
+function floodDocBlock(r) {
+  return [
+    `Run ${r.generated} · model \`${r.model}\` · plugin build ${shortCommit(r)} (${r.plugin.version}) · \`eval/flood-results.json\`${r.stopped ? ` · stopped: ${r.stopped}` : ''}`,
+    '',
+    '| Arm | Subagent calls | Started | Refused by the guard | Tokens billed | Cost | Wall time | Finished |',
+    '|---|---|---|---|---|---|---|---|',
+    floodRow('without', r.arms.without),
+    floodRow('with', r.arms.with),
+  ];
+}
+
+function writeFloodBlocks(r) {
+  for (const theme of Object.values(THEMES)) {
+    const file = path.join('docs', `flood${theme.suffix}.svg`);
+    writeFileSync(path.join(REPO, file), floodSvg(r, theme), 'utf8');
+    console.log(`  wrote ${file}`);
+  }
+  console.log(`  ${writeBlock(path.join(REPO, 'README.md'), FLOOD_OPEN, FLOOD_CLOSE, [
+    '<picture>',
+    '<source media="(prefers-color-scheme: dark)" srcset="docs/flood-dark.svg">',
+    `<img src="docs/flood.svg" width="720" alt="${esc(floodAlt(r))}">`,
+    '</picture>',
+    '',
+    floodCaption(r),
+  ])}`);
+  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), FLOOD_DOC_OPEN, FLOOD_DOC_CLOSE, floodDocBlock(r))}`);
+}
+
+function flood(opts) {
+  const outFile = path.resolve(REPO, opts.out);
+  if (opts.render) {
+    writeFloodBlocks(JSON.parse(readFileSync(outFile, 'utf8')));
+    return 0;
+  }
+  const task = floodTask();
+  const arms = {};
+  let cost = 0;
+  let stopped = null;
+  console.log(`\nhandoff-os — flood, ${FLOOD_MODULES} subagents requested, 2 arms, model ${opts.model}${opts.dryRun ? ', DRY RUN' : ''}\n`);
+  for (const arm of ['B', 'A']) {
+    const row = runArm(task, arm, opts);
+    arms[arm === 'A' ? 'with' : 'without'] = row;
+    cost += row.cost;
+    console.log(`  ${arm === 'A' ? 'with   ' : 'without'} calls ${row.spawnRequested}  started ${started(row)}  refused ${row.spawnBlocked}  billed ${num(row.billed).padStart(9)}  ${usd(row.cost)}  ${secs(row.durationMs)}  ${row.pass ? 'finished' : 'unfinished'}${row.error ? `  ${row.error}` : ''}`);
+    if (cost > opts.budgetUsd) { stopped = `budget: ${usd(cost)} > ${usd(opts.budgetUsd)}`; break; }
+  }
+  const pluginDir = abPluginDir(opts);
+  const pluginRoot = path.basename(path.dirname(pluginDir)) === 'plugins' ? path.dirname(path.dirname(pluginDir)) : REPO;
+  const result = {
+    generated: new Date().toISOString().slice(0, 10),
+    model: opts.model,
+    dryRun: opts.dryRun,
+    maxTurns: opts.maxTurns,
+    requested: FLOOD_MODULES,
+    prompt: FLOOD_PROMPT,
+    stopped,
+    costUsd: Math.round(cost * 1000) / 1000,
+    plugin: {
+      dir: path.basename(pluginDir),
+      version: JSON.parse(readFileSync(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8')).version,
+      commit: gitAt(pluginRoot, ['rev-parse', 'HEAD']),
+      ref: gitAt(pluginRoot, ['rev-parse', '--abbrev-ref', 'HEAD']),
+    },
+    arms,
+  };
+  writeFileSync(outFile, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
+  console.log(`\n  wrote ${path.relative(REPO, outFile)}${stopped ? `  ${stopped}` : ''}`);
+  if (arms.with && arms.without && !opts.dryRun && !path.relative(REPO, outFile).startsWith('..')) writeFloodBlocks(result);
+  return stopped ? 1 : 0;
+}
+
+if (flags.flood) process.exit(flood(AB));
 
 if (flags.ab) process.exit(ab(AB));
 

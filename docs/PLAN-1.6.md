@@ -1,6 +1,6 @@
 # Plan — 1.6
 
-<!-- follow-up to PR #18; rows 0 and 1 land in this PR, the rest are the plan -->
+<!-- follow-up to PR #18; rows 0 and 1 landed in PR #19, rows 2–5 and 8 in the spend-guard PR; status per row -->
 
 | Item | Value |
 |---|---|
@@ -42,13 +42,13 @@
 |---|---|---|---|---|---|
 | 0 | Version 1.6.0 — done in this PR | `plugin.json`, `package.json`, `CHANGELOG.md` | `npm run doctor` registers 1.6.0 | — | 2 |
 | 1 | `gated` counter for verify gate + citation contract — done in this PR | `ledger.mjs`, `verify.mjs` | Stop line `N gated` | one blocking case | 8 |
-| 2 | `sessionLine(state)`: per-session receipt — stops by class, admitted tok and share of ceiling, bytes trimmed, actors used, footprint; Stop prints it only when totals changed since last print; `lifetimeLine` stays for the benchmark | `ledger.mjs`, `verify.mjs` | receipt fields | one blocking case: silent Stop when nothing changed | 40 |
-| 3 | Rewrite instead of refuse via PreToolUse `updatedInput`: oversize `Read` → `{offset, limit}`; `cat\|bat\|less f` over cap → `head -c 24576 f`; content `Grep` without `head_limit` → `head_limit: 50`; book `trimmed = size − admitted` per event | `guard.mjs` | deterministic byte delta, no refusal round-trip | one case per rewrite shape | 60 |
-| 4 | Book every read shape: `sed -n a,bp`, `head -n/-c`, `tail`, first segment of a pipe, `Read offset/limit`, `cat a b` → estimated admitted bytes; interpreter and `git show` reads → `unjudged` counter, the denominator | `patterns.mjs`, `guard.mjs` | `read` and `unjudged` counters | one case: `sed -n` books admitted bytes | 50 |
-| 5 | Enforced delegation: after 8 whole files or 150 KB admitted, deny the next whole-file read and print a ready-to-paste `handoff-os:scout` dispatch naming the file; counted as `offload` | `guard.mjs` | `offload` counter | one case: ninth whole file denied | 25 |
+| 2 | `sessionLine(state)`: per-session receipt — done in the spend-guard PR — stops by class, admitted tok and share of ceiling, bytes trimmed, actors used, footprint; Stop prints it only when totals changed since last print; `lifetimeLine` stays for the benchmark | `ledger.mjs`, `verify.mjs` | receipt fields | one blocking case: silent Stop when nothing changed | 40 |
+| 3 | Rewrite instead of refuse via PreToolUse `updatedInput` — done in the spend-guard PR: oversize `Read` → `{offset, limit}`; `cat\|bat\|less f` over cap → `head -c 24576 f`; content `Grep` without `head_limit` → `head_limit: 50`; book `trimmed = size − admitted` per event | `guard.mjs` | deterministic byte delta, no refusal round-trip | one case per rewrite shape | 60 |
+| 4 | Book every read shape — done in the spend-guard PR: `sed -n a,bp`, `head -n/-c`, `tail`, first segment of a pipe, `Read offset/limit`, `cat a b` → estimated admitted bytes; interpreter and `git show` reads → `unjudged` counter, the denominator | `patterns.mjs`, `guard.mjs` | `read` and `unjudged` counters | one case: `sed -n` books admitted bytes | 50 |
+| 5 | Enforced delegation — done in the spend-guard PR, counter `offloads`: after 8 whole files or 150 KB admitted, deny the next whole-file read and print a ready-to-paste `handoff-os:scout` dispatch naming the file | `guard.mjs` | `offloads` counter | one case: ninth whole file denied | 25 |
 | 6 | Track B runner `npm run benchmark:ab` over `eval/tasks.jsonl`, paired arms with and without `--plugin-dir` — the proof | `scripts/benchmark.mjs`, `eval/tasks.jsonl` | `docs/BENCHMARK.md` Track B | outside the suite, like `benchmark:eval` | 200 |
 | 7 | OTEL attribution recipe | `docs/BENCHMARK.md` | `claude_code.tool_decision` with `decision_source: hook`; `claude_code.token.usage` with `plugin.name` — third-party names need `OTEL_LOG_TOOL_DETAILS=1` | — | 0 |
-| 8 | README honesty: badge relabel (`68-case regression suite`, not `100% caught`); savings net of footprint and per session length; Cowork hooks inert with issue refs; OpenCode subagent bypass; bytes / 4 is an estimate | `README.md` | — | — | 0 |
+| 8 | README honesty — done in the spend-guard PR: badge relabel (`68-case regression suite`, not `100% caught`); savings net of footprint and per session length; Cowork hooks inert with issue refs; OpenCode subagent bypass; bytes / 4 is an estimate | `README.md` | — | — | 0 |
 | 9 | Go/no-go after row 6: if Δ billed ≤ footprint and `gated` + citation catches = 0 over N tasks, drop the optimisation positioning and ship as guard + verify gate only | `README.md`, `plugin.json` description | row 6 output | — | 0 |
 
 ## Proof format

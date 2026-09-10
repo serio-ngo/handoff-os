@@ -461,12 +461,141 @@ const fmtPct = (x) => (x === null || x === undefined ? 'n/a' : `${x > 0 ? '+' : 
 const fmtTok = (x) => (x === null || x === undefined ? 'n/a' : `${x > 0 ? '+' : ''}${Math.round(x).toLocaleString('en-US')} tok`);
 const fmtCi = (ci, f) => (ci[0] === null ? '' : ` [${f(ci[0])}, ${f(ci[1])}]`);
 
-function abReadmeBlock(r, extra = []) {
-  if (r.dryRun) return [`Not run. Dry-run pipeline check on ${r.generated}, ${r.n} tasks, model \`${r.model}\`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md), Track B.`];
+const shortCommit = (r) => String(r.plugin.commit || 'unknown').slice(0, 7);
+const runLabel = (r, n) => `Run ${n} — plugin build ${shortCommit(r)} (${r.plugin.ref || 'local'}, ${r.plugin.version})`;
+const guardCell = (row) => Object.entries(row.guard).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
+const ledgerCell = (row) => Object.entries(row.ledger).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
+const uniq = (xs) => [...new Set(xs)].join(' / ');
+
+const THEMES = {
+  light: { suffix: '', surface: '#ffffff', border: '#d0d7de', ink: '#1f2328', muted: '#656d76', grid: '#eaeef2', axis: '#8c959f', up: '#eb6834', down: '#2a78d6', a: '#2a78d6', b: '#8c959f' },
+  dark: { suffix: '-dark', surface: '#161b22', border: '#30363d', ink: '#e6edf3', muted: '#8d96a0', grid: '#21262d', axis: '#6e7681', up: '#d95926', down: '#3987e5', a: '#3987e5', b: '#adb5bd' },
+};
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+const MICRO_LABEL = { 'micro-a': 'whole-file read of src/big.js', 'micro-b': 'six-subagent fan-out' };
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const px = (v) => Math.round(v * 10) / 10;
+const svgText = (x, y, s, o = {}) => `<text x="${px(x)}" y="${px(y)}" fill="${o.fill}" font-size="${o.size ?? 12}"${o.weight ? ` font-weight="${o.weight}"` : ''}${o.anchor ? ` text-anchor="${o.anchor}"` : ''}>${esc(s)}</text>`;
+const svgLine = (x1, y1, x2, y2, stroke, width = 1) => `<line x1="${px(x1)}" y1="${px(y1)}" x2="${px(x2)}" y2="${px(y2)}" stroke="${stroke}" stroke-width="${width}"/>`;
+const svgBar = (x0, x1, y, h, fill) => {
+  const r = Math.min(4, Math.abs(x1 - x0));
+  if (r < 1) return '';
+  const d = x1 >= x0
+    ? `M${px(x0)},${px(y)} H${px(x1 - r)} A${r},${r} 0 0 1 ${px(x1)},${px(y + r)} V${px(y + h - r)} A${r},${r} 0 0 1 ${px(x1 - r)},${px(y + h)} H${px(x0)} Z`
+    : `M${px(x0)},${px(y)} H${px(x1 + r)} A${r},${r} 0 0 0 ${px(x1)},${px(y + r)} V${px(y + h - r)} A${r},${r} 0 0 0 ${px(x1 + r)},${px(y + h)} H${px(x0)} Z`;
+  return `<path d="${d}" fill="${fill}"/>`;
+};
+const svgOpen = (w, h, t, label) => [
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(label)}" font-family="${FONT}">`,
+  `<rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="8" fill="${t.surface}" stroke="${t.border}"/>`,
+];
+
+function scale(values, L, R) {
+  const lo = Math.min(0, ...values);
+  const hi = Math.max(0, ...values);
+  const span = hi - lo || 1;
+  const mag = 10 ** Math.floor(Math.log10(span / 5));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= 6);
+  const min = Math.floor(lo / step + 1e-9) * step;
+  const max = Math.ceil(hi / step - 1e-9) * step;
+  const ticks = [];
+  for (let i = 0; min + i * step <= max + 1e-9; i += 1) ticks.push(Math.round((min + i * step) * 1000) / 1000);
+  return { x: (v) => L + ((v - min) / (max - min)) * (R - L), ticks };
+}
+
+const tickPct = (v) => (v === 0 ? '0' : `${v > 0 ? '+' : ''}${v}%`);
+const tickTok = (v) => (v >= 1000 ? `${v / 1000}k` : String(v));
+const passLine = (r) => `pass ${r.aggregate.passA}/${r.n} with, ${r.aggregate.passB}/${r.n} without`;
+
+function axis(out, s, t, fmt, yTop, yBottom) {
+  for (const v of s.ticks) {
+    out.push(svgLine(s.x(v), yTop, s.x(v), yBottom, v === 0 ? t.axis : t.grid));
+    out.push(svgText(s.x(v), yBottom + 16, fmt(v), { fill: t.muted, size: 11, anchor: 'middle' }));
+  }
+}
+
+function deltaSvg(runs, t) {
+  const W = 760; const L = 300; const R = 580; const rowH = 56; const top = 70; const bottom = 66;
+  const H = top + runs.length * rowH + bottom;
+  const s = scale(runs.flatMap((r) => [r.aggregate.billedWeighted.pct, ...r.aggregate.billedWeighted.pctCi95]), L, R);
+  const out = svgOpen(W, H, t, deltaAlt(runs));
+  out.push(svgText(20, 30, 'Δ billed tokens vs no plugin — cache-read at 0.1×', { fill: t.ink, size: 15, weight: 600 }));
+  out.push(svgText(20, 50, `model ${uniq(runs.map((r) => r.model))} · ${uniq(runs.map((r) => r.n))} tasks × 2 arms · ${uniq(runs.map((r) => r.generated))} · measured from transcript usage`, { fill: t.muted, size: 11 }));
+  axis(out, s, t, tickPct, top - 6, H - bottom + 8);
+  runs.forEach((r, i) => {
+    const a = r.aggregate.billedWeighted;
+    const y = top + i * rowH + rowH / 2;
+    out.push(svgText(20, y - 3, `build ${shortCommit(r)} · ${r.plugin.version}`, { fill: t.ink, weight: 600 }));
+    out.push(svgText(20, y + 14, `${r.plugin.ref || 'local'} · ${passLine(r)}`, { fill: t.muted, size: 11 }));
+    out.push(svgBar(s.x(0), s.x(a.pct), y - 10, 20, a.pct >= 0 ? t.up : t.down));
+    const [lo, hi] = a.pctCi95;
+    out.push(svgLine(s.x(lo), y, s.x(hi), y, t.ink, 1.5), svgLine(s.x(lo), y - 5, s.x(lo), y + 5, t.ink, 1.5), svgLine(s.x(hi), y - 5, s.x(hi), y + 5, t.ink, 1.5));
+    const lx = Math.max(s.x(0), s.x(a.pct), s.x(hi)) + 10;
+    out.push(`<text x="${px(lx)}" y="${px(y + 4)}" font-size="12"><tspan fill="${t.ink}" font-weight="600">${esc(fmtPct(a.pct))}</tspan><tspan fill="${t.muted}" dx="6">[${esc(fmtPct(lo))}, ${esc(fmtPct(hi))}]</tspan></text>`);
+  });
+  out.push(svgText(20, H - 18, 'Δ = with − without, share of the without-arm total · whisker = 95% CI, bootstrap over paired differences · negative = the plugin arm billed less', { fill: t.muted, size: 11 }));
+  out.push('</svg>');
+  return `${out.join('\n')}\n`;
+}
+
+const microRows = (runs) => Object.keys(MICRO_LABEL).map((id) => ({ id, runs: runs.filter((r) => r.micro && r.micro[id]) })).filter((g) => g.runs.length);
+
+function microSvg(runs, t) {
+  const W = 760; const L = 300; const R = 610; const top = 74; const bottom = 60; const groupH = 28; const rowH = 46; const barH = 12; const gap = 2;
+  const groups = microRows(runs);
+  const rows = groups.reduce((n, g) => n + g.runs.length, 0);
+  const H = top + groups.length * groupH + rows * rowH + bottom;
+  const s = scale(groups.flatMap((g) => g.runs.flatMap((r) => [r.micro[g.id].A.billedWeighted, r.micro[g.id].B.billedWeighted])), L, R);
+  const out = svgOpen(W, H, t, microAlt(runs));
+  out.push(svgText(20, 30, 'Micro experiments — billed tokens per arm, cache-read at 0.1×', { fill: t.ink, size: 15, weight: 600 }));
+  out.push(svgText(20, 50, `model ${uniq(runs.map((r) => r.model))} · one prompt per arm · lower is cheaper`, { fill: t.muted, size: 11 }));
+  out.push(`<rect x="${W - 218}" y="22" width="10" height="10" rx="2" fill="${t.a}"/>`, svgText(W - 203, 31, 'with plugin', { fill: t.muted, size: 11 }));
+  out.push(`<rect x="${W - 118}" y="22" width="10" height="10" rx="2" fill="${t.b}"/>`, svgText(W - 103, 31, 'without', { fill: t.muted, size: 11 }));
+  axis(out, s, t, tickTok, top - 8, H - bottom + 8);
+  let y = top;
+  for (const g of groups) {
+    out.push(svgText(20, y + 12, `${g.id} — ${MICRO_LABEL[g.id]}`, { fill: t.ink, size: 12, weight: 600 }));
+    y += groupH;
+    for (const r of g.runs) {
+      const { A, B } = r.micro[g.id];
+      const note = g.id === 'micro-b'
+        ? `subagents ${A.spawned ?? 'n/a'} of ${A.spawnRequested} spawned vs ${B.spawned ?? 'n/a'} of ${B.spawnRequested}`
+        : (guardCell(A) === '—' ? `ledger ${ledgerCell(A)}` : `guard events ${guardCell(A)}`);
+      out.push(svgText(20, y + 16, `build ${shortCommit(r)} · ${r.plugin.version}`, { fill: t.ink, size: 11.5 }));
+      out.push(svgText(20, y + 31, note, { fill: t.muted, size: 11 }));
+      out.push(svgBar(s.x(0), s.x(A.billedWeighted), y + 9, barH, t.a));
+      out.push(svgText(s.x(A.billedWeighted) + 6, y + 9 + barH - 2, tokc(A.billedWeighted), { fill: t.ink, size: 11, weight: 600 }));
+      out.push(svgBar(s.x(0), s.x(B.billedWeighted), y + 9 + barH + gap, barH, t.b));
+      out.push(svgText(s.x(B.billedWeighted) + 6, y + 9 + 2 * barH + gap - 2, tokc(B.billedWeighted), { fill: t.muted, size: 11 }));
+      y += rowH;
+    }
+  }
+  out.push(svgText(20, H - 18, 'billed = input + 1.25× / 2× cache write + 0.1× cache read, from transcript usage · same fixture, same model, one prompt per arm', { fill: t.muted, size: 11 }));
+  out.push('</svg>');
+  return `${out.join('\n')}\n`;
+}
+
+const deltaAlt = (runs) => `Δ billed tokens vs no plugin, cache-read at 0.1×: ${runs.map((r) => `build ${shortCommit(r)} ${fmtPct(r.aggregate.billedWeighted.pct)} [${r.aggregate.billedWeighted.pctCi95.map(fmtPct).join(', ')}], ${passLine(r)}`).join('; ')}`;
+const microAlt = (runs) => `Micro experiments, billed tokens with vs without the plugin: ${microRows(runs).flatMap((g) => g.runs.map((r) => `${g.id} build ${shortCommit(r)} ${num(r.micro[g.id].A.billedWeighted)} vs ${num(r.micro[g.id].B.billedWeighted)}`)).join('; ')}`;
+
+const CHARTS = [
+  { name: 'ab-delta', svg: deltaSvg, alt: deltaAlt, when: () => true },
+  { name: 'ab-micro', svg: microSvg, alt: microAlt, when: (runs) => microRows(runs).length > 0 },
+];
+
+const chartTags = (prefix, runs) => CHARTS.filter((c) => c.when(runs)).flatMap((c) => [
+  '<picture>',
+  `<source media="(prefers-color-scheme: dark)" srcset="${prefix}${c.name}-dark.svg">`,
+  `<img src="${prefix}${c.name}.svg" width="720" alt="${esc(c.alt(runs))}">`,
+  '</picture>',
+  '',
+]);
+
+function aggregateTable(r, n) {
   const a = r.aggregate;
   const guard = Object.entries(a.guardEventsA).sort((x, y) => y[1] - x[1]);
   return [
-    `| ${runLabel(r, 1)} — ${r.n} tasks × 2 arms, ${r.generated}, model \`${r.model}\` | Value |`,
+    `| ${runLabel(r, n)} — ${r.n} tasks × 2 arms, ${r.generated}, model \`${r.model}\` | Value |`,
     '|---|---|',
     `| Δ billed tokens, with − without, cache-read at 0.1× | **${fmtPct(a.billedWeighted.pct)}**${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
     `| Δ billed tokens, raw sum of input + cache write + cache read | ${fmtPct(a.billedRaw.pct)}${fmtCi(a.billedRaw.pctCi95, fmtPct)} |`,
@@ -477,7 +606,20 @@ function abReadmeBlock(r, extra = []) {
     `| Guard events, with plugin | ${guard.length ? guard.map(([rule, count]) => `${rule} ${count}`).join(' · ') : 'none'} |`,
     `| Plugin footprint, always in context | ~${tokc(r.plugin.footprintTokens)} tok |`,
     `| Total billed tokens, both arms | ${num(a.spendTokens)} tok |`,
-    ...abReadmeExtra(extra),
+  ];
+}
+
+function abReadmeBlock(r, extra = []) {
+  if (r.dryRun) return [`Not run. Dry-run pipeline check on ${r.generated}, ${r.n} tasks, model \`${r.model}\`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md), Track B.`];
+  const runs = [r, ...extra.filter((x) => !x.dryRun)];
+  return [
+    ...chartTags('docs/', runs),
+    '<details>',
+    `<summary>Per-task data — ${runs.length} run${runs.length === 1 ? '' : 's'} × ${uniq(runs.map((x) => x.n))} tasks × 2 arms</summary>`,
+    '',
+    ...runs.flatMap((x, i) => [...aggregateTable(x, i + 1), '']),
+    ...(runs.length > 1 ? buildsTable(runs) : []),
+    '</details>',
     '',
     'Same prompt, same model, same fixture, arms in random order per task; 95% CI by bootstrap over paired '
     + 'differences. Negative Δ means the plugin arm billed less. Reproduce with `npm run benchmark:ab`. '
@@ -485,12 +627,9 @@ function abReadmeBlock(r, extra = []) {
   ];
 }
 
-const runLabel = (r, n) => `Run ${n} — plugin build ${String(r.plugin.commit || 'unknown').slice(0, 7)} (${r.plugin.ref || 'local'}, ${r.plugin.version})`;
-const guardCell = (row) => Object.entries(row.guard).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
-const ledgerCell = (row) => Object.entries(row.ledger).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
-
 function runTables(r) {
   const a = r.aggregate;
+  const microCount = r.micro ? Object.keys(r.micro).length * 2 : 0;
   const lines = [
     '| Aggregate | Mean Δ (with − without) | 95% CI | Δ % |', '|---|---|---|---|',
     `| Billed tokens, cache-read at 0.1× | ${Math.round(a.billedWeighted.mean)} | ${a.billedWeighted.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
@@ -499,6 +638,9 @@ function runTables(r) {
     `| Pass rate | with ${a.passA}/${r.n} · without ${a.passB}/${r.n} | — | — |`,
     `| Guard events, with plugin | ${Object.entries(a.guardEventsA).map(([k, v]) => `${k} ${v}`).join(' · ') || 'none'} | — | — |`,
     `| Billed tokens, both arms | ${num(a.spendTokens)} | — | — |`,
+    '',
+    '<details>',
+    `<summary>Per-task rows · ${r.tasks.length * 2}${microCount ? ` · micro rows · ${microCount}` : ''}</summary>`,
     '',
     '| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Guard events | Ledger |', '|---|---|---|---|---|---|---|---|',
     ...r.tasks.flatMap((t) => [t.A, t.B].map((row) => `| \`${row.task}\` | ${row.plugin ? 'with' : 'without'} | ${row.pass ? 'yes' : 'no'}${row.error ? ` (${row.error.split(':')[0]})` : ''} | ${num(row.billedWeighted)} | ${num(row.billedRaw)} | ${num(row.output)} | ${guardCell(row)} | ${ledgerCell(row)} |`)),
@@ -513,11 +655,12 @@ function runTables(r) {
     }
     lines.push('');
   }
+  lines.push('</details>', '');
   return lines;
 }
 
 function buildsTable(runs) {
-  const head = runs.map((r, i) => `build ${i + 1} · ${String(r.plugin.commit || '').slice(0, 7)}`);
+  const head = runs.map((r, i) => `build ${i + 1} · ${shortCommit(r)}`);
   const lines = [
     `| Task | ${runs.map((_, i) => `without, run ${i + 1}`).join(' | ')} | ${head.join(' | ')} | Pass ${head.map((_, i) => `b${i + 1}`).join(' / ')} |`,
     `|---|${runs.map(() => '---|').join('')}${runs.map(() => '---|').join('')}---|`,
@@ -532,8 +675,10 @@ function buildsTable(runs) {
 }
 
 function abDocBlock(r, extra = []) {
+  const runs = [r, ...extra].filter((x) => !x.dryRun);
   const status = r.dryRun ? `Not run: dry-run on ${r.generated}` : `${runLabel(r, 1)} · ${r.generated} · model \`${r.model}\` · N = ${r.n}${r.stopped ? ` · stopped: ${r.stopped}` : ''}`;
   const lines = [
+    ...(runs.length ? chartTags('', runs) : []),
     `| Status | ${status} |`, '|---|---|',
     `| Footprint | ~${tokc(r.plugin.footprintTokens)} tok |`,
     `| Tokens | billed = input + cache write + cache read from transcript usage; weighted = 1× + 1.25×/2× write + 0.1× read |`,
@@ -552,17 +697,6 @@ function abDocBlock(r, extra = []) {
   return lines;
 }
 
-function abReadmeExtra(extra) {
-  return extra.flatMap((x, i) => {
-    const a = x.aggregate;
-    return [
-      `| ${runLabel(x, i + 2)}: Δ billed tokens, cache-read at 0.1× | **${fmtPct(a.billedWeighted.pct)}**${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
-      `| ${runLabel(x, i + 2)}: Δ billed tokens per task | **${fmtTok(a.billedWeighted.mean)}**${fmtCi(a.billedWeighted.ci95, fmtTok)} |`,
-      `| ${runLabel(x, i + 2)}: pass rate, with / without | ${a.passA}/${x.n} / ${a.passB}/${x.n} |`,
-    ];
-  });
-}
-
 function extraRuns(outFile) {
   const dir = path.join(REPO, 'eval');
   return readdirSync(dir).filter((name) => /^ab-results-.*\.json$/.test(name)).sort()
@@ -574,8 +708,20 @@ const gitAt = (cwd, args) => (spawnSync('git', args, { cwd, encoding: 'utf8' }).
 
 const abPluginDir = (opts) => path.resolve(opts.pluginDir || path.join(REPO, 'plugins', 'handoff-os'));
 
+function writeAbCharts(runs) {
+  for (const chart of CHARTS.filter((c) => c.when(runs))) {
+    for (const theme of Object.values(THEMES)) {
+      const file = path.join('docs', `${chart.name}${theme.suffix}.svg`);
+      writeFileSync(path.join(REPO, file), chart.svg(runs, theme), 'utf8');
+      console.log(`  wrote ${file}`);
+    }
+  }
+}
+
 function writeAbBlocks(result, outFile) {
   const extra = extraRuns(outFile);
+  const runs = [result, ...extra].filter((x) => !x.dryRun);
+  if (runs.length) writeAbCharts(runs);
   console.log(`  ${writeBlock(path.join(REPO, 'README.md'), AB_OPEN, AB_CLOSE, abReadmeBlock(result, extra))}`);
   console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result, extra))}`);
 }
@@ -942,7 +1088,7 @@ const statsBlock = () => {
       '',
     ] : []),
     `Guard actions: ${num(actions)}${t.scouts || t.runners ? ` (used ${num(t.scouts)} scout, ${num(t.runners)} runner)` : ''}. Token counts are file bytes / 4 from this repo's own local `
-    + 'ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).',
+    + 'ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).',
   ];
 };
 

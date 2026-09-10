@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 248" width="760" height="248" role="img" aria-label="Δ billed tokens vs no plugin, cache-read at 0.1×: build c24cb86 +35.5% [+17.3%, +54.8%], pass 8/11 with, 10/11 without; build 84f2ac8 +11.3% [-5.0%, +42.7%], pass 9/11 with, 11/11 without" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
+<rect x="0.5" y="0.5" width="759" height="247" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="20" y="30" fill="#1f2328" font-size="15" font-weight="600">Δ billed tokens vs no plugin — cache-read at 0.1×</text>
+<text x="20" y="50" fill="#656d76" font-size="11">model claude-haiku-4-5-20251001 · 11 tasks × 2 arms · 2026-09-10 · measured from transcript usage</text>
+<line x1="300" y1="64" x2="300" y2="190" stroke="#eaeef2" stroke-width="1"/>
+<text x="300" y="206" fill="#656d76" font-size="11" text-anchor="middle">-10%</text>
+<line x1="340" y1="64" x2="340" y2="190" stroke="#8c959f" stroke-width="1"/>
+<text x="340" y="206" fill="#656d76" font-size="11" text-anchor="middle">0</text>
+<line x1="380" y1="64" x2="380" y2="190" stroke="#eaeef2" stroke-width="1"/>
+<text x="380" y="206" fill="#656d76" font-size="11" text-anchor="middle">+10%</text>
+<line x1="420" y1="64" x2="420" y2="190" stroke="#eaeef2" stroke-width="1"/>
+<text x="420" y="206" fill="#656d76" font-size="11" text-anchor="middle">+20%</text>
+<line x1="460" y1="64" x2="460" y2="190" stroke="#eaeef2" stroke-width="1"/>
+<text x="460" y="206" fill="#656d76" font-size="11" text-anchor="middle">+30%</text>
+<line x1="500" y1="64" x2="500" y2="190" stroke="#eaeef2" stroke-width="1"/>
+<text x="500" y="206" fill="#656d76" font-size="11" text-anchor="middle">+40%</text>
+<line x1="540" y1="64" x2="540" y2="190" stroke="#eaeef2" stroke-width="1"/>
+<text x="540" y="206" fill="#656d76" font-size="11" text-anchor="middle">+50%</text>
+<line x1="580" y1="64" x2="580" y2="190" stroke="#eaeef2" stroke-width="1"/>
+<text x="580" y="206" fill="#656d76" font-size="11" text-anchor="middle">+60%</text>
+<text x="20" y="95" fill="#1f2328" font-size="12" font-weight="600">build c24cb86 · 1.6.0</text>
+<text x="20" y="112" fill="#656d76" font-size="11">main · pass 8/11 with, 10/11 without</text>
+<path d="M340,88 H477.9 A4,4 0 0 1 481.9,92 V104 A4,4 0 0 1 477.9,108 H340 Z" fill="#eb6834"/>
+<line x1="409.1" y1="98" x2="559.1" y2="98" stroke="#1f2328" stroke-width="1.5"/>
+<line x1="409.1" y1="93" x2="409.1" y2="103" stroke="#1f2328" stroke-width="1.5"/>
+<line x1="559.1" y1="93" x2="559.1" y2="103" stroke="#1f2328" stroke-width="1.5"/>
+<text x="569.1" y="102" font-size="12"><tspan fill="#1f2328" font-weight="600">+35.5%</tspan><tspan fill="#656d76" dx="6">[+17.3%, +54.8%]</tspan></text>
+<text x="20" y="151" fill="#1f2328" font-size="12" font-weight="600">build 84f2ac8 · 1.7.0</text>
+<text x="20" y="168" fill="#656d76" font-size="11">feat/spend-guard · pass 9/11 with, 11/11 without</text>
+<path d="M340,144 H381.2 A4,4 0 0 1 385.2,148 V160 A4,4 0 0 1 381.2,164 H340 Z" fill="#eb6834"/>
+<line x1="319.8" y1="154" x2="510.6" y2="154" stroke="#1f2328" stroke-width="1.5"/>
+<line x1="319.8" y1="149" x2="319.8" y2="159" stroke="#1f2328" stroke-width="1.5"/>
+<line x1="510.6" y1="149" x2="510.6" y2="159" stroke="#1f2328" stroke-width="1.5"/>
+<text x="520.6" y="158" font-size="12"><tspan fill="#1f2328" font-weight="600">+11.3%</tspan><tspan fill="#656d76" dx="6">[-5.0%, +42.7%]</tspan></text>
+<text x="20" y="230" fill="#656d76" font-size="11">Δ = with − without, share of the without-arm total · whisker = 95% CI, bootstrap over paired differences · negative = the plugin arm billed less</text>
+</svg>

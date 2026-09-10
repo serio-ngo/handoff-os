@@ -187,7 +187,7 @@ export function manifest() {
   return [
     '# Manifest',
     '',
-    `Everything the plugin loads, at version ${version}. Generated — \`npm run upkeep\` rewrites it.`,
+    `<sub><b>Answers</b> · everything the plugin loads at version ${version} · generated, \`npm run upkeep\` rewrites it · <a href="../README.md">README</a></sub>`,
     '',
     '## Skills', '',
     table(['Skill', 'Description chars, always in context', 'Body lines, on use'], skillRows()), '',

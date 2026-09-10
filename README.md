@@ -4,29 +4,69 @@
 
 **Spend guard for Claude Code** — acts at `PreToolUse` and `Stop`, before the tokens are spent.
 
-| Stops | How |
-|---|---|
-| 4th agent in a 90-second wave | held for the next wave |
-| opus/fable dispatch with no `QUALITY:` flag | refused, scout or runner named |
-| Whole-file read over 24 KB | rewritten to a slice |
-| Byte-identical re-read, repeat search | refused |
-| 9th whole file in one thread | handed to a scout |
-| Content grep with no `head_limit` | capped at 50 lines |
-| Send, pay, publish, merge, delete | refused, human-only |
+[![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version&color=1f6feb)](plugins/handoff-os/.claude-plugin/plugin.json)
+[![verify](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml)
+[![license](https://img.shields.io/github/license/serio-ngo/handoff-os?color=1f6feb)](LICENSE)
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-1f6feb)](#install)
 
-Zero dependencies, fully offline, no model calls, no network, no telemetry.
+[![guard caught](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.recall&suffix=%25&label=guard%20caught&color=2da44e)](docs/BENCHMARK.md)
+[![wrongly blocked](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.fpRate&suffix=%25&label=wrongly%20blocked&color=2da44e)](docs/BENCHMARK.md)
+[![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic&color=57606a)](plugins/handoff-os/scripts)
+[![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.dependencies&label=dependencies&color=2da44e)](package.json)
 
-[![guard caught](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.recall&suffix=%25&label=guard%20caught&color=brightgreen)](docs/BENCHMARK.md) [![wrongly blocked](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.fpRate&suffix=%25&label=wrongly%20blocked&color=brightgreen)](docs/BENCHMARK.md)
+<img src="docs/demo.svg" width="720" alt="handoff-os refusing a 38KB read, capping a subagent wave and blocking a send, then printing session totals">
 
-[![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic)](plugins/handoff-os/scripts) [![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.dependencies&label=dependencies&color=brightgreen)](package.json) [![verify](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml)
-
-[![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version)](plugins/handoff-os/.claude-plugin/plugin.json) [![license](https://img.shields.io/github/license/serio-ngo/handoff-os)](LICENSE)
-
-<img src="docs/demo.svg" width="720" alt="handoff-os refusing a 38KB read, capping a subagent wave and blocking a send, then printing session totals" />
-
-[What changes](#what-changes-for-you) · [Install](#install) · [Limits](#limits) · [Benchmark](docs/BENCHMARK.md)
+<sub>[What changes](#what-changes-for-you) · [Install](#install) · [Measured](#measured--replayed-against-real-traffic) · [Limits](#limits) · [Benchmark](docs/BENCHMARK.md)</sub>
 
 </div>
+
+<table>
+<tr>
+<th align="left" width="50%">Stops</th>
+<th align="left" width="28%">Counts</th>
+<th align="left" width="22%">Does not</th>
+</tr>
+<tr valign="top">
+<td>
+<b>4th agent</b> in a 90-second wave — held for the next wave<br>
+<b>opus/fable dispatch</b> with no <code>QUALITY:</code> flag — refused, scout or runner named<br>
+<b>Whole-file read</b> over 24 KB — rewritten to a slice<br>
+<b>Byte-identical re-read</b>, repeat search — refused<br>
+<b>9th whole file</b> in one thread — handed to a scout<br>
+<b>Content grep</b> with no <code>head_limit</code> — capped at 50 lines<br>
+<b>Send, pay, publish, merge, delete</b> — refused, human-only
+</td>
+<td>
+<b>Tokens kept out</b> of the main thread — bytes / 4, an estimate<br>
+<b>Billed tokens</b> — transcript <code>usage</code>, measured<br>
+<b>Receipt at <code>Stop</code></b> — agents held back, tokens kept out, plugin footprint
+</td>
+<td>
+<b>Dependencies</b> — zero<br>
+<b>Model calls</b> — none<br>
+<b>Network</b> — none, fully offline<br>
+<b>Telemetry</b> — none
+</td>
+</tr>
+</table>
+
+## Install
+
+```text
+/plugin marketplace add serio-ngo/handoff-os
+/plugin install handoff-os@serio-ngo
+```
+
+> Hooks load at session start: restart Claude Code, then confirm with `npm run doctor`.
+
+<details>
+<summary>OpenCode and Cowork</summary>
+
+OpenCode works (same guard, `opencode.json` loader), except connector calls pass unjudged and
+subagent calls skip `tool.execute.before` (`sst/opencode#5894`). Cowork does not fire plugin
+hooks (`--setting-sources user`), so copy the `deny` list from `settings/policy.json` there.
+
+</details>
 
 ## What changes for you
 
@@ -52,6 +92,19 @@ Zero dependencies, fully offline, no model calls, no network, no telemetry.
 ## Measured — paired runs, with and without the plugin
 
 <!-- handoff-ab -->
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/ab-delta-dark.svg">
+<img src="docs/ab-delta.svg" width="720" alt="Δ billed tokens vs no plugin, cache-read at 0.1×: build c24cb86 +35.5% [+17.3%, +54.8%], pass 8/11 with, 10/11 without; build 84f2ac8 +11.3% [-5.0%, +42.7%], pass 9/11 with, 11/11 without">
+</picture>
+
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/ab-micro-dark.svg">
+<img src="docs/ab-micro.svg" width="720" alt="Micro experiments, billed tokens with vs without the plugin: micro-a build c24cb86 22,134 vs 57,225; micro-a build 84f2ac8 45,672 vs 57,213; micro-b build c24cb86 89,538 vs 129,661; micro-b build 84f2ac8 119,129 vs 122,333">
+</picture>
+
+<details>
+<summary>Per-task data — 2 runs × 11 tasks × 2 arms</summary>
+
 | Run 1 — plugin build c24cb86 (main, 1.6.0) — 11 tasks × 2 arms, 2026-09-10, model `claude-haiku-4-5-20251001` | Value |
 |---|---|
 | Δ billed tokens, with − without, cache-read at 0.1× | **+35.5%** [+17.3%, +54.8%] |
@@ -77,7 +130,7 @@ Same prompt, same model, same fixture, arms in random order per task; 95% CI by 
 
 Live numbers from this machine's ledger — kept out, footprint, billing, re-send ratio: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
-[![cache re-send (Claude, not the plugin)](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.resendRatio&suffix=x&label=cache%20re-send%20%28Claude%2C%20not%20the%20plugin%29&color=blue)](docs/BENCHMARK.md)
+[![cache re-send (Claude, not the plugin)](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.resendRatio&suffix=x&label=cache%20re-send%20%28Claude%2C%20not%20the%20plugin%29&color=1f6feb)](docs/BENCHMARK.md)
 
 ## Guard against the alternatives
 
@@ -109,31 +162,15 @@ Live numbers from this machine's ledger — kept out, footprint, billing, re-sen
 | Network calls, API keys, model calls | **0** |
 <!-- /inventory -->
 
-## Install
-
-```text
-/plugin marketplace add serio-ngo/handoff-os
-/plugin install handoff-os@serio-ngo
-```
-
-> Hooks load at session start: restart Claude Code, then confirm with `npm run doctor`.
-
-<details>
-<summary>OpenCode and Cowork</summary>
-
-OpenCode works (same guard, `opencode.json` loader), except connector calls pass unjudged and
-subagent calls skip `tool.execute.before` (`sst/opencode#5894`). Cowork does not fire plugin
-hooks (`--setting-sources user`), so copy the `deny` list from `settings/policy.json` there.
-
-</details>
-
 ## Configuration
 
-- `HANDOFF_STATS=0` silences the receipt once you trust the gate.
-- `HANDOFF_LOCK_GIT=1` blocks every state-changing git command.
-- `HANDOFF_MCP_ALLOW=action,action` allows named connector actions the egress lock would stop.
-- `HANDOFF_DENY_SUBAGENT_MODELS=model,model` keeps tiers off dispatches (default `opus,fable`).
-- `HANDOFF_OS_DIR=/path` keeps session state and audit files out of the repo.
+| Variable | Effect |
+|---|---|
+| `HANDOFF_STATS=0` | silences the receipt once you trust the gate |
+| `HANDOFF_LOCK_GIT=1` | blocks every state-changing git command |
+| `HANDOFF_MCP_ALLOW=action,action` | allows named connector actions the egress lock would stop |
+| `HANDOFF_DENY_SUBAGENT_MODELS=model,model` | keeps tiers off dispatches (default `opus,fable`) |
+| `HANDOFF_OS_DIR=/path` | keeps session state and audit files out of the repo |
 
 ## Limits
 
@@ -147,6 +184,10 @@ hooks (`--setting-sources user`), so copy the `deny` list from `settings/policy.
 
 [Apache-2.0](LICENSE), maintained by serio-ngo.
 
-[CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) ·
-[docs/BENCHMARK.md](docs/BENCHMARK.md) · [docs/MANIFEST.md](docs/MANIFEST.md) ·
-[docs/COMPARABLES.md](docs/COMPARABLES.md)
+<div align="center">
+<sub>
+
+[CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [docs/BENCHMARK.md](docs/BENCHMARK.md) · [docs/MANIFEST.md](docs/MANIFEST.md) · [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md)
+
+</sub>
+</div>

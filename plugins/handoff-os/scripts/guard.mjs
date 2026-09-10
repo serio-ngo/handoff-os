@@ -520,16 +520,19 @@ const agentsRequested = (input, tool) => (tool === 'Workflow'
 function fanOutCap(payload, count = 1) {
   const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
   const bucket = Math.floor(Date.now() / WAVE_MS);
-  const first = claimSlot(dir, bucket, MAX_PER_WAVE);
-  let slot = first;
-  for (let n = 1; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
-  if (slot > MAX_PER_WAVE) {
+  const claimed = [];
+  for (let n = 0; n < count; n += 1) {
+    const slot = claimSlot(dir, bucket, MAX_PER_WAVE);
+    if (slot <= MAX_PER_WAVE) { claimed.push(slot); continue; }
+    for (const held of claimed) {
+      try { rmSync(path.join(dir, `${bucket}-${held}`), { force: true }); } catch { }
+    }
     const root = rootOf(payload);
     const session = sessionOf(payload);
     const state = load(root, session);
     state.saved.blocked += 1;
     state.saved.waves += 1;
-    state.saved.agentsCapped += Math.max(1, count - Math.max(0, MAX_PER_WAVE - first + 1));
+    state.saved.agentsCapped += count - claimed.length;
     save(root, session, state);
     throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Let these ${MAX_PER_WAVE} return, then dispatch the rest yourself in the next wave — sequential batches of ${MAX_PER_WAVE}, no waiting for the user.\n`);
   }

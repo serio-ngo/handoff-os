@@ -161,6 +161,7 @@ describe('dispatch budget', () => {
   it('blocks a workflow that never states its agent count, and caps the count it states', () => {
     assert.equal(spawn({ script: "await Promise.all(rows.map((r) => agent('x', { model: 'sonnet' })))" }, 'Workflow'), BLOCKED);
     assert.equal(spawn({ script: '// AGENTS: 30\nawait parallel(rows.map((r) => () => agent(r)))' }, 'Workflow'), BLOCKED);
+    assert.equal(spawn({ prompt: 'the wave a denied workflow claimed is free again', model: 'haiku' }), ALLOWED);
   });
   it('caps the wave when a stale file sits where the wave directory belongs', () => {
     mkdirSync(path.join(box, '.claude'), { recursive: true });

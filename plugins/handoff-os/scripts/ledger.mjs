@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { GREP_HEAD_LIMIT } from './patterns.mjs';
 
 export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps', 'rewrites', 'unjudged',
   'bytes', 'deferred', 'trimmed', 'offload', 'read', 'scouts', 'runners', 'gated', 'offloads',
@@ -66,16 +67,52 @@ export function savings(state) {
 const num = (value) => Number(value || 0).toLocaleString('en-US');
 const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
 const compact = (value) => (value >= 10000 ? `${(value / 1000).toFixed(1)}k` : num(value));
+const kb = (bytes) => (bytes >= 1024 ? `${num(Math.round(bytes / 1024))} KB` : `${num(bytes)} B`);
 
-function lifetime(state) {
-  const life = { ...zero(), ...(state.lifetime || {}) };
-  for (const key of COUNTERS) life[key] += Number(state.saved[key] || 0);
-  return life;
+function fold(base, add = {}) {
+  const out = { ...zero(), ...(base || {}) };
+  for (const key of COUNTERS) out[key] += Number(add[key] || 0);
+  return out;
 }
+
+const lifetime = (state) => fold(state.lifetime, state.saved);
 
 export function bank(state) {
   state.lifetime = lifetime(state);
+  state.session = fold(state.session, state.saved);
   return state.lifetime;
+}
+
+export function sessionLine(state, footprintTok = 0) {
+  const s = fold(state.session, state.saved);
+  const tiers = state.tiers || {};
+  const parts = [];
+  if (s.rewrites) parts.push(`${plural(s.rewrites, 'read', 'reads')} trimmed (${kb(s.trimmed)} kept out)`);
+  if (s.rereads) parts.push(`${plural(s.rereads, 're-read', 're-reads')} stopped (${kb(s.bytes)})`);
+  const held = s.slices + s.offloads;
+  if (held) {
+    parts.push(`${plural(held, 'whole-file read', 'whole-file reads')} held back (${kb(s.deferred)}${s.offloads ? `, ${s.offloads} handed to scout` : ''})`);
+  }
+  if (s.caps) parts.push(`${plural(s.caps, 'search', 'searches')} capped at ${GREP_HEAD_LIMIT} lines`);
+  if (s.queries) parts.push(`${plural(s.queries, 'repeat search', 'repeat searches')} stopped`);
+  if (s.waves) parts.push(`${plural(s.waves, 'dispatch wave', 'dispatch waves')} capped (${plural(s.agentsCapped, 'agent', 'agents')} held back)`);
+  const named = Object.keys(tiers).filter((tier) => tiers[tier]);
+  for (const tier of named) {
+    const ratio = PRICES[tier] && PRICES.haiku ? ` (haiku is 1/${PRICES[tier] / PRICES.haiku} of the input price)` : '';
+    parts.push(`${plural(tiers[tier], `${tier} dispatch`, `${tier} dispatches`)} redirected to scout${ratio}`);
+  }
+  if (!named.length && s.redirects) parts.push(`${plural(s.redirects, 'dispatch', 'dispatches')} redirected to scout`);
+  const other = s.blocked - s.redirects - s.waves;
+  if (other > 0) parts.push(`${plural(other, 'call', 'calls')} blocked`);
+  if (s.gated) parts.push(`${plural(s.gated, 'done-claim', 'done-claims')} gated`);
+  const used = [];
+  if (s.scouts) used.push(plural(s.scouts, 'scout', 'scouts'));
+  if (s.runners) used.push(plural(s.runners, 'runner', 'runners'));
+  if (used.length) parts.push(`${used.join(', ')} used${s.offload ? ` (${kb(s.offload)} read off-thread)` : ''}`);
+  if (s.unjudged) parts.push(`${plural(s.unjudged, 'shell read', 'shell reads')} unsized`);
+  if (!parts.length) return '';
+  if (footprintTok) parts.push(`plugin cost ~${num(footprintTok)} tok`);
+  return `HANDOFF OS · this session: ${parts.join(' · ')}`;
 }
 
 export function lifetimeLine(state) {

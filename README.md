@@ -68,8 +68,8 @@ No ledger turns recorded yet. Method: docs/BENCHMARK.md.
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **1004** lines of Node across 7 scripts (892 non-blank) |
-| Pattern rules | **48** |
+| Guard logic | **1304** lines of Node across 7 scripts (1174 non-blank) |
+| Pattern rules | **61** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |
 | Subagents | **2** |

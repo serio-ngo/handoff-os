@@ -3,7 +3,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { COUNTERS, bank, bump, lifetimeLine, load, rootOf, save, savings, sessionOf } from './ledger.mjs';
+import { footprint } from './card.mjs';
+import { COUNTERS, bank, bump, lifetimeLine, load, rootOf, save, savings, sessionLine, sessionOf } from './ledger.mjs';
 
 const DONE_CLAIM = /(?:^|\n)[ \t>*`-]*(?:done|shipped|all set|fixed)\b|\b(?:is|are|now|all|task|work|change)s? (?:done|completed|finished|fixed|ready|shipped)\b/i;
 const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*YOU\b.*$/gm;
@@ -76,7 +77,6 @@ export function report(payload) {
   const session = sessionOf(payload);
   const state = load(root, session);
   const total = savings(state);
-  const line = lifetimeLine(state) || null;
   if (total) {
     append(root, {
       actor: 'main',
@@ -87,10 +87,13 @@ export function report(payload) {
     });
     bank(state);
     for (const key of COUNTERS) state.saved[key] = 0;
-    save(root, session, state);
   }
-  if (!line || process.env.HANDOFF_STATS === '0') return null;
-  return line;
+  const stamp = JSON.stringify([state.session || {}, state.tiers || {}]);
+  const changed = stamp !== state.printed;
+  if (changed) state.printed = stamp;
+  if (total || changed) save(root, session, state);
+  if (!changed || process.env.HANDOFF_STATS === '0') return null;
+  return sessionLine(state, Math.round(footprint().contextChars / 4)) || null;
 }
 
 function announce(stats, extra) {

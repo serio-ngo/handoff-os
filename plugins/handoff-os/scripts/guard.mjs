@@ -3,12 +3,12 @@ import { closeSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, rm
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES, GREP_HEAD_LIMIT,
+  ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BASH_OUTPUT_CAP, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES, GIT_SHOW_FILE, GREP_HEAD_LIMIT, INTERPRETER_READ,
   THINK_ESCALATION, WORKFLOW_AGENT_CALL, UNBOUNDED_FANOUT,
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
   DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
   MODEL_BEARING, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
-  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REWRITABLE_READ,
+  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
   SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WRITE_TOOLS, WRITE_VERBS,
 } from './patterns.mjs';
@@ -127,6 +127,16 @@ function lineLength(file, size) {
   return lines ? end / lines : n;
 }
 
+function sliceBytes(file, size, { from = 0, lines, bytes }) {
+  if (bytes !== undefined) return Math.min(bytes, size);
+  const avg = lineLength(file, size);
+  if (!avg) return 0;
+  const total = size / avg;
+  const start = Math.min(from, total);
+  const count = lines === undefined ? total - start : Math.min(lines, total - start);
+  return Math.max(0, Math.min(size, Math.round(count * avg)));
+}
+
 function fileStats(file) {
   try {
     const stats = statSync(file);
@@ -136,23 +146,95 @@ function fileStats(file) {
 
 function tokens(segment) {
   const out = [];
+  let toFile = false;
   const raw = segment.split(/\s+/).filter(Boolean);
   for (let i = 0; i < raw.length; i += 1) {
-    if (REDIRECT.test(raw[i])) { i += 1; continue; }
-    if (REDIRECTED.test(raw[i])) continue;
-    out.push(raw[i]);
+    const word = raw[i];
+    if (REDIRECT.test(word)) {
+      const target = raw[i + 1] || '';
+      if (word.includes('>') && !word.includes('&') && !target.startsWith('&')) toFile = true;
+      i += 1;
+      continue;
+    }
+    if (REDIRECTED.test(word)) {
+      if (/^\d*>{1,2}[^&]/.test(word)) toFile = true;
+      continue;
+    }
+    out.push(word);
   }
-  return out;
+  return toFile ? [] : out;
+}
+
+function headTail(words) {
+  const spec = { lines: 10 };
+  const files = [];
+  const count = (value, key) => {
+    if (value === undefined || !/^\+?\d+$/.test(value)) return;
+    delete spec.lines;
+    delete spec.bytes;
+    delete spec.from;
+    if (value.startsWith('+')) spec.from = Math.max(0, Number(value.slice(1)) - 1);
+    else spec[key] = Number(value);
+  };
+  for (let i = 1; i < words.length; i += 1) {
+    const word = words[i];
+    let hit = /^(?:-n|--lines=?)(\+?\d+)?$/.exec(word);
+    if (hit) { count(hit[1] ?? words[++i], 'lines'); continue; }
+    hit = /^(?:-c|--bytes=?)(\d+)?$/.exec(word);
+    if (hit) { count(hit[1] ?? words[++i], 'bytes'); continue; }
+    hit = /^-(\d+)$/.exec(word);
+    if (hit) { count(hit[1], 'lines'); continue; }
+    if (word.startsWith('-')) continue;
+    files.push(strip(word));
+  }
+  return files.map((file) => ({ file, ...spec }));
+}
+
+function sedSlice(words) {
+  if (!words.some((word, i) => i > 0 && SED_QUIET.test(word))) return [];
+  let range = null;
+  const files = [];
+  for (let i = 1; i < words.length; i += 1) {
+    const word = words[i];
+    if (/^(?:-e|--expression)$/.test(word)) { range = range || SED_RANGE.exec(strip(words[++i] || '')); continue; }
+    if (word.startsWith('-')) continue;
+    const hit = range ? null : SED_RANGE.exec(strip(word));
+    if (hit) range = hit;
+    else files.push(strip(word));
+  }
+  if (!range || files.length !== 1) return [];
+  const from = Number(range[1]) - 1;
+  const lines = range[2] === undefined ? 1 : range[2] === '$' ? undefined : Math.max(0, Number(range[2]) - from);
+  return [{ file: files[0], from, lines }];
 }
 
 function shellRead(segment) {
+  if (INTERPRETER_READ.test(segment) || GIT_SHOW_FILE.test(segment)) return [{ unjudged: true }];
   const words = tokens(segment);
   const cmd = (words[0] || '').toLowerCase();
   if (WHOLE_FILE_CMD.test(cmd)) {
     const files = words.slice(1).filter((word) => !word.startsWith('-'));
     return files.map((raw) => ({ file: strip(raw), raw, whole: true, only: files.length === 1 && REWRITABLE_READ.test(cmd) }));
   }
+  if (SLICE_CMD.test(cmd)) return headTail(words);
+  if (cmd === 'sed') return sedSlice(words);
   return [];
+}
+
+function bookSlice(payload, file, spec, { shell = false, filtered = false } = {}) {
+  const stats = fileStats(file);
+  if (!stats) return;
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  let bytes = spec.whole ? stats.size : sliceBytes(file, stats.size, spec);
+  if (shell) bytes = Math.min(bytes, BASH_OUTPUT_CAP);
+  if (actorOf(payload) !== 'main') state.saved.offload += bytes;
+  else {
+    state.saved.read += bytes;
+    if (!filtered) state.read_bytes = (state.read_bytes || 0) + bytes;
+  }
+  save(root, session, state);
 }
 
 function shellReads(command) {
@@ -182,7 +264,13 @@ function shellWriteTargets(command) {
 function readBudget(payload, input, rewritable = false) {
   const file = String(input.file_path || '');
   if (!file) return null;
-  if (input.offset !== undefined || input.limit !== undefined || input.pages !== undefined) return null;
+  if (input.offset !== undefined || input.limit !== undefined || input.pages !== undefined) {
+    bookSlice(payload, file, {
+      from: Math.max(0, Number(input.offset || 0) - 1),
+      lines: input.limit === undefined ? undefined : Number(input.limit),
+    });
+    return null;
+  }
   const stats = fileStats(file);
   if (!stats) return null;
 
@@ -411,8 +499,10 @@ export function judge(payload = {}) {
     if (targets.length) invalidateQueries(payload);
     let rewrite = null;
     for (const read of shellReads(command)) {
+      if (read.unjudged) { bump(payload, 'unjudged'); continue; }
       const file = path.resolve(payload.cwd || process.cwd(), read.file);
-      if (read.piped) continue;
+      if (!read.whole) { bookSlice(payload, file, read, { shell: true, filtered: read.piped }); continue; }
+      if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true, filtered: true }); continue; }
       const trim = readBudget(payload, { file_path: file }, tool === 'Bash' && read.rewritable && !rewrite ? 'shell' : false);
       if (trim) {
         rewrite = {

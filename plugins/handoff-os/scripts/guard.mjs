@@ -274,7 +274,7 @@ function shellReads(command) {
     const first = chunk.split('|')[0].trim();
     const segment = unwrap(first);
     const bare = !piped && segment === first && at >= 0;
-    for (const read of shellRead(segment)) out.push({ ...read, piped, chunk, at, rewritable: bare && Boolean(read.only) });
+    for (const read of shellRead(segment)) out.push({ ...read, piped, at, span: first.length, rewritable: bare && Boolean(read.only) });
   }
   return out;
 }
@@ -601,7 +601,7 @@ export function judge(raw = {}) {
               ...input,
               command: command.slice(0, read.at)
                 + `head -c ${BIG_FILE_BYTES} ${shellQuote(read.file)}`
-                + command.slice(read.at + read.chunk.length),
+                + command.slice(read.at + read.span),
             },
             reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}. Read a region with sed -n 'a,bp', or dispatch handoff-os:scout.`,
           };

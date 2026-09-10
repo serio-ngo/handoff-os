@@ -236,6 +236,8 @@ describe('read and query budgets', () => {
     const cmd = rewritten(echoed).updatedInput.command;
     assert.match(cmd, /^echo "cat /, cmd);
     assert.equal(cmd.match(/head -c/g).length, 1, cmd);
+    const guarded = run('or', { tool_name: 'Bash', tool_input: { command: `cat ${plain} || echo fallback` } });
+    assert.match(rewritten(guarded).updatedInput.command, /^head -c \d+ \S+ \|\| echo fallback$/);
 
     const dir = path.join(box, 'with space');
     mkdirSync(dir, { recursive: true });

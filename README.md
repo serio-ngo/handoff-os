@@ -113,8 +113,8 @@ No ledger turns recorded yet. Method: docs/BENCHMARK.md.
 <!-- inventory -->
 | What ships | Count |
 |---|---|
-| Guard logic | **1383** lines of Node across 7 scripts (1238 non-blank) |
-| Pattern rules | **63** |
+| Guard logic | **1392** lines of Node across 7 scripts (1245 non-blank) |
+| Pattern rules | **66** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |
 | Subagents | **2** |
@@ -158,4 +158,4 @@ hooks (`--setting-sources user`), so copy the `deny` list from `settings/policy.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) ·
 [docs/BENCHMARK.md](docs/BENCHMARK.md) · [docs/MANIFEST.md](docs/MANIFEST.md) ·
-[docs/COMPARABLES.md](docs/COMPARABLES.md) · [docs/CLAIMS-AUDIT.md](docs/CLAIMS-AUDIT.md)
+[docs/COMPARABLES.md](docs/COMPARABLES.md)

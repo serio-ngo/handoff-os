@@ -244,10 +244,19 @@ describe('read and query budgets', () => {
     assert.match(rewritten(quoted).updatedInput.command, /^head -c \d+ "/);
     assert.equal(state('sp').saved.rewrites, 1);
   });
-  it('refuses an oversize read carrying a flag head -c cannot reproduce', () => {
+  it('refuses an oversize read whose flag or redirect head -c cannot reproduce', () => {
     const flagged = path.join(box, 'flagged.txt');
     writeFileSync(flagged, `${'x'.repeat(70)}\n`.repeat(500));
     assert.equal(sh('fl', `cat -n ${flagged}`), BLOCKED);
+    assert.equal(sh('fl2', `cat ${flagged} 2>&1`), BLOCKED);
+    assert.equal(sh('fl3', `cat ${flagged} 1>&2`), BLOCKED);
+  });
+  it('leaves a read redirected into a file alone — its bytes never reach the thread', () => {
+    const piped = path.join(box, 'piped.txt');
+    writeFileSync(piped, `${'x'.repeat(70)}\n`.repeat(500));
+    const result = run('rd', { tool_name: 'Bash', tool_input: { command: `cat ${piped} &> ${path.join(box, 'out.txt')}` } });
+    assert.equal(result.status, ALLOWED);
+    assert.equal(result.stdout, '');
   });
   it('denies the ninth whole-file read with a scout dispatch to paste', () => {
     for (let n = 0; n < 8; n += 1) {
@@ -400,6 +409,9 @@ describe('hooks', () => {
     const env = { ...process.env, HANDOFF_OS_DIR: root };
     assert.equal(fire(script('audit.mjs'), '{not json', env), ALLOWED);
     assert.equal(fire(script('audit.mjs'), {}, env), ALLOWED);
+    for (const junk of ['null', '[]', '{"cwd":{},"tool_name":"Bash","tool_input":{"command":"cat x"}}']) {
+      assert.equal(fire(script('guard.mjs'), junk, env), ALLOWED, junk);
+    }
     assert.ok(!existsSync(path.join(root, 'audit')));
   });
 

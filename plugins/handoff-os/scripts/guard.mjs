@@ -8,7 +8,7 @@ import {
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
   DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
   MODEL_BEARING, MODEL_OPTION, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
-  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
+  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
   SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WHOLE_FILES_MAX, WRITE_TOOLS, WRITE_VERBS,
 } from './patterns.mjs';
@@ -38,6 +38,7 @@ function split(command, breakers, subshell) {
       continue;
     }
     if (char === '"' || char === "'") { quote = char; buffer += char; continue; }
+    if (char === '&' && REDIRECT_AMP(command[i - 1], command[i + 1])) { buffer += char; continue; }
     if (breakers.includes(char)) { out.push(buffer); buffer = ''; continue; }
     if (subshell && char === '$' && command[i + 1] === '(') { out.push(buffer); buffer = ''; i += 1; continue; }
     buffer += char;
@@ -173,13 +174,14 @@ function tokens(segment) {
   for (let i = 0; i < raw.length; i += 1) {
     const word = raw[i];
     if (REDIRECT.test(word)) {
-      const target = raw[i + 1] || '';
-      if (word.includes('>') && !word.includes('&') && !target.startsWith('&')) toFile = true;
-      i += 1;
+      const detached = /[<>]&?$/.test(word);
+      const target = detached ? (raw[i + 1] || '') : '';
+      if (TO_FILE.test(word) && !FD_DUP.test(word) && !target.startsWith('&')) toFile = true;
+      if (detached) i += 1;
       continue;
     }
     if (REDIRECTED.test(word)) {
-      if (/^\d*>{1,2}[^&]/.test(word)) toFile = true;
+      if (TO_FILE.test(word)) toFile = true;
       continue;
     }
     out.push(word);
@@ -237,9 +239,10 @@ function shellRead(segment) {
   if (WHOLE_FILE_CMD.test(cmd)) {
     const rest = words.slice(1);
     const files = rest.filter((word) => !word.startsWith('-'));
-    // head -c cannot reproduce a flag like cat -n, so a flagged read is judged, never rewritten
-    const only = files.length === 1 && files.length === rest.length && REWRITABLE_READ.test(cmd);
-    return files.map((raw) => ({ file: strip(raw), raw, whole: true, only }));
+    // head -c reproduces neither a flag like cat -n nor a redirect, so those are judged, never rewritten
+    const only = files.length === 1 && files.length === rest.length
+      && !/[<>]/.test(segment) && REWRITABLE_READ.test(cmd);
+    return files.map((raw) => ({ file: strip(raw), whole: true, only }));
   }
   if (SLICE_CMD.test(cmd)) return headTail(words);
   if (cmd === 'sed') return sedSlice(words);
@@ -533,7 +536,8 @@ function receipt(payload, input, tool) {
   });
 }
 
-export function judge(payload = {}) {
+export function judge(raw = {}) {
+  const payload = raw && typeof raw === 'object' ? raw : {};
   const tool = String(payload.tool_name || '');
   const input = payload.tool_input || {};
   current = payload;
@@ -574,7 +578,7 @@ export function judge(payload = {}) {
     let rewrite = null;
     for (const read of shellReads(command)) {
       if (read.unjudged) { bump(payload, 'unjudged'); continue; }
-      const file = path.resolve(payload.cwd || process.cwd(), read.file);
+      const file = path.resolve(typeof payload.cwd === 'string' ? payload.cwd : process.cwd(), read.file);
       if (!read.whole) { bookSlice(payload, file, read, { shell: true, filtered: read.piped }); continue; }
       if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true, filtered: true }); continue; }
       const trim = readBudget(payload, { file_path: file }, tool === 'Bash' && read.rewritable && !rewrite ? 'shell' : false);

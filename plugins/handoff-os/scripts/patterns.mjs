@@ -155,8 +155,13 @@ export const ACCOUNT_NUMBER = /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-
 export const WHOLE_FILE_CMD = /^(?:cat|bat|more|less|type|gc|get-content)$/i;
 export const REWRITABLE_READ = /^(?:cat|bat|more|less)$/i;
 export const PIPE = /(?<!\|)\|(?!\|)/;
-export const REDIRECT = /^\d*&?[<>]{1,2}&?\d*$/;
-export const REDIRECTED = /^\d*[<>]{1,2}/;
+export const REDIRECT = /^&?\d*[<>]{1,2}&?\d*$/;
+export const REDIRECTED = /^&?\d*[<>]{1,2}/;
+// only stdout leaving for a file hides the read; 2> keeps stdout, >& duplicates a descriptor
+export const TO_FILE = /^(?:&|1?)>{1,2}(?![&])/;
+export const FD_DUP = /[<>]&/;
+// & inside a redirect is not a command separator
+export const REDIRECT_AMP = (prev, next) => /[<>]/.test(prev || '') || next === '>';
 export const SLICE_CMD = /^(?:head|tail)$/i;
 export const SED_QUIET = /^(?:-[a-z]*n[a-z]*|--quiet|--silent)$/i;
 export const SED_RANGE = /^(\d+)(?:,(\d+|\$))?p$/;

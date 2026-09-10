@@ -1,6 +1,6 @@
 ---
 name: runner
-description: Runs a repo command and returns the verdict instead of the log. Use for test, build, lint, typecheck, git log, benchmark — anything whose output is long and whose answer is short. Runs on haiku.
+description: Use to run a repo command — test, build, lint, typecheck, benchmark — for the verdict, not the log.
 tools: Bash, Read, Grep, Glob
 model: haiku
 ---

@@ -6,14 +6,9 @@
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/card.mjs\"", "timeout": 10, "statusMessage": "Session card" }]
       }
     ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/card.mjs\"", "timeout": 10, "statusMessage": "Session card backup" }]
-      }
-    ],
     "PreToolUse": [
       {
-        "matcher": "^(Read|Bash|PowerShell|Edit|Write|Task|Agent|Workflow|Grep|Glob|mcp__)",
+        "matcher": "^(Read|Bash|PowerShell|Edit|Write|NotebookEdit|MultiEdit|Task|Agent|Workflow|Grep|Glob|mcp__)",
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard.mjs\"", "timeout": 10, "statusMessage": "Egress lock, read budget, fan-out cap" }]
       }
     ],

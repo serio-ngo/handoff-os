@@ -10,7 +10,7 @@ import {
   MODEL_BEARING, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
   SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
-  SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_READ, WRITE_VERBS,
+  SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_READ, WRITE_TOOLS, WRITE_VERBS,
 } from './patterns.mjs';
 import { append } from './audit.mjs';
 import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
@@ -241,6 +241,8 @@ function judgeWrite(file, content, how = 'a write') {
   return null;
 }
 
+const spawnText = (input) => SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
+
 function deniedVerdict(text, hit) {
   if (REVIEW.test(text)) return `blocked a ${hit} review. Review goes to sonnet; ${hit} is for prose you publish`;
   if (!QUALITY.test(text)) {
@@ -251,7 +253,7 @@ function deniedVerdict(text, hit) {
 
 function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(process.env.HANDOFF_DENY_SUBAGENT_MODELS ?? DENY_SUBAGENT_DEFAULT)) {
   const model = String(input.model || '').trim();
-  const text = SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
+  const text = spawnText(input);
   if (!model) {
     if (!MODEL_BEARING.includes(tool)) {
       const hit = (text.match(denied) || [])[0]?.toLowerCase();
@@ -267,7 +269,7 @@ function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(process
 }
 
 function costBudget(input, tool) {
-  const text = SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
+  const text = spawnText(input);
   if (QUALITY.test(text)) return null;
   const think = (text.match(THINK_ESCALATION) || [])[0];
   if (think) return `blocked a dispatch asking for "${think}". Drop it, or name QUALITY: writing|creative|legal|security`;
@@ -365,9 +367,12 @@ export function judge(payload = {}) {
     if (rawFetch) {
       deny(`blocked ${tool} — a raw page fetch. Use WebFetch, WebSearch or handoff-os:scout`);
     }
-  } else if (tool === 'Edit' || tool === 'Write') {
+  } else if (WRITE_TOOLS.includes(tool)) {
     invalidateQueries(payload);
-    const reason = judgeWrite(String(input.file_path || ''), input.content ?? input.new_string ?? '');
+    const edits = Array.isArray(input.edits) ? input.edits.map((edit) => edit?.new_string ?? '') : [];
+    const content = [input.content, input.new_string, input.new_source, ...edits]
+      .filter((value) => typeof value === 'string').join('\n');
+    const reason = judgeWrite(String(input.file_path || input.notebook_path || ''), content);
     if (reason) deny(reason);
   }
 }

@@ -16,7 +16,6 @@
   "engines": {
     "node": ">=22"
   },
-  "contentHash": "972d3905ed3db3cd",
   "scripts": {
     "test": "node --test",
     "verify": "node --test",

@@ -1,0 +1,42 @@
+name: False block
+description: The guard stopped a call that was safe.
+title: "false-block: "
+labels: ["false-block"]
+body:
+  - type: markdown
+    attributes:
+      value: One safe call per issue. A filled form pastes straight into `eval/guard-corpus.jsonl`.
+  - type: textarea
+    id: call
+    attributes:
+      label: The exact tool call
+      description: Tool name and input, verbatim — the command line, file path or connector action.
+      placeholder: |
+        tool: Bash
+        input: { "command": "git push --dry-run origin main" }
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should have done
+      description: Why the call is inward, reversible, or read-only.
+    validations:
+      required: true
+  - type: textarea
+    id: stderr
+    attributes:
+      label: Guard stderr
+      description: The refusal line the hook printed, verbatim.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From `plugins/handoff-os/.claude-plugin/plugin.json`, or the release you installed.
+      placeholder: 1.6.0
+    validations:
+      required: true

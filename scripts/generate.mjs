@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,10 +21,6 @@ export const SCOPES = {
     permissions: { defaultMode: 'default', deny, ask },
   }),
   project: ({ deny }) => ({ permissions: { deny } }),
-  managed: ({ deny }) => ({
-    forceLoginMethod: 'claudeai',
-    permissions: { disableBypassPermissionsMode: true, deny },
-  }),
 };
 
 export function policyFor(scope, without = [], policy = readJson('settings', 'policy.json'), lock = []) {
@@ -34,23 +29,6 @@ export function policyFor(scope, without = [], policy = readJson('settings', 'po
     : rules;
   const locked = lock.flatMap((token) => (policy.lock ?? {})[token] ?? []);
   return SCOPES[scope]({ deny: drop([...policy.deny, ...locked]), ask: drop(policy.ask) });
-}
-
-const SHIPPED = [['plugins/handoff-os', /\.(md|mjs|json)$/], ['settings', /\.json$/]];
-
-export function stamp(root = REPO) {
-  const files = SHIPPED
-    .filter(([dir]) => existsSync(path.join(root, dir)))
-    .flatMap(([dir, pattern]) => walk(path.join(root, dir), dir).filter((f) => pattern.test(path.basename(f))))
-    .filter((file) => file !== 'plugins/handoff-os/memory.md')
-    .sort();
-  const hash = createHash('sha256');
-  for (const file of files) {
-    hash.update(`${file}\0`);
-    hash.update(readFileSync(path.join(root, file)));
-    hash.update('\0');
-  }
-  return hash.digest('hex').slice(0, 16);
 }
 
 const table = (header, rows) => [
@@ -197,8 +175,7 @@ function skillRows() {
   const dir = path.join(PLUGIN, 'skills');
   return readdirSync(dir).sort().map((name) => {
     const text = readFileSync(path.join(dir, name, 'SKILL.md'), 'utf8');
-    const description = (/^description:\s*(.*)$/m.exec(text) || [])[1] || '';
-    return `| \`${name}\` | ${description.replace(/^["']|["']$/g, '').length} | ${text.split('\n').length} |`;
+    return `| \`${name}\` | ${frontmatter(text, 'description').length} | ${text.split('\n').length} |`;
   });
 }
 
@@ -206,8 +183,7 @@ function agentRows() {
   const dir = path.join(PLUGIN, 'agents');
   return readdirSync(dir).sort().map((name) => {
     const text = readFileSync(path.join(dir, name), 'utf8');
-    const field = (key) => ((text.match(new RegExp('^' + key + ':(.*)$', 'm')) || [])[1] || '').trim();
-    return '| `' + name.replace('.md', '') + '` | ' + field('model') + ' | ' + cell(field('tools')) + ' |';
+    return `| \`${name.replace('.md', '')}\` | ${frontmatter(text, 'model')} | ${cell(frontmatter(text, 'tools'))} |`;
   });
 }
 

@@ -15,6 +15,7 @@ export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
 export const QUALITY = /\bQUALITY:\s*(?:writing|creative|legal|security)\b/;
 export const REVIEW = /\b(?:review|audit)(?:s|ed|ing|er|ers|or|ors)?\b/i;
 export const SPAWN_TOOLS = ['Agent', 'Task', 'TaskCreate', 'Workflow'];
+export const WRITE_TOOLS = ['Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
 export const MODEL_BEARING = ['Agent', 'Task'];
 export const SPAWN_TEXT = ['prompt', 'description', 'subagent_type', 'subject', 'script', 'name', 'title'];
 export const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
@@ -80,6 +81,8 @@ export const SHELL_DESTRUCTIVE = [
   /^truncate\b/i,
   /^(?:del|erase)\b/i,
   /^Remove-Item\b/i,
+  /^(?:ri|rd)\b/i,
+  /^find\b[^\n]*\s-delete\b/,
 ];
 
 export const DISPOSABLE = /(?:^|[/\\])(?:node_modules|dist|build|out|coverage|target|vendor|tmp|temp|scratchpad|\.next|\.nuxt|\.turbo|\.cache|\.venv|\.pytest_cache|__pycache__)(?:[/\\]|$)|\.(?:log|tmp|pyc|o|class|tsbuildinfo)$/i;

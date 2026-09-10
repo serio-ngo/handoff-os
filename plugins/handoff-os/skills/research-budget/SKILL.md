@@ -1,6 +1,6 @@
 ---
 name: research-budget
-description: "Picks the cheapest sufficient actor — script, haiku scout, sonnet or opus — and sets the scope gate and per-agent budget before any fan-out. Use before dispatching any subagent or research. The 3-per-wave cap and model rule are enforced by hooks."
+description: "Use before dispatching any subagent or research — picks the cheapest sufficient actor and its budget."
 license: Apache-2.0
 compatibility: No external dependencies. The cap is enforced by scripts/guard.mjs on the Agent tool.
 ---
@@ -56,6 +56,7 @@ compatibility: No external dependencies. The cap is enforced by scripts/guard.mj
 
 | Cap | Value |
 |---|---|
+| Agents per wave | **3** — the fourth is blocked by the hook |
 | Web calls | **10** unless the owner raises it |
 | Tool calls | **15**, or **25** for a code fix with tests |
 | Output | a stated **line count**, tables only, no preamble, no reasoning narration |

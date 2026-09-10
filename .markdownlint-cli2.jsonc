@@ -1,6 +1,6 @@
 {
   "globs": ["**/*.md"],
-  "ignores": ["node_modules/**"],
+  "ignores": ["node_modules/**", "**/node_modules/**"],
   "config": {
     // Prose wraps at 110; a hard limit fights tables.
     "line-length": false,

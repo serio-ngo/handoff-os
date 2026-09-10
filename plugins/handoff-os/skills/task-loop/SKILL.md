@@ -1,6 +1,6 @@
 ---
 name: task-loop
-description: "Turns one owner sentence into a tracked item, prepares the artefacts (doc, draft email, checklist), and ends with a handoff card for the human-only clicks. Use for add-a-task, break-it-down, or any named company job."
+description: "Use for add-a-task, break-it-down, or any named company job in the tracker."
 license: Apache-2.0
 compatibility: Needs a tracker and doc store. Email read and draft only — never sends.
 ---

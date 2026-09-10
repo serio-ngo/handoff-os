@@ -1,0 +1,34 @@
+name: Missed block
+description: The guard let an outward or destructive call through.
+title: "missed-block: "
+labels: ["missed-block"]
+body:
+  - type: markdown
+    attributes:
+      value: One call per issue. Never paste a live credential, a real recipient or an account number.
+  - type: textarea
+    id: call
+    attributes:
+      label: The call that went through
+      description: Tool name and input, verbatim, with every value replaced by a synthetic one.
+      placeholder: |
+        tool: Bash
+        input: { "command": "find docs -delete" }
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it is outward or destructive
+      description: What leaves the organisation, what is destroyed, or what cannot be undone.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From `plugins/handoff-os/.claude-plugin/plugin.json`, or the release you installed.
+      placeholder: 1.6.0
+    validations:
+      required: true

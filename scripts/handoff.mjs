@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdir
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
-import { PLUGIN, REPO, inventory, inventoryBlock, manifest, markdown, policyFor, readJson, stamp, walk, writeBlock } from './generate.mjs';
+import { PLUGIN, REPO, inventory, inventoryBlock, manifest, markdown, policyFor, readJson, walk, writeBlock } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
 const BANNED = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN'];
@@ -115,7 +115,7 @@ function releaseLocks(settings, requested) {
 
 function sync(args) {
   const scope = args.scope || 'user';
-  if (!['user', 'project', 'managed'].includes(scope)) fail(`unknown scope "${scope}"`);
+  if (!['user', 'project'].includes(scope)) fail(`unknown scope "${scope}"`);
   const target = path.resolve(args.target
     || (scope === 'project' ? path.join(REPO, '.claude', 'settings.json') : path.join(CONFIG_DIR, 'settings.json')));
   const before = readJsonFile(target, {});
@@ -213,18 +213,9 @@ function normalise() {
 
 function upkeep() {
   const touched = normalise();
-  const pkgPath = path.join(REPO, 'package.json');
-  const pkg = readJsonFile(pkgPath);
-  const current = stamp();
-  const drift = pkg.contentHash === current
-    ? 'unchanged'
-    : `content changed; run npm run release to version it (${current})`;
-  pkg.contentHash = current;
-  writeJson(pkgPath, pkg);
   writeFileSync(path.join(REPO, 'docs', 'MANIFEST.md'), manifest(), 'utf8');
   writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock());
   row('formatted', `${touched} file(s)`);
-  row('content', drift);
 }
 
 function check() {
@@ -316,6 +307,9 @@ function release(args) {
   };
   if (!BUMPS[bump]) fail(`usage: npm run release <${Object.keys(BUMPS).join('|')}> "one-line note"`);
   if (!note) fail('a one-line note is required — it becomes the changelog entry');
+  if (spawnSync('git', ['status', '--porcelain'], { cwd: REPO, encoding: 'utf8' }).stdout.trim()) {
+    fail('the tree is dirty — commit or stash first; a release must name a committed tree');
+  }
   if (spawnSync(process.execPath, ['--test'], { cwd: REPO, stdio: 'inherit' }).status !== 0) fail('the suite is red');
 
   const manifestPath = path.join(PLUGIN, '.claude-plugin', 'plugin.json');
@@ -326,7 +320,6 @@ function release(args) {
   const pkgPath = path.join(REPO, 'package.json');
   const pkg = readJsonFile(pkgPath);
   pkg.version = plugin.version;
-  pkg.contentHash = stamp();
   writeJson(pkgPath, pkg);
   const changelog = path.join(REPO, 'CHANGELOG.md');
   const head = '# Changelog\n\n<!-- one row per version; `npm run release` updates -->\n\n| Version | Date | Change |\n|---|---|---|\n';
@@ -337,7 +330,7 @@ function release(args) {
   rows.unshift(`| ${plugin.version} | ${date} | ${note.replaceAll('|', '\\|')} |`);
   writeFileSync(changelog, `${head}${rows.join('\n')}\n`, 'utf8');
   writeBlock(path.join(REPO, 'README.md'), '<!-- inventory -->', '<!-- /inventory -->', inventoryBlock());
-  row('released', `${plugin.version} stamped ${pkg.contentHash}`);
+  row('released', plugin.version);
   report();
   const bench = (...args) => spawnSync(process.execPath, [path.join(REPO, 'scripts', 'benchmark.mjs'), REPO, ...args], { stdio: 'inherit' });
   bench('--eval', '--compare', '--write');

@@ -1088,7 +1088,7 @@ const statsBlock = () => {
       '',
     ] : []),
     `Guard actions: ${num(actions)}${t.scouts || t.runners ? ` (used ${num(t.scouts)} scout, ${num(t.runners)} runner)` : ''}. Token counts are file bytes / 4 from this repo's own local `
-    + 'ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).',
+    + 'ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).',
   ];
 };
 

@@ -120,7 +120,7 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 | **Context re-send ratio** | **30.1×** |
 | Re-sends removed, kept × turns that followed | ~13.9M |
 
-Guard actions: 38. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
+Guard actions: 38. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
 <!-- /handoff-stats -->
 
 ## Track A

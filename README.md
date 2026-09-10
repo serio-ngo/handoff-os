@@ -1,8 +1,24 @@
 # handoff-os
 
-handoff-os refuses four things at Claude Code's `PreToolUse` hook, before the tokens are spent: a
-whole file read for one line, a byte-identical re-read of a file already in context, a subagent
-wave nobody can read back, and any call that sends, pays, publishes, merges or deletes.
+handoff-os is a spend guard for Claude Code. It acts at the `PreToolUse` and `Stop` hooks, before
+the tokens are spent, and books what it did in four units: a wave of expensive subagents prevented,
+an expensive dispatch redirected to the cheap scout or runner, a whole-file read or re-read trimmed
+or stopped, and a done-claim held until a verification run passes. Every session ends with a
+one-line receipt in those units.
+
+What it stops: a fourth agent in a 90-second wave, an opus or fable dispatch with no `QUALITY:`
+flag, a whole-file read over 24 KB (rewritten to the first lines that fit instead of refused), a
+byte-identical re-read, the ninth whole file in one thread (handed to a scout), a content grep
+without `head_limit` (capped at 50 lines), and any call that sends, pays, publishes, merges or
+deletes.
+
+What it counts: exact counts of waves capped, agents held back, dispatches redirected, reads
+trimmed, re-reads stopped and done-claims gated, plus the exact byte delta a rewrite kept out of the
+window.
+
+What it does not do: it cannot touch thinking or output tokens, the cache re-send multiplier, or
+what Claude Code already does on its own (unchanged-file re-read suppression, the 30,000-character
+Bash output cap); its hooks never fire in Cowork, and OpenCode subagent calls bypass it.
 
 Lightweight, zero dependencies, fully offline: pattern matching in Node. No model calls, no API
 keys, no network, no telemetry.
@@ -17,10 +33,22 @@ keys, no network, no telemetry.
 
 ## What changes for you
 
-- One question about one line no longer costs the whole file. Reads over 24 KB are refused, with a slice or a scout offered instead.
-- Nothing is billed twice. A file already in context, or a search already answered, is refused on repeat.
-- Subagent fan-outs stay readable. Three agents per wave, the cheapest model that can do the job.
+- A wave stops at three agents, and the receipt says how many were held back.
+- An opus or fable dispatch that names no `QUALITY:` flag is refused with the scout or runner named instead; haiku input is 1/5 of the opus price.
+- One question about one line no longer costs the whole file. A read over 24 KB is trimmed to the first lines that fit, a re-read of unchanged bytes is stopped, and after eight whole files the next one is handed to a scout with the dispatch ready to paste.
+- A "done" claim waits for a real verification run, and the receipt counts every claim it gated.
 - Nothing irreversible happens by accident. Sends, payments, publishes, merges, deletes and credential writes stop before they run and wait for a human.
+
+## How to read the numbers
+
+| Number | Kind |
+|---|---|
+| Receipt and ledger counts: waves capped, agents held back, redirects, reads trimmed, re-reads stopped, done-claims gated | measured, exact counts of guard actions |
+| Bytes kept out, trimmed, admitted | measured bytes; `Read` and shell slices are estimated from a 200-line sample of line length |
+| Tokens | estimated, bytes / 4; never billing |
+| Price ratios on the receipt | the published per-token price table (`PRICES` in `ledger.mjs`), not this repo's traffic |
+| Guard caught, wrongly blocked | regression suite of 68 self-written cases, not a detection rate |
+| Cache re-send | measured on the maintainer's transcripts; Claude Code's caching, not the plugin's |
 
 ## Measured — replayed against real traffic
 
@@ -87,7 +115,7 @@ No ledger turns recorded yet. Method: docs/BENCHMARK.md.
 > Hooks load at session start, so restart Claude Code — a running session keeps the version it
 > started with. Installed is not the same as enforcing: confirm with `npm run doctor`.
 
-### OpenCode — supported
+### OpenCode — supported, subagent calls unjudged
 
 Why it works here: the same guard judges every tool call, whatever model you pick, so a refusal still stops the call, explains itself, and lands in the repo ledger for `npm run benchmark`.
 
@@ -97,9 +125,9 @@ Install: clone this repo, point `plugin` at the loader in `opencode.json`, resta
 
 Update with a plain `git pull` — file-based plugins never cache.
 
-What is not covered here: connector (`mcp`) calls pass through unjudged, and there is no blocking verify gate.
+What is not covered here: connector (`mcp`) calls pass through unjudged, subagent tool calls skip `tool.execute.before` (`sst/opencode#5894`), and there is no blocking verify gate.
 
-### Cowork — supported with limits
+### Cowork — hooks do not fire
 
 Why it is partial: skills, connectors, and subagents run in Cowork, but plugin command hooks (`PreToolUse`, `PostToolUse`) currently never fire there — the host spawns with `--setting-sources user`, which silently skips plugin scope (upstream issues `anthropics/claude-code#27398`, `#51281`, `#51904`).
 
@@ -109,7 +137,7 @@ What to do until hooks fire: copy the `deny` list from `settings/policy.json` in
 
 ## Configuration
 
-- `HANDOFF_STATS=0` silences the kept-out line once you trust the gate.
+- `HANDOFF_STATS=0` silences the session receipt once you trust the gate.
 - `HANDOFF_LOCK_GIT=1` blocks every state-changing git command, including commits, when merges must stay human.
 - `HANDOFF_MCP_ALLOW=action,action` allows the named connector actions the egress lock would otherwise stop.
 - `HANDOFF_DENY_SUBAGENT_MODELS=model,model` keeps the listed tiers off subagent dispatches (default `opus,fable`, because review belongs on sonnet).
@@ -123,8 +151,9 @@ What to do until hooks fire: copy the `deny` list from `settings/policy.json` in
 - Token counts are bytes / 4 estimates; only the billing figures are measured, so never price from the estimate.
 - The ledger records what was refused, never a paired session proving the bill fell, so there is no counterfactual yet.
 - Replay is open-loop — a refusal cannot change what the agent did next — so it shows catches on that stream, not savings.
-- Only whole-file reads count toward the denominator; slices, `Grep` output, and subagent returns are invisible to it.
-- Shell-heavy sessions hide reads inside pipelines, which the read budget cannot size.
+- Slices enter the denominator as estimates from sampled line length; `Grep` output, dispatch prompts and subagent returns are still invisible to it.
+- A bare read at the head of a pipe is booked at the Bash output cap as an upper bound; reads behind `$(…)`, backticks or interpreter one-liners are counted as unsized, never sized.
+- A rewrite is auto-approved (`permissionDecision: allow`) so it costs no round trip; the trimmed input reads the same file, and permission deny rules still apply to it.
 - Coverage ends where hooks stop loading, so chat, API, and unhooked harnesses run unguarded.
 - Pattern matching can be evaded (see `SECURITY.md`), so run it alongside OS permissions, never instead of them.
 - All figures are self-measured on one machine and unreproduced, so rerun `npm run benchmark:replay` before you cite them.

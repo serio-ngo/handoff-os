@@ -738,7 +738,7 @@ function replay(root) {
     const ledger = path.join(probe, '.claude', `.session-${session}.json`);
     if (!existsSync(ledger)) continue;
     const { saved } = JSON.parse(readFileSync(ledger, 'utf8'));
-    out.kept += (saved.bytes || 0) + (saved.deferred || 0) + (saved.offload || 0);
+    out.kept += BYTE_COUNTERS.reduce((sum, key) => sum + (saved[key] || 0), 0);
     out.admitted += saved.read || 0;
   }
   return out;
@@ -816,7 +816,7 @@ function fromTranscripts(root) {
   return out;
 }
 
-const kept = t.bytes + t.deferred + t.offload;
+const kept = BYTE_COUNTERS.reduce((sum, key) => sum + t[key], 0);
 const readVolume = kept + t.read;
 const keptPct = share(kept, readVolume);
 const tax = taxOf(inventory(REPO));

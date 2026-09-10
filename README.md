@@ -68,8 +68,13 @@ Zero dependencies, fully offline, no model calls, no network, no telemetry.
 | Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0): pass rate, with / without | 9/11 / 11/11 |
 
 Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
-
 <!-- /handoff-ab -->
+
+## Measured — live ledger
+
+Live numbers from this machine's ledger — kept out, footprint, billing, re-send ratio: [docs/BENCHMARK.md](docs/BENCHMARK.md).
+
+[![cache re-send (Claude, not the plugin)](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.resendRatio&suffix=x&label=cache%20re-send%20%28Claude%2C%20not%20the%20plugin%29&color=blue)](docs/BENCHMARK.md)
 
 ## Guard against the alternatives
 
@@ -86,6 +91,20 @@ Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
+
+## What ships
+
+<!-- inventory -->
+| What ships | Count |
+|---|---|
+| Guard logic | **1371** lines of Node across 7 scripts (1236 non-blank) |
+| Pattern rules | **66** |
+| Hooks | **5** handlers on 5 events |
+| Skills | **3** |
+| Subagents | **2** |
+| Third-party packages | **0** |
+| Network calls, API keys, model calls | **0** |
+<!-- /inventory -->
 
 ## Install
 

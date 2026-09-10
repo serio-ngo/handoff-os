@@ -39,7 +39,19 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Measured — paired runs, with and without the plugin
 
 <!-- handoff-ab -->
-Not run. Dry-run pipeline check on 2026-09-10, 2 tasks, model `claude-haiku-4-5-20251001`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md), Track B.
+| Paired runs, 11 tasks × 2 arms, 2026-09-10, model `claude-haiku-4-5-20251001` | Value |
+|---|---|
+| Δ billed tokens, with − without, cache-read at 0.1× | **+35.5%** [+17.3%, +54.8%] |
+| Δ billed tokens, raw sum of input + cache write + cache read | +98.8% [+46.8%, +142.4%] |
+| Δ output tokens | +79.8% [+45.6%, +145.0%] |
+| Δ cost per task, list price | **+$0.0114** [+$0.0048, +$0.0181] |
+| Pass rate, with plugin | 8/11 |
+| Pass rate, without plugin | 10/11 |
+| Guard events, with plugin | fan-out 9 · dispatch 8 · whole-file 3 · gated 3 · egress-lock 2 · repeat-query 1 · re-read 1 |
+| Plugin footprint, always in context | ~273 tok |
+| Total spend, both arms | $1.70 |
+
+Same prompt, same model, same fixture, arms in random order per task; 95% CI by bootstrap over paired differences. Negative Δ means the plugin arm billed less. Reproduce with `npm run benchmark:ab`. Per-task rows: `eval/ab-results.json`. Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
 <!-- /handoff-ab -->
 
 ## Measured — live ledger

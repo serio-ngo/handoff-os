@@ -51,9 +51,9 @@
 
   <g>
     <rect class="row s1" x="14" y="303" width="832" height="68" rx="4" fill="#1d1a16" stroke="#2e2a26"/>
-    <text class="row s1" x="22" y="318" fill="#7dc98f" font-weight="600">HANDOFF OS · this session: 1 read trimmed (11 KB kept out)</text>
-    <text class="row s2" x="22" y="338" fill="#8b8680">1 dispatch wave capped (17 agents held back)</text>
-    <text class="row s3" x="22" y="358" fill="#8b8680">1 opus dispatch redirected to scout · 1 call blocked</text>
-    <g class="row s3"><rect class="cursor" x="374" y="347" width="7" height="12" fill="#d97757"/></g>
+    <text class="row s1" x="22" y="318" fill="#7dc98f" font-weight="600">HANDOFF OS · reads: 1 trimmed (11 KB out)</text>
+    <text class="row s2" x="22" y="338" fill="#8b8680">dispatches: 1 waves capped (17 held) · 1 redirected · 1 blocked</text>
+    <text class="row s3" x="22" y="358" fill="#8b8680">gated/cost: cost ~276 tok</text>
+    <g class="row s3"><rect class="cursor" x="256" y="347" width="7" height="12" fill="#d97757"/></g>
   </g>
 </svg>

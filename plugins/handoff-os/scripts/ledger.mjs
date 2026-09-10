@@ -2,9 +2,13 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps', 'rewrites', 'unjudged',
-  'bytes', 'deferred', 'trimmed', 'offload', 'read', 'scouts', 'runners', 'gated', 'offloads'];
+  'bytes', 'deferred', 'trimmed', 'offload', 'read', 'scouts', 'runners', 'gated', 'offloads',
+  'waves', 'agentsCapped', 'redirects'];
 
 export const BYTE_COUNTERS = ['bytes', 'deferred', 'trimmed', 'offload'];
+
+// USD per 1M input tokens — https://platform.claude.com/docs/en/about-claude/pricing.md, read 2026-09-10
+export const PRICES = { haiku: 1, sonnet: 2, opus: 5, fable: 10 };
 
 const zero = () => Object.fromEntries(COUNTERS.map((key) => [key, 0]));
 const EMPTY = () => ({ reads: {}, saved: zero() });

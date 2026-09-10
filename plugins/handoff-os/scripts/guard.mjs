@@ -410,9 +410,9 @@ function judgeWrite(file, content, how = 'a write') {
 const spawnText = (input) => SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
 
 function deniedVerdict(text, hit) {
-  if (REVIEW.test(text)) return `blocked a ${hit} review. Review goes to sonnet; ${hit} is for prose you publish`;
+  if (REVIEW.test(text)) return { reason: `blocked a ${hit} review. Review goes to sonnet; ${hit} is for prose you publish`, tier: hit };
   if (!QUALITY.test(text)) {
-    return `blocked a ${hit} subagent. Research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`;
+    return { reason: `blocked a ${hit} subagent. Research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`, tier: hit };
   }
   return null;
 }
@@ -425,13 +425,22 @@ function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(process
       const hit = (text.match(denied) || [])[0]?.toLowerCase();
       return hit ? deniedVerdict(text, hit) : null;
     }
-    return 'blocked a subagent dispatch that names no model. Set one: haiku for lookups, sonnet for research and review, opus or fable only for prose you publish';
+    return { reason: 'blocked a subagent dispatch that names no model. Set one: haiku for lookups, sonnet for research and review, opus or fable only for prose you publish' };
   }
   if (!MODEL_TIERS.test(model)) {
-    return `blocked a subagent dispatch whose model "${model}" names no tier. Use haiku, sonnet, opus or fable`;
+    return { reason: `blocked a subagent dispatch whose model "${model}" names no tier. Use haiku, sonnet, opus or fable` };
   }
   const hit = (model.match(denied) || [])[0]?.toLowerCase();
   return hit ? deniedVerdict(text, hit) : null;
+}
+
+function bookRedirect(payload, tier) {
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  state.saved.redirects += 1;
+  state.tiers = { ...(state.tiers || {}), [tier]: ((state.tiers || {})[tier] || 0) + 1 };
+  save(root, session, state);
 }
 
 function costBudget(input, tool) {
@@ -441,7 +450,7 @@ function costBudget(input, tool) {
   if (think) return `blocked a dispatch asking for "${think}". Drop it, or name QUALITY: writing|creative|legal|security`;
   const fan = tool === 'Workflow' ? (String(input.script ?? '').match(UNBOUNDED_FANOUT) || [])[0] : null;
   return fan
-    ? `blocked a workflow fanning out through "${fan.trim()}" — the script never states its agent count. List the agents, ${MAX_PER_WAVE} to a wave`
+    ? { reason: `blocked a workflow fanning out through "${fan.trim()}" — the script never states its agent count. List the agents, ${MAX_PER_WAVE} to a wave` }
     : null;
 }
 
@@ -452,10 +461,17 @@ const agentsRequested = (input, tool) => (tool === 'Workflow'
 function fanOutCap(payload, count = 1) {
   const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
   const bucket = Math.floor(Date.now() / WAVE_MS);
-  let slot = 0;
-  for (let n = 0; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
+  const first = claimSlot(dir, bucket, MAX_PER_WAVE);
+  let slot = first;
+  for (let n = 1; n < count; n += 1) slot = claimSlot(dir, bucket, MAX_PER_WAVE);
   if (slot > MAX_PER_WAVE) {
-    bump(payload, 'blocked');
+    const root = rootOf(payload);
+    const session = sessionOf(payload);
+    const state = load(root, session);
+    state.saved.blocked += 1;
+    state.saved.waves += 1;
+    state.saved.agentsCapped += Math.max(1, count - Math.max(0, MAX_PER_WAVE - first + 1));
+    save(root, session, state);
     throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Read the returns, then relaunch via /handoff-os:research-budget.\n`);
   }
 }
@@ -484,7 +500,10 @@ export function judge(payload = {}) {
   if (tool === 'Grep' || tool === 'Glob') return queryBudget(payload, input, tool);
   if (SPAWN_TOOLS.includes(tool)) {
     const verdict = dispatchBudget(input, tool) || costBudget(input, tool);
-    if (verdict) deny(verdict, 'DISPATCH BUDGET');
+    if (verdict) {
+      if (verdict.tier) bookRedirect(payload, verdict.tier);
+      deny(verdict.reason, 'DISPATCH BUDGET');
+    }
     const count = agentsRequested(input, tool);
     fanOutCap(payload, count);
     bump(payload, 'agents', count);

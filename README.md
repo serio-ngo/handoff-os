@@ -135,4 +135,5 @@ What to do until hooks fire: copy the `deny` list from `settings/policy.json` in
 
 [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) ·
 [docs/BENCHMARK.md](docs/BENCHMARK.md) · [docs/MANIFEST.md](docs/MANIFEST.md) ·
-[docs/PLAN-1.6.md](docs/PLAN-1.6.md) · [docs/COMPARABLES.md](docs/COMPARABLES.md)
+[docs/PLAN-1.6.md](docs/PLAN-1.6.md) · [docs/COMPARABLES.md](docs/COMPARABLES.md) ·
+[docs/CLAIMS-AUDIT.md](docs/CLAIMS-AUDIT.md)

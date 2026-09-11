@@ -25,9 +25,7 @@ Claude Code can launch 20 subagents in one turn. A 5-hour window goes in seconds
 The hook caps each wave at 3 and queues the rest.
 
 <!-- handoff-flood -->
-<img src="docs/flood.svg" width="720" alt="20 subagents requested, model claude-sonnet-5. One uncapped wave: 20 started, about 490k raw tokens measured (20 × 24,480 per subagent); in a real repo 1M+ tokens, about $5 at Opus list price, an estimate. With the guard: 3 started, 17 held for the next wave, measured.">
-
-**Measured** on `claude-sonnet-5`, one prompt: 20 subagents started and ≈490k raw tokens without the guard, 3 started and 17 held with it; 1M+ tokens a wave in a real repo is an **estimate**.
+<img src="docs/flood.svg" width="720" alt="20 subagents requested. Without the guard 20 start and burn about 490k tokens; with it 3 start and 17 wait.">
 <!-- /handoff-flood -->
 
 ## Install

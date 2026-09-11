@@ -3,7 +3,6 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { footprint } from './card.mjs';
 import { COUNTERS, bank, bump, lifetimeLine, load, rootOf, save, savings, sessionLine, sessionOf } from './ledger.mjs';
 
 const DONE_CLAIM = /(?:^|\n)[ \t>*`-]*(?:done|shipped|all set|fixed)\b|\b(?:is|are|now|all|task|work|change)s? (?:done|completed|finished|fixed|ready|shipped)\b/i;
@@ -14,9 +13,9 @@ const MAX_BLOCKS = 2;
 const CITED = /[\w.-]+:\d+|https?:\/\/|\bUNVERIFIED\b/i;
 const MIN_CLAIM_CHARS = 200;
 
-export const FALLBACK_STEPS = ['content:check', 'typecheck', 'build'];
-export const resolveSteps = (scripts) => (scripts?.verify ? ['verify'] : FALLBACK_STEPS.filter((step) => scripts?.[step]));
-export const stepsToCommand = (steps) => steps.map((step) => `npm run ${step}`).join(' && ');
+const FALLBACK_STEPS = ['content:check', 'typecheck', 'build'];
+const resolveSteps = (scripts) => (scripts?.verify ? ['verify'] : FALLBACK_STEPS.filter((step) => scripts?.[step]));
+const stepsToCommand = (steps) => steps.map((step) => `npm run ${step}`).join(' && ');
 
 const scriptsAt = (root) => {
   try { return JSON.parse(readFileSync(`${root}/package.json`, 'utf8')).scripts || {}; } catch { return null; }
@@ -68,7 +67,7 @@ function uncited(message) {
 function citationGate(payload, message) {
   if (!uncited(message)) process.exit(0);
   bump(payload, 'gated');
-  process.stderr.write('SCOUT CONTRACT: this return carries no file:line, no URL and no UNVERIFIED tag, so nothing in it can be checked. Re-answer with a citation per fact, or mark the unconfirmed ones UNVERIFIED.\n');
+  process.stderr.write('SCOUT CONTRACT: no file:line, URL or UNVERIFIED tag. Cite each fact, or mark it UNVERIFIED.\n');
   process.exit(2);
 }
 
@@ -93,7 +92,7 @@ export function report(payload) {
   if (changed) state.printed = stamp;
   if (total || changed) save(root, session, state);
   if (!changed || process.env.HANDOFF_STATS === '0') return null;
-  return sessionLine(state, Math.round(footprint().contextChars / 4)) || null;
+  return sessionLine(state) || null;
 }
 
 function announce(stats, extra) {
@@ -146,7 +145,7 @@ function gate() {
   try { blocks = parseInt(readFileSync(counter, 'utf8').trim(), 10) || 0; } catch { blocks = 0; }
 
   if (blocks >= MAX_BLOCKS) {
-    announce(stats, `Verify gate stood down after ${MAX_BLOCKS} blocks. "${command}" is unproven — the human must check it.`);
+    announce(stats, `Verify gate stood down. "${command}" is unproven — check it yourself.`);
   }
 
   try {
@@ -155,7 +154,7 @@ function gate() {
   } catch { }
 
   const shown = process.env.HANDOFF_STATS === '0' ? '' : lifetimeLine(bump(payload, 'gated'));
-  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: you claimed done with no evidence. Run this, then say done again:\n  node "${SELF}" ${session} "${root}"\nIt runs ${command} and writes the marker only on exit 0. Writing the marker by hand is forbidden.\n`);
+  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: done claimed, nothing run. Run this, then say done again:\n  node "${SELF}" ${session} "${root}"\nIt runs ${command}. Writing the marker by hand is forbidden.\n`);
   process.exit(2);
 }
 

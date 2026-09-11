@@ -3,7 +3,7 @@ import path from 'node:path';
 import { GREP_HEAD_LIMIT } from './patterns.mjs';
 
 export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps', 'rewrites', 'unjudged',
-  'bytes', 'deferred', 'trimmed', 'offload', 'read', 'scouts', 'runners', 'gated', 'offloads',
+  'bytes', 'deferred', 'trimmed', 'offload', 'read', 'scouts', 'runners', 'gated',
   'waves', 'agentsCapped', 'redirects'];
 
 export const BYTE_COUNTERS = ['bytes', 'deferred', 'trimmed', 'offload'];
@@ -48,11 +48,11 @@ export function bump(payload, field, amount = 1) {
   return state;
 }
 
-export const tok = (bytes) => Math.round(Number(bytes || 0) / 4);
+const tok = (bytes) => Math.round(Number(bytes || 0) / 4);
 
 export const kept = (t) => BYTE_COUNTERS.reduce((sum, key) => sum + Number(t[key] || 0), 0);
 
-export const volume = (t) => kept(t) + Number(t.read || 0);
+const volume = (t) => kept(t) + Number(t.read || 0);
 
 export const keptPct = (t) => (volume(t) ? Math.round((kept(t) / volume(t)) * 100) : 0);
 
@@ -63,7 +63,7 @@ export function savings(state) {
 
 const num = (value) => Number(value || 0).toLocaleString('en-US');
 const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
-const compact = (value) => (value >= 10000 ? `${(value / 1000).toFixed(1)}k` : num(value));
+const compact = (value) => (value >= 1e6 ? `${(value / 1e6).toFixed(1)}M` : value >= 10000 ? `${(value / 1000).toFixed(1)}k` : num(value));
 const kb = (bytes) => (bytes >= 1024 ? `${num(Math.round(bytes / 1024))} KB` : `${num(bytes)} B`);
 
 function fold(base, add = {}) {
@@ -80,26 +80,27 @@ export function bank(state) {
   return state.lifetime;
 }
 
-export function sessionLine(state, footprintTok = 0) {
+export function sessionLine(state) {
   const s = fold(state.session, state.saved);
+  const life = lifetime(state);
   const reads = [];
   if (s.rewrites) reads.push(`${num(s.rewrites)} trimmed (${kb(s.trimmed)} out)`);
   if (s.rereads + s.queries) reads.push(`${num(s.rereads + s.queries)} re-reads stopped`);
-  if (s.slices + s.offloads) reads.push(`${num(s.slices + s.offloads)} held back`);
+  if (s.slices) reads.push(`${plural(s.slices, 'action guarded', 'actions guarded')}`);
   if (s.caps) reads.push(`${num(s.caps)} capped at ${GREP_HEAD_LIMIT}`);
   const disp = [];
-  if (s.waves) disp.push(`${num(s.waves)} waves capped (${num(s.agentsCapped)} held)`);
+  if (s.agentsCapped) disp.push(`${num(s.agentsCapped)} held for the next wave`);
   if (s.redirects) disp.push(`${num(s.redirects)} redirected`);
   const other = s.blocked - s.redirects - s.waves;
   if (other > 0) disp.push(`${num(other)} blocked`);
   if (s.agents) disp.push(`${num(s.agents)} used`);
   const tail = [];
-  if (s.gated) tail.push(`${num(s.gated)} gated`);
-  if (footprintTok) tail.push(`cost ~${num(footprintTok)} tok`);
+  if (kept(s)) tail.push(`session: ~${compact(tok(kept(s)))} (${keptPct(s)}%)`);
+  if (kept(life)) tail.push(`all-time: ~${compact(tok(kept(life)))}`);
   const lines = [];
   if (reads.length) lines.push(`reads: ${reads.join(' · ')}`);
   if (disp.length) lines.push(`dispatches: ${disp.join(' · ')}`);
-  if (tail.length) lines.push(`gated/cost: ${tail.join(' · ')}`);
+  if (tail.length) lines.push(`tokens kept out of context — ${tail.join(' · ')}`);
   if (!lines.length) return '';
   lines[0] = `HANDOFF OS · ${lines[0]}`;
   return lines.join('\n');

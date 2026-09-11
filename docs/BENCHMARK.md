@@ -80,15 +80,14 @@ npm run benchmark:replay
 - Answers what the guard catches on this stream. Not Track B.
 
 <!-- handoff-replay -->
-| The maintainer's 14 sessions — run it on yours | Count | Share of judged |
+| The maintainer's 15 sessions — run it on yours | Count | Share of judged |
 |---|---|---|
-| Tool calls recorded | 1,668 | — |
-| Judged by the guard | 1,205 | 100% |
-| **Refused** | **69** | **6%** |
-| — egress lock | 36 | 3% |
-| — other | 26 | 2% |
-| — whole-file cap | 4 | 0% |
-| — re-read dedup | 3 | 0% |
+| Tool calls recorded | 1,803 | — |
+| Judged by the guard | 1,283 | 100% |
+| **Refused** | **47** | **4%** |
+| — egress lock | 37 | 3% |
+| — whole-file cap | 5 | 0% |
+| — re-read dedup | 5 | 0% |
 
 Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code transcripts, re-fed to the guard in order, one sandbox per session. Open-loop: a refusal cannot change what the agent did next, so this is what the guard catches on that exact stream, not a counterfactual. Reproduce with `npm run benchmark:replay`.
 <!-- /handoff-replay -->
@@ -96,14 +95,14 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Live ledger — what the guard did on this machine
 
 <!-- handoff-stats -->
-| Measured over 3 turns | Tokens | Share |
+| Measured over 4 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~255.1k | 100% |
-| **Kept out** | **~223.9k** | **88%** |
-| — re-read dedup | ~29.7k | 12% |
-| — whole-file cap | ~239 | 0% |
-| — moved to a subagent | ~194.0k | 76% |
-| Admitted to the main thread | ~31.1k | 12% |
+| Read volume the session asked for | ~300.6k | 100% |
+| **Kept out** | **~244.9k** | **81%** |
+| — re-read dedup | ~29.7k | 10% |
+| — whole-file cap | ~8,030 | 3% |
+| — moved to a subagent | ~194.0k | 65% |
+| Admitted to the main thread | ~55.7k | 19% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
@@ -112,13 +111,13 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 | Agent descriptions, always in context | ~50 |
 | **Total footprint** | **~276** |
 | Per turn, on top of that | **0** (since 1.6.0) |
-| **Net kept out minus footprint** | **~223.7k** |
+| **Net kept out minus footprint** | **~244.6k** |
 
 | Measured billing | Tokens |
 |---|---|
-| Fresh — input + output + cache write | 7,347,335 |
-| Cache-read | 221,103,017 |
-| **Context re-send ratio** | **30.1×** |
+| Fresh — input + output + cache write | 8,099,628 |
+| Cache-read | 249,414,860 |
+| **Context re-send ratio** | **30.8×** |
 | Re-sends removed, kept × turns that followed | ~13.9M |
 
 Guard actions: 38. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
@@ -164,7 +163,7 @@ npm run benchmark:compare
 | block every tool call | 100% | 100% | 0.72 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-85 cases, 2026-09-10; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code.
+85 cases, 2026-09-11; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code.
 
 58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
@@ -172,12 +171,12 @@ npm run benchmark:compare
 - Mechanism baselines from published rule shapes, not vendor code; no product named.
 - Same case list, same scoring; `eval/baselines.mjs` committed for repeat or dispute.
 - `eval/scores.json` written by the same run; feeds the README badges.
-- Cost is context tax: the plugin's own footprint against the rot it keeps out, per window, in the ledger report and the README stats block.
+- Cost is context tax: the plugin's own footprint against the rot it keeps out, per window, in the ledger report.
 - Spawn milliseconds print on `--latency` runs only; machine-specific, never published, never in `scores.json`.
 - Multiple roots aggregate: `node scripts/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
-Run 2026-09-10 · 85 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-11 · 85 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
 
 | Metric | Value |
 |---|---|
@@ -412,9 +411,8 @@ npm run benchmark:ab -- --model claude-haiku-4-5-20251001
 | Refused | subagent calls answered by a `PreToolUse` hook error |
 | Tokens billed | `input + cache write + 0.1 × cache read`, transcript `usage`, subagents included |
 | Raw tokens per subagent | `input + cache write + cache read` of one subagent's messages, grouped by `parent_tool_use_id`, mean over the arm; the figure's per-wave line is `requested × mean` |
-| Cost | `total_cost_usd` from the result event |
 | Finished | reply names all 20 modules |
-| Budget | stops once cumulative cost passes `--budget-usd` (default 10); partial result still written |
+| Budget | stops once cumulative billed tokens pass `--budget` (default 2,000,000); partial result still written |
 | Output | `eval/flood-results.json` · `docs/flood.svg` · README `<!-- handoff-flood -->` · this file's `<!-- flood-results -->` |
 | Figures | `scripts/figures.mjs` renders `docs/flood.svg`, `docs/tiles-*.svg`, `docs/demo.svg` from `eval/*.json` and plugin constants; `npm run upkeep` rewrites them, `upkeep:check` fails when they differ |
 
@@ -427,10 +425,10 @@ npm run benchmark:flood -- --dry-run    # pipeline only, no model call
 <!-- flood-results -->
 Run 2026-09-10 · model `claude-sonnet-5` · plugin build 8e9d9c4 (1.9.1) · `eval/flood-results.json`
 
-| Arm | Subagent calls | Started | Refused by the guard | Raw tokens per subagent | Tokens billed | Cost | Wall time | Finished |
-|---|---|---|---|---|---|---|---|---|
-| without | 20 | 20 | 0 | 24,480 | 174,757 | $0.52 | 39s | yes |
-| with | 43 | 3 | 40 | 18,813 | 104,751 | $0.41 | 120s | no |
+| Arm | Subagent calls | Started | Refused by the guard | Raw tokens per subagent | Tokens billed | Wall time | Finished |
+|---|---|---|---|---|---|---|---|
+| without | 20 | 20 | 0 | 24,480 | 174,757 | 39s | yes |
+| with | 43 | 3 | 40 | 18,813 | 104,751 | 120s | no |
 
-Figure estimate line: 50,000 raw tokens per subagent in a real repo · Opus list price $5 per 1M input tokens.
+Figure estimate line: 50,000 raw tokens per subagent in a real repo.
 <!-- /flood-results -->

@@ -257,7 +257,7 @@ describe('read and query budgets', () => {
     writeFileSync(small, 'beside');
     assert.equal(sh('fl4', `cat ${small}; cat -n ${flagged}`), BLOCKED);
     assert.equal(sh('fl4', `cat ${small}`), ALLOWED);
-    assert.equal(state('fl4').read_bytes, 6);
+    assert.equal(state('fl4').saved.read, 6);
   });
   it('leaves a read redirected into a file alone — its bytes never reach the thread', () => {
     const piped = path.join(box, 'piped.txt');
@@ -266,18 +266,12 @@ describe('read and query budgets', () => {
     assert.equal(result.status, ALLOWED);
     assert.equal(result.stdout, '');
   });
-  it('denies the ninth whole-file read with a scout dispatch to paste', () => {
-    for (let n = 0; n < 8; n += 1) {
+  it('lets many small whole-file reads through — only bytes bound the thread', () => {
+    for (let n = 0; n < 12; n += 1) {
       const file = path.join(box, `whole-${n}.txt`);
       writeFileSync(file, String(n).repeat(64));
       assert.equal(at('dl', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED, file);
     }
-    const ninth = path.join(box, 'whole-9.txt');
-    writeFileSync(ninth, 'nine');
-    const result = run('dl', { tool_name: 'Read', tool_input: { file_path: ninth } });
-    assert.equal(result.status, BLOCKED);
-    assert.match(result.stderr, /handoff-os:scout/);
-    assert.equal(state('dl').saved.offloads, 1);
   });
   it('blocks a re-read of the same unchanged bytes', () => {
     writeFileSync(probe, 'small');
@@ -320,36 +314,18 @@ describe('read and query budgets', () => {
   it('credits a refused read once however often it is retried', () => {
     const file = path.join(box, 'retry.txt');
     writeFileSync(file, 'w'.repeat(30 * 1024));
-    mkdirSync(path.join(box, '.claude'), { recursive: true });
-    writeFileSync(path.join(box, '.claude', '.session-rt.json'),
-      JSON.stringify({ reads: {}, read_bytes: 600000, saved: {} }), 'utf8');
     for (let n = 0; n < 3; n += 1) {
-      assert.equal(at('rt', { tool_name: 'Read', tool_input: { file_path: file } }), BLOCKED);
+      assert.equal(sh('rt', `cat -n ${file}`), BLOCKED);
     }
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-rt.json'), 'utf8'));
-    assert.equal(state.saved.slices, 1);
-    assert.equal(state.saved.deferred, 30 * 1024);
+    assert.equal(state('rt').saved.slices, 1);
+    assert.equal(state('rt').saved.deferred, 30 * 1024);
   });
-  it('never spends the main thread read ceiling on a subagent read', () => {
-    const file = path.join(box, 'ceil-scout.txt');
-    writeFileSync(file, 'q'.repeat(1024));
-    mkdirSync(path.join(box, '.claude'), { recursive: true });
-    writeFileSync(path.join(box, '.claude', '.session-sc.json'),
-      JSON.stringify({ reads: {}, read_bytes: 600000, saved: {} }), 'utf8');
-    assert.equal(at('sc', { agent_type: 'handoff-os:scout', tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED);
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-sc.json'), 'utf8'));
-    assert.equal(state.read_bytes, 600000);
-  });
-  it('books a ceiling block as deferred, not deduped', () => {
-    const file = path.join(box, 'ceil-small.txt');
-    writeFileSync(file, 'y'.repeat(1024));
-    mkdirSync(path.join(box, '.claude'), { recursive: true });
-    writeFileSync(path.join(box, '.claude', '.session-cl.json'),
-      JSON.stringify({ reads: {}, read_bytes: 600000, saved: {} }), 'utf8');
-    assert.equal(at('cl', { tool_name: 'Read', tool_input: { file_path: file } }), BLOCKED);
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-cl.json'), 'utf8'));
-    assert.equal(state.saved.deferred, 1024);
-    assert.equal(state.saved.bytes, 0);
+  it('never blocks a read on how much the session has already read', () => {
+    for (let n = 0; n < 40; n += 1) {
+      const file = path.join(box, `long-${n}.txt`);
+      writeFileSync(file, 'q'.repeat(20 * 1024));
+      assert.equal(at('lg', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED, file);
+    }
   });
 });
 

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { homedir } from 'node:os';
 import { MODES } from '../eval/baselines.mjs';
-import { BYTE_COUNTERS, COUNTERS } from '../plugins/handoff-os/scripts/ledger.mjs';
+import { BYTE_COUNTERS, COUNTERS, kept, keptPct } from '../plugins/handoff-os/scripts/ledger.mjs';
 import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
 import { usage } from '../plugins/handoff-os/scripts/verify.mjs';
 import { started, writeFlood } from './figures.mjs';
@@ -15,9 +15,9 @@ const flags = { write: false, eval: false, compare: false, latency: false, repla
 const AB = {
   tasks: 'eval/tasks.jsonl', n: Infinity, model: 'claude-haiku-4-5-20251001', dryRun: false, out: 'eval/ab-results.json',
   task: null, micro: true, maxTurns: 12, timeoutMs: 15 * 60 * 1000, budgetTokens: 2000000, seed: 20260910, keep: false, render: false,
-  claude: process.env.HANDOFF_AB_CLAUDE || 'claude', pluginDir: null, budgetUsd: 10,
+  claude: process.env.HANDOFF_AB_CLAUDE || 'claude', pluginDir: null,
 };
-const AB_VALUE = { '--tasks': 'tasks', '--n': 'n', '--model': 'model', '--out': 'out', '--task': 'task', '--max-turns': 'maxTurns', '--timeout': 'timeoutMs', '--budget': 'budgetTokens', '--budget-usd': 'budgetUsd', '--seed': 'seed', '--plugin-dir': 'pluginDir' };
+const AB_VALUE = { '--tasks': 'tasks', '--n': 'n', '--model': 'model', '--out': 'out', '--task': 'task', '--max-turns': 'maxTurns', '--timeout': 'timeoutMs', '--budget': 'budgetTokens', '--seed': 'seed', '--plugin-dir': 'pluginDir' };
 let REPO = process.cwd();
 const REPOS = [];
 const argv = process.argv.slice(2);
@@ -286,7 +286,7 @@ const textOf = (content) => (typeof content === 'string' ? content
 function parseStream(stdout) {
   const out = {
     usage: zeroUsage(), guard: {}, spawnRequested: 0, spawnBlocked: 0, toolCalls: 0, subagentMessages: 0,
-    turns: 0, durationMs: 0, result: '', subtype: null, spawned: null, cost: 0,
+    turns: 0, durationMs: 0, result: '', subtype: null, spawned: null,
   };
   const seen = new Set();
   const spawnIds = new Set();
@@ -325,7 +325,6 @@ function parseStream(stdout) {
       }
     } else if (event.type === 'result') {
       out.turns += Number(event.num_turns || 0);
-      out.cost += Number(event.total_cost_usd || 0);
       out.durationMs += Number(event.duration_ms || 0);
       if (event.result) out.result = String(event.result);
       out.subtype = event.subtype || null;
@@ -411,7 +410,6 @@ function runArm(task, arm, opts) {
     billedRaw: u.input + u.cache5m + u.cache1h + u.cacheRead,
     billedWeighted: Math.round(u.input + (u.cache5m * CACHE_WRITE_5M) + (u.cache1h * CACHE_WRITE_1H) + (u.cacheRead * CACHE_READ)),
     billed: Math.round(u.input + u.cache5m + u.cache1h + (u.cacheRead * CACHE_READ)),
-    cost: parsed.cost,
     finished: !error && parsed.subtype === 'success',
     guard: parsed.guard,
     spawnRequested: parsed.spawnRequested,
@@ -695,7 +693,6 @@ const floodTask = () => ({
 });
 
 const secs = (ms) => `${Math.round(ms / 1000)}s`;
-const usd = (x) => `$${Number(x || 0).toFixed(2)}`;
 
 function flood(opts) {
   const outFile = path.resolve(REPO, opts.out);
@@ -705,15 +702,15 @@ function flood(opts) {
   }
   const task = floodTask();
   const arms = {};
-  let cost = 0;
+  let spend = 0;
   let stopped = null;
   console.log(`\nhandoff-os — flood, ${FLOOD_MODULES} subagents requested, 2 arms, model ${opts.model}${opts.dryRun ? ', DRY RUN' : ''}\n`);
   for (const arm of ['B', 'A']) {
     const row = runArm(task, arm, opts);
     arms[arm === 'A' ? 'with' : 'without'] = row;
-    cost += row.cost;
-    console.log(`  ${arm === 'A' ? 'with   ' : 'without'} calls ${row.spawnRequested}  started ${started(row)}  refused ${row.spawnBlocked}  billed ${num(row.billed).padStart(9)}  ${usd(row.cost)}  ${secs(row.durationMs)}  ${row.pass ? 'finished' : 'unfinished'}${row.error ? `  ${row.error}` : ''}`);
-    if (cost > opts.budgetUsd) { stopped = `budget: ${usd(cost)} > ${usd(opts.budgetUsd)}`; break; }
+    spend += row.billed;
+    console.log(`  ${arm === 'A' ? 'with   ' : 'without'} calls ${row.spawnRequested}  started ${started(row)}  refused ${row.spawnBlocked}  billed ${num(row.billed).padStart(9)}  ${secs(row.durationMs)}  ${row.pass ? 'finished' : 'unfinished'}${row.error ? `  ${row.error}` : ''}`);
+    if (spend > opts.budgetTokens) { stopped = `budget: ${num(spend)} tok > ${num(opts.budgetTokens)} tok`; break; }
   }
   const pluginDir = abPluginDir(opts);
   const pluginRoot = path.basename(path.dirname(pluginDir)) === 'plugins' ? path.dirname(path.dirname(pluginDir)) : REPO;
@@ -725,7 +722,6 @@ function flood(opts) {
     requested: FLOOD_MODULES,
     prompt: FLOOD_PROMPT,
     stopped,
-    costUsd: Math.round(cost * 1000) / 1000,
     plugin: {
       dir: path.basename(pluginDir),
       version: JSON.parse(readFileSync(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8')).version,
@@ -810,7 +806,7 @@ function replay(root) {
     const ledger = path.join(probe, '.claude', `.session-${session}.json`);
     if (!existsSync(ledger)) continue;
     const { saved } = JSON.parse(readFileSync(ledger, 'utf8'));
-    out.kept += BYTE_COUNTERS.reduce((sum, key) => sum + (saved[key] || 0), 0);
+    out.kept += kept(saved);
     out.admitted += saved.read || 0;
   }
   return out;
@@ -847,7 +843,7 @@ function collect(root) {
       t.cacheRead += Number(real.cacheRead || 0);
       marks.push({
         turn: Number(real.turns || 0),
-        kept: tok4(BYTE_COUNTERS.reduce((sum, key) => sum + Number(saved[key] || 0), 0)),
+        kept: tok4(kept(saved)),
       });
     }
   }
@@ -888,11 +884,11 @@ function fromTranscripts(root) {
   return out;
 }
 
-const kept = BYTE_COUNTERS.reduce((sum, key) => sum + t[key], 0);
-const readVolume = kept + t.read;
-const keptPct = share(kept, readVolume);
+const keptBytes = kept(t);
+const readVolume = keptBytes + t.read;
+const keptShare = keptPct(t);
 const tax = taxOf(inventory(REPO));
-const net = kept - tax.total;
+const net = keptBytes - tax.total;
 const resend = t.fresh ? t.cacheRead / t.fresh : 0;
 const actions = t.blocked + t.rereads + t.slices + t.queries + t.caps + t.agents;
 
@@ -910,11 +906,11 @@ console.log('\nhandoff-os — context kept out of the main thread, all recorded 
 console.log(`  source: ${REPOS.length > 1 ? `${REPOS.length} repos` : 'audit/*.jsonl'}, ${t.turns} recorded turn(s)\n`);
 
 row('read volume the session asked for', `~${tokc(readVolume)}`, 'tok');
-row('kept out', `~${tokc(kept)}`, `tok   ${keptPct}% of read volume`);
+row('kept out', `~${tokc(keptBytes)}`, `tok   ${keptShare}% of read volume`);
 row('  re-read dedup', `~${tokc(t.bytes)}`, 'tok   file was already in context, unchanged');
 row('  whole-file cap', `~${tokc(t.deferred)}`, 'tok   over 24KB, a slice or scout instead');
 row('  moved to a subagent', `~${tokc(t.offload)}`, 'tok   read under a scout, never in this thread');
-row('admitted to the main thread', `~${tokc(t.read)}`, `tok   ${100 - keptPct}% of read volume`);
+row('admitted to the main thread', `~${tokc(t.read)}`, `tok   ${100 - keptShare}% of read volume`);
 console.log('  token counts above are file bytes / 4, an estimate, never billing');
 console.log('\n  context tax — what the plugin itself costs the window');
 row('session card', `~${tokc(tax.card)}`, 'tok   always in context');
@@ -989,11 +985,11 @@ const statsBlock = () => {
     `| Measured over ${num(t.turns)} turns | Tokens | Share |`,
     '|---|---|---|',
     `| Read volume the session asked for | ~${tokc(readVolume)} | 100% |`,
-    `| **Kept out** | **~${tokc(kept)}** | **${keptPct}%** |`,
+    `| **Kept out** | **~${tokc(keptBytes)}** | **${keptShare}%** |`,
     `| — re-read dedup | ~${tokc(t.bytes)} | ${share(t.bytes, readVolume)}% |`,
     `| — whole-file cap | ~${tokc(t.deferred)} | ${share(t.deferred, readVolume)}% |`,
     `| — moved to a subagent | ~${tokc(t.offload)} | ${share(t.offload, readVolume)}% |`,
-    `| Admitted to the main thread | ~${tokc(t.read)} | ${100 - keptPct}% |`,
+    `| Admitted to the main thread | ~${tokc(t.read)} | ${100 - keptShare}% |`,
     '',
     `| Context tax — the plugin's own footprint | Tokens |`,
     '|---|---|',
@@ -1021,8 +1017,8 @@ const statsBlock = () => {
 if (flags.write) {
   console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), OPEN, CLOSE, statsBlock())}`);
   mergeScores(REPO, {
-    keptPct,
-    keptTokens: kept,
+    keptPct: keptShare,
+    keptTokens: keptBytes,
     readVolumeTokens: readVolume,
     offloadTokens: t.offload,
     taxTokens: tax.total,

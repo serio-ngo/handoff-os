@@ -121,7 +121,7 @@ export function inventory(root = REPO) {
 
   const patterns = (readFileSync(path.join(plugin, 'scripts', 'patterns.mjs'), 'utf8').match(/^export const/gm) || []).length;
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const { cardChars, skillChars, agentChars, contextChars } = footprint('', false);
+  const { cardChars, skillChars, agentChars, contextChars } = footprint('');
 
   return {
     skills: skills.length,

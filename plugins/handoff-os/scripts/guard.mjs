@@ -69,7 +69,6 @@ function onlyDisposable(segment) {
 }
 
 function judgeShell(command, depth = 0) {
-  const lockGit = process.env.HANDOFF_LOCK_GIT === '1';
   for (const rx of ANYWHERE) if (rx.test(command)) return 'blocked a metered-credential assignment';
   for (const segment of segments(command).map(unwrap)) {
     if (NO_OP_FLAG.test(segment.replace(/'[^']*'|"[^"]*"/g, ' '))) continue;
@@ -82,10 +81,8 @@ function judgeShell(command, depth = 0) {
         return `${quoted} — delete outside build and temp paths`;
       }
     }
-    if (lockGit) {
-      for (const rx of GIT_WRITE) {
-        if (rx.test(segment)) return `${quoted} — git is locked`;
-      }
+    for (const rx of GIT_WRITE) {
+      if (rx.test(segment)) return `${quoted} — a git write`;
     }
     for (const rx of AT_HEAD) {
       if (rx.test(segment)) return `${quoted} — outward action`;

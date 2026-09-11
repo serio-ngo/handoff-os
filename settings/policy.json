@@ -69,33 +69,29 @@
     "Edit(**/brand-kit*)",
     "Edit(**/logo*)",
     "Edit(**/favicon*)",
-    "Edit(**/og-image*)"
+    "Edit(**/og-image*)",
+    "Bash(gh pr create *)",
+    "Bash(git push)",
+    "Bash(git push *)",
+    "Bash(git -C * push*)",
+    "Bash(git -c * push*)",
+    "Bash(git commit)",
+    "Bash(git commit *)",
+    "Bash(git add)",
+    "Bash(git add *)",
+    "Bash(git reset *)",
+    "Bash(git checkout *)",
+    "Bash(git switch *)",
+    "Bash(git stash *)",
+    "Bash(git rebase *)",
+    "Bash(git revert *)",
+    "Bash(git cherry-pick *)",
+    "Bash(git clean *)",
+    "Bash(git tag *)",
+    "Bash(git remote add *)",
+    "Bash(git remote set-url *)",
+    "Bash(git branch *)"
   ],
   "ask": [],
-  "lock": {
-    "pr": [
-      "Bash(gh pr create *)"
-    ],
-    "git": [
-      "Bash(git push)",
-      "Bash(git push *)",
-      "Bash(git -C * push*)",
-      "Bash(git -c * push*)",
-      "Bash(git commit)",
-      "Bash(git commit *)",
-      "Bash(git add)",
-      "Bash(git add *)",
-      "Bash(git reset *)",
-      "Bash(git checkout *)",
-      "Bash(git switch *)",
-      "Bash(git stash *)",
-      "Bash(git rebase *)",
-      "Bash(git revert *)",
-      "Bash(git cherry-pick *)",
-      "Bash(git clean *)",
-      "Bash(git tag *)",
-      "Bash(git remote add *)",
-      "Bash(git remote set-url *)"
-    ]
-  }
+  "lock": {}
 }

@@ -50,7 +50,7 @@ Restart Claude Code. Hooks load at session start.
 | Dispatch budget | Every subagent names a tier, and a review goes to sonnet. |
 | Egress lock | Sends, payments, publishes, merges and deletes stop before they run — shell, PowerShell and connectors alike. |
 | Verify gate | A "done" claim needs a real run behind it. |
-| Branch and PR | The agent opens the branch and the pull request; the merge stays yours. |
+| Git lock | Every state-changing git command stops — branch, commit, push, merge. Reads stay open. |
 | Audit trail | One local line per action, appended as it happens. |
 | Session receipt | The Stop hook prints what the session kept out of context. |
 

@@ -124,8 +124,7 @@ function sync(args) {
   if (scope === 'user') after = merge(after, installation());
   after = releaseLocks(after, args.lock ?? []);
   after.env = { ...after.env };
-  if ((args.lock ?? []).includes('git')) after.env.HANDOFF_LOCK_GIT = '1';
-  else delete after.env.HANDOFF_LOCK_GIT;
+  delete after.env.HANDOFF_LOCK_GIT;
   if (Object.keys(after.env).length === 0) delete after.env;
   refuseMeteredAuth(after);
   if (!args.dryRun) writeJson(target, after);
@@ -239,10 +238,9 @@ function doctor() {
 
   check('the plugin is enabled', settings.enabledPlugins?.[`${PLUGIN_NAME}@${marketplace.name}`] === true);
   check('login is restricted to the subscription', settings.forceLoginMethod === 'claudeai');
-  const gitLock = readJson('settings', 'policy.json').lock?.git ?? [];
-  const denied = (settings.permissions?.deny ?? []).some((r) => gitLock.includes(r));
-  check(denied ? 'every git write is denied by a deny rule' : 'git writes are allowed — the default',
-    denied === (settings.env?.HANDOFF_LOCK_GIT === '1'), 'deny rules and HANDOFF_LOCK_GIT must agree');
+  const writes = ['Bash(git commit *)', 'Bash(git push *)', 'Bash(git branch *)'];
+  check('every git write is denied by a deny rule',
+    writes.every((rule) => (settings.permissions?.deny ?? []).includes(rule)), writes.join(' '));
   check('no metered credential is configured', !new RegExp(`${BANNED.join('|')}|apiKeyHelper`).test(JSON.stringify(settings)));
   check('no metered credential is in the environment', !BANNED.some((key) => process.env[key]));
 
@@ -279,9 +277,9 @@ function doctor() {
   const fire = (payload, env) => at(cache, 'guard.mjs', payload, env).status;
   const shell = (command, env) => fire(pre('Bash', { command }), env);
   check('the installed guard blocks a merge', shell('git merge main') === BLOCKED);
-  check('the installed guard blocks a commit and a push under the git lock',
-    ['git commit -m x', 'git push origin main'].every((c) => shell(c, { HANDOFF_LOCK_GIT: '1' }) === BLOCKED),
-    'whatever the deny list currently says');
+  check('the installed guard blocks every git write',
+    ['git commit -m x', 'git push origin main', 'git switch -c feat/x', 'git branch feat/x'].every((c) => shell(c) === BLOCKED),
+    'commit, push, switch -c, branch');
   check('the installed guard blocks an outward connector call', fire(pre('mcp__x__send_message', {})) === BLOCKED);
   check('the installed guard blocks an opus review, whatever the spawn tool',
     SPAWN_TOOLS.every((tool) => fire(pre(tool, { model: 'opus', prompt: 'review the diff' })) === BLOCKED),

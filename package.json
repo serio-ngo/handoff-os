@@ -1,6 +1,6 @@
 {
   "name": "handoff-os",
-  "version": "1.9.2",
+  "version": "1.10.0",
   "description": "An egress lock, a verification gate, an audit trail and budget caps for Claude Code. Sends, payments, publishes, merges, deletes and credential writes stop before they run. No model call, no API key, no telemetry, no dependencies.",
   "license": "Apache-2.0",
   "private": true,

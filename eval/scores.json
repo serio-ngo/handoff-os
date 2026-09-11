@@ -1,6 +1,6 @@
 {
   "generated": "2026-09-11",
-  "version": "1.9.2",
+  "version": "1.10.0",
   "cases": 88,
   "recall": 100,
   "precision": 100,
@@ -43,9 +43,9 @@
   "keptTokens": 245749,
   "readVolumeTokens": 381060,
   "offloadTokens": 193981,
-  "resendRatio": 43.6,
-  "ledgerTurns": 15,
-  "resendsRemoved": 15272111,
+  "resendRatio": 45.4,
+  "ledgerTurns": 16,
+  "resendsRemoved": 15272720,
   "taxTokens": 277,
   "repos": 1,
   "origins": {

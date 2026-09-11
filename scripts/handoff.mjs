@@ -312,15 +312,16 @@ function doctor() {
 }
 
 function release(args) {
-  const [bump, ...rest] = args._;
-  const note = rest.join(' ').trim();
   const BUMPS = {
     major: ([a]) => [a + 1, 0, 0],
     minor: ([a, b]) => [a, b + 1, 0],
     patch: ([a, b, c]) => [a, b, c + 1],
   };
-  if (!BUMPS[bump]) fail(`usage: npm run release <${Object.keys(BUMPS).join('|')}> "one-line note"`);
-  if (!note) fail('a one-line note is required — it becomes the changelog entry');
+  const [first, ...rest] = args._;
+  const bump = BUMPS[first] ? first : 'patch';
+  const note = (BUMPS[first] ? rest : args._).join(' ').trim()
+    || (spawnSync('git', ['-C', REPO, 'log', '-1', '--format=%s'], { encoding: 'utf8' }).stdout || '').trim();
+  if (!note) fail(`usage: npm run release [${Object.keys(BUMPS).join('|')}] "one-line note" — no note given and no commit to borrow one from`);
   if (spawnSync(process.execPath, ['--test'], { cwd: REPO, stdio: 'inherit' }).status !== 0) fail('the suite is red');
 
   const manifestPath = path.join(PLUGIN, '.claude-plugin', 'plugin.json');

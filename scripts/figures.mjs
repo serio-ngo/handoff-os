@@ -4,15 +4,15 @@ import { sessionLine } from '../plugins/handoff-os/scripts/ledger.mjs';
 import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../plugins/handoff-os/scripts/patterns.mjs';
 import { REPO, inventory, readJson, writeBlock } from './generate.mjs';
 
-export const INK = '#7d8590';
-export const HUE = { without: '#d95926', with: '#2a78d6' };
-export const REAL_REPO_TOKENS_PER_SUBAGENT = 50000;
-export const OPUS_LIST_USD_PER_M_INPUT = 5;
+const INK = '#7d8590';
+const HUE = { without: '#d95926', with: '#2a78d6' };
+const REAL_REPO_TOKENS_PER_SUBAGENT = 50000;
+const DEMO_MODULES = 100;
 
-export const FLOOD_OPEN = '<!-- handoff-flood -->';
-export const FLOOD_CLOSE = '<!-- /handoff-flood -->';
-export const FLOOD_DOC_OPEN = '<!-- flood-results -->';
-export const FLOOD_DOC_CLOSE = '<!-- /flood-results -->';
+const FLOOD_OPEN = '<!-- handoff-flood -->';
+const FLOOD_CLOSE = '<!-- /handoff-flood -->';
+const FLOOD_DOC_OPEN = '<!-- flood-results -->';
+const FLOOD_DOC_CLOSE = '<!-- /flood-results -->';
 
 const FONT = "system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif";
 const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace";
@@ -21,10 +21,8 @@ const DOCS = (name) => path.join(REPO, 'docs', name);
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const num = (n) => Number(n || 0).toLocaleString('en-US');
 const compact = (n) => (n >= 1e6 ? `${String(Math.round((n / 1e6) * 10) / 10).replace(/\.0$/, '')}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
-const usd = (x) => `$${Number(x || 0).toFixed(2)}`;
 const secs = (ms) => `${Math.round(ms / 1000)}s`;
 const width = (s, size) => s.length * size * 0.7;
-const dollars = (x) => `$${Number.isInteger(x) ? x : x.toFixed(2)}`;
 
 const text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" fill="${o.fill ?? INK}" font-size="${o.size ?? 12}"`
   + `${o.weight ? ` font-weight="${o.weight}"` : ''}${o.anchor ? ` text-anchor="${o.anchor}"` : ''}${o.family ? ` font-family="${o.family}"` : ''}`
@@ -37,7 +35,6 @@ const held = (r) => Math.max(0, r.requested - started(r.arms.with));
 const perSubagent = (r) => Math.round(r.arms.without.subagentRaw?.mean || 0);
 const waveTokens = (r) => r.requested * perSubagent(r);
 const estimateTokens = (r) => r.requested * REAL_REPO_TOKENS_PER_SUBAGENT;
-const estimateUsd = (r) => (estimateTokens(r) / 1e6) * OPUS_LIST_USD_PER_M_INPUT;
 
 function glyphs(x0, y0, count, filled, fill) {
   const cols = 5; const w = 24; const h = 28; const gap = 10;
@@ -58,11 +55,10 @@ function stat(x, y, big, unit, note) {
   ];
 }
 
-export const floodAlt = (r) => `${r.requested} subagents requested, model ${r.model}. One uncapped wave: ${started(r.arms.without)} started, `
-  + `about ${compact(waveTokens(r))} raw tokens measured (${r.requested} × ${num(perSubagent(r))} per subagent); in a real repo ${compact(estimateTokens(r))}+ tokens, `
-  + `about ${dollars(estimateUsd(r))} at Opus list price, an estimate. With the guard: ${started(r.arms.with)} started, ${held(r)} held for the next wave, measured.`;
+const floodAlt = (r) => `${r.requested} subagents requested. Without the guard ${started(r.arms.without)} start and burn about `
+  + `${compact(waveTokens(r))} tokens; with it ${started(r.arms.with)} start and ${held(r)} wait.`;
 
-export function floodSvg(r) {
+function floodSvg(r) {
   const W = 720; const H = 372; const L = 24; const R = 384;
   const measured = `measured · ${r.model}`;
   return file([
@@ -74,30 +70,27 @@ export function floodSvg(r) {
     ...glyphs(L, 62, r.requested, started(r.arms.without), HUE.without),
     ...glyphs(R, 62, r.requested, started(r.arms.with), HUE.with),
     ...stat(L, 240, String(started(r.arms.without)), 'started at once', measured),
-    ...stat(L, 290, `≈ ${compact(waveTokens(r))}`, 'raw tokens, one wave', `${r.requested} × ${num(perSubagent(r))} per subagent · measured`),
-    ...stat(L, 340, `${compact(estimateTokens(r))}+`, 'raw tokens in a real repo', `${r.requested} × ${compact(REAL_REPO_TOKENS_PER_SUBAGENT)} · each subagent also reads your files · ≈ ${dollars(estimateUsd(r))} at Opus list price · estimate`),
+    ...stat(L, 290, `≈ ${compact(waveTokens(r))}`, 'tokens, one wave', 'measured'),
+    ...stat(L, 340, `${compact(estimateTokens(r))}+`, 'tokens in a real repo', 'estimate'),
     ...stat(R, 240, String(started(r.arms.with)), 'started at once', measured),
-    ...stat(R, 290, String(held(r)), 'held for the next wave', 'measured · dispatched after these return'),
+    ...stat(R, 290, String(held(r)), 'held for the next wave', 'measured'),
     '</svg>',
   ]);
 }
 
-const floodCaption = (r) => `**Measured** on \`${r.model}\`, one prompt: ${started(r.arms.without)} subagents started and ≈${compact(waveTokens(r))} raw tokens without the guard, `
-  + `${started(r.arms.with)} started and ${held(r)} held with it; ${compact(estimateTokens(r))}+ tokens a wave in a real repo is an **estimate**.`;
-
 const subRaw = (row) => (row.subagentRaw ? num(Math.round(row.subagentRaw.mean)) : 'n/a');
-const floodRow = (label, row) => `| ${label} | ${row.spawnRequested} | ${started(row)} | ${row.spawnBlocked} | ${subRaw(row)} | ${num(row.billed)} | ${usd(row.cost)} | ${secs(row.durationMs)} | ${row.pass ? 'yes' : 'no'}${row.error ? ` (${row.error.split(':')[0]})` : ''} |`;
+const floodRow = (label, row) => `| ${label} | ${row.spawnRequested} | ${started(row)} | ${row.spawnBlocked} | ${subRaw(row)} | ${num(row.billed)} | ${secs(row.durationMs)} | ${row.pass ? 'yes' : 'no'}${row.error ? ` (${row.error.split(':')[0]})` : ''} |`;
 
 function floodDocBlock(r) {
   return [
     `Run ${r.generated} · model \`${r.model}\` · plugin build ${String(r.plugin.commit || 'unknown').slice(0, 7)} (${r.plugin.version}) · \`eval/flood-results.json\`${r.stopped ? ` · stopped: ${r.stopped}` : ''}`,
     '',
-    '| Arm | Subagent calls | Started | Refused by the guard | Raw tokens per subagent | Tokens billed | Cost | Wall time | Finished |',
-    '|---|---|---|---|---|---|---|---|---|',
+    '| Arm | Subagent calls | Started | Refused by the guard | Raw tokens per subagent | Tokens billed | Wall time | Finished |',
+    '|---|---|---|---|---|---|---|---|',
     floodRow('without', r.arms.without),
     floodRow('with', r.arms.with),
     '',
-    `Figure estimate line: ${num(REAL_REPO_TOKENS_PER_SUBAGENT)} raw tokens per subagent in a real repo · Opus list price ${dollars(OPUS_LIST_USD_PER_M_INPUT)} per 1M input tokens.`,
+    `Figure estimate line: ${num(REAL_REPO_TOKENS_PER_SUBAGENT)} raw tokens per subagent in a real repo.`,
   ];
 }
 
@@ -107,8 +100,6 @@ export function writeFlood(r) {
     'wrote docs/flood.svg',
     writeBlock(path.join(REPO, 'README.md'), FLOOD_OPEN, FLOOD_CLOSE, [
       `<img src="docs/flood.svg" width="720" alt="${esc(floodAlt(r))}">`,
-      '',
-      floodCaption(r),
     ]),
     writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), FLOOD_DOC_OPEN, FLOOD_DOC_CLOSE, floodDocBlock(r)),
   ];
@@ -122,7 +113,7 @@ function abRange() {
   return pcts.length ? `+${Math.min(...pcts)}–${Math.max(...pcts)}%` : 'n/a';
 }
 
-export function tiles(r, scores = readJson('eval', 'scores.json')) {
+function tiles(r, scores = readJson('eval', 'scores.json')) {
   return {
     stops: [
       [String(MAX_PER_WAVE), 'subagents per wave'],
@@ -148,7 +139,7 @@ export function tiles(r, scores = readJson('eval', 'scores.json')) {
   };
 }
 
-export function tileRow(items) {
+function tileRow(items) {
   const W = 720; const H = 92; const gap = 16;
   const w = (W - gap * (items.length - 1)) / items.length;
   const alt = items.map(([value, label]) => `${value} ${label}`).join('; ');
@@ -183,9 +174,8 @@ function wrap(line, max) {
   return out;
 }
 
-export function demoSvg(r) {
+function demoSvg(modules = DEMO_MODULES) {
   const W = 860; const LOOP = 12;
-  const modules = r.requested;
   const heldBack = modules - MAX_PER_WAVE;
   const receipt = sessionLine({ saved: { agents: MAX_PER_WAVE, blocked: heldBack, waves: heldBack, agentsCapped: heldBack } }, 0).split('\n');
   const prompt = `> src/ has ${modules} modules. Launch one subagent per module, all ${modules} in parallel.`;
@@ -193,9 +183,9 @@ export function demoSvg(r) {
   const rows = [
     { at: 0.2, text: '$ claude' },
     { at: 0.8, text: prompt, typed: true, weight: 600 },
-    ...Array.from({ length: MAX_PER_WAVE }, (_, i) => ({ at: 2.6 + i * 0.4, text: `⏺  Agent · mod${String(i + 1).padStart(2, '0')}.js`, fill: HUE.with })),
+    ...Array.from({ length: MAX_PER_WAVE }, (_, i) => ({ at: 2.6 + i * 0.4, text: `⏺  Agent · mod${String(i + 1).padStart(3, '0')}.js`, fill: HUE.with })),
     ...reason.map((line, i) => ({ at: 4.2, text: i ? `   ${line}` : line, fill: HUE.without, weight: 600, bar: i === 0 })),
-    { at: 5.2, text: `⨯  mod${String(MAX_PER_WAVE + 2).padStart(2, '0')} … mod${modules} · ${heldBack - 1} more, same refusal`, fill: HUE.without },
+    { at: 5.2, text: `⨯  mod${String(MAX_PER_WAVE + 2).padStart(3, '0')} … mod${modules} · ${heldBack - 1} more, same refusal`, fill: HUE.without },
     { at: 6.2, text: `⏺  ${MAX_PER_WAVE} returned · next wave dispatches the rest`, fill: HUE.with },
     ...receipt.map((line, i) => ({ at: 7.2 + i * 0.6, text: line, weight: i ? undefined : 600, box: i === 0 })),
   ];
@@ -244,7 +234,7 @@ export function writeFigures() {
     writeFileSync(DOCS(`tiles-${name}.svg`), tileRow(items), 'utf8');
     out.push(`wrote docs/tiles-${name}.svg`);
   }
-  writeFileSync(DOCS('demo.svg'), demoSvg(r), 'utf8');
+  writeFileSync(DOCS('demo.svg'), demoSvg(), 'utf8');
   out.push('wrote docs/demo.svg');
   return out;
 }

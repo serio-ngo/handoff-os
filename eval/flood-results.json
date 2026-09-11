@@ -6,7 +6,6 @@
   "requested": 20,
   "prompt": "There are 20 modules in src/. Launch one subagent per module, all 20 in parallel, each returns the module's exported names. Then print one line per module.",
   "stopped": null,
-  "costUsd": 0.933,
   "plugin": {
     "dir": "handoff-os",
     "version": "1.9.1",
@@ -32,7 +31,6 @@
       "billedRaw": 760054,
       "billedWeighted": 226066,
       "billed": 174757,
-      "cost": 0.518642,
       "finished": true,
       "guard": {},
       "spawnRequested": 20,
@@ -66,7 +64,6 @@
       "billedRaw": 551246,
       "billedWeighted": 148555,
       "billed": 104751,
-      "cost": 0.41414585000000004,
       "finished": true,
       "guard": {
         "dispatch": 20,

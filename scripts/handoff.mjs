@@ -139,7 +139,7 @@ const cacheRoot = () => path.join(CONFIG_DIR, 'plugins', 'cache', marketplace.na
 const registryPath = () => path.join(CONFIG_DIR, 'plugins', 'installed_plugins.json');
 const registryKey = () => `${PLUGIN_NAME}@${marketplace.name}`;
 
-export function registration() {
+function registration() {
   const entries = readJsonFile(registryPath(), {}).plugins?.[registryKey()];
   return Array.isArray(entries) ? entries[0] : undefined;
 }
@@ -239,9 +239,10 @@ function doctor() {
 
   check('the plugin is enabled', settings.enabledPlugins?.[`${PLUGIN_NAME}@${marketplace.name}`] === true);
   check('login is restricted to the subscription', settings.forceLoginMethod === 'claudeai');
-  const openGit = settings.env?.HANDOFF_LOCK_GIT !== '1';
-  check(openGit ? 'git writes are allowed — the default' : 'every git write is denied',
-    openGit ? true : (settings.permissions?.deny ?? []).some((r) => /git push/i.test(r)));
+  const denied = (settings.permissions?.deny ?? []).some((r) => /^Bash\(git (?:commit|push)\b/i.test(r));
+  const openGit = !denied;
+  check(denied ? 'every git write is denied by a deny rule' : 'git writes are allowed — the default',
+    denied === (settings.env?.HANDOFF_LOCK_GIT === '1'), 'deny rules and HANDOFF_LOCK_GIT must agree');
   check('no metered credential is configured', !new RegExp(`${BANNED.join('|')}|apiKeyHelper`).test(JSON.stringify(settings)));
   check('no metered credential is in the environment', !BANNED.some((key) => process.env[key]));
 
@@ -309,9 +310,6 @@ function release(args) {
   };
   if (!BUMPS[bump]) fail(`usage: npm run release <${Object.keys(BUMPS).join('|')}> "one-line note"`);
   if (!note) fail('a one-line note is required — it becomes the changelog entry');
-  if (spawnSync('git', ['status', '--porcelain'], { cwd: REPO, encoding: 'utf8' }).stdout.trim()) {
-    fail('the tree is dirty — commit or stash first; a release must name a committed tree');
-  }
   if (spawnSync(process.execPath, ['--test'], { cwd: REPO, stdio: 'inherit' }).status !== 0) fail('the suite is red');
 
   const manifestPath = path.join(PLUGIN, '.claude-plugin', 'plugin.json');

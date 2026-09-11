@@ -3,7 +3,7 @@ import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const FIELDS = ['ts', 'actor', 'tier', 'action', 'target', 'result'];
+const FIELDS = ['ts', 'actor', 'tier', 'action', 'target', 'result'];
 
 export function entry(payload, root) {
   const tool = String(payload.tool_name || '');

@@ -4,6 +4,7 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.9.2 | 2026-09-11 | No rule bounds a long session: whole-file count rule and session read ceiling removed. Every guard message is one line. No dollar value anywhere. Stop receipt reports tokens kept out of context, session and all-time. Figures carry the headline only, demo shows a wave of 100 |
 | 1.9.1 | 2026-09-10 | read bookings rolled back on a refused shell command, capped workflow frees its wave, verify gate scoped to sessions that wrote since the last proving run, runner root named, stand-down counter reset, compact resets query dedup, notebook and multi edits audited |
 | 1.9.0 | 2026-09-10 | restored live-ledger and what-ships render targets |
 | 1.8.0 | 2026-09-10 | three-line Stop receipt, readme hero and collapsibles, dead tests dropped |

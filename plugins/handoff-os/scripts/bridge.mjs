@@ -6,7 +6,7 @@ import { report } from './verify.mjs';
 const TOOLS = { read: 'Read', edit: 'Edit', write: 'Write', bash: 'Bash', grep: 'Grep', glob: 'Glob', task: 'TaskCreate' };
 const ALIAS = { filePath: 'file_path', oldString: 'old_string', newString: 'new_string' };
 
-export function toPayload(tool, args = {}, sessionID = '', cwd = process.cwd()) {
+function toPayload(tool, args = {}, sessionID = '', cwd = process.cwd()) {
   const name = String(tool || '').toLowerCase();
   const input = args && typeof args === 'object' ? { ...args } : {};
   for (const [from, to] of Object.entries(ALIAS)) {

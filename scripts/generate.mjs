@@ -15,7 +15,7 @@ export const walk = (dir, base = '') => (existsSync(dir) ? readdirSync(dir, { wi
     return entry.isDirectory() ? walk(path.join(dir, entry.name), rel) : [rel];
   });
 
-export const SCOPES = {
+const SCOPES = {
   user: ({ deny, ask }) => ({
     forceLoginMethod: 'claudeai',
     permissions: { defaultMode: 'default', deny, ask },
@@ -141,7 +141,7 @@ export function inventory(root = REPO) {
   };
 }
 
-export function inventoryBlock(inv = inventory()) {
+function inventoryBlock(inv = inventory()) {
   return [
     table(['What ships', 'Count'], [
       `| Guard logic | **${inv.logicLines}** lines of Node across ${inv.scripts} scripts (${inv.codeLines} non-blank) |`,

@@ -3,14 +3,14 @@ import { closeSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, rm
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BASH_OUTPUT_CAP, BIG_FILE_BYTES, CONNECTOR_ALLOW, DELEGATE_BYTES, DESTRUCTIVE, FIXTURES, GIT_SHOW_FILE, GREP_HEAD_LIMIT, INTERPRETER_READ,
+  ACCOUNT_NUMBER, ANYWHERE, AT_HEAD, BASH_OUTPUT_CAP, BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, FIXTURES, GIT_SHOW_FILE, GREP_HEAD_LIMIT, INTERPRETER_READ,
   THINK_ESCALATION, WORKFLOW_AGENT_CALL, UNBOUNDED_FANOUT, FANOUT_BUDGET,
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
-  DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_CEILING_BYTES, READ_PREFIX,
+  DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_PREFIX,
   MODEL_BEARING, MODEL_OPTION, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
   SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
-  SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WHOLE_FILES_MAX, WRITE_TOOLS, WRITE_VERBS,
+  SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WRITE_TOOLS, WRITE_VERBS,
 } from './patterns.mjs';
 import { append } from './audit.mjs';
 import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
@@ -70,28 +70,28 @@ function onlyDisposable(segment) {
 
 function judgeShell(command, depth = 0) {
   const lockGit = process.env.HANDOFF_LOCK_GIT === '1';
-  for (const rx of ANYWHERE) if (rx.test(command)) return `blocked a metered-credential assignment (${rx.source.slice(0, 40)})`;
+  for (const rx of ANYWHERE) if (rx.test(command)) return 'blocked a metered-credential assignment';
   for (const segment of segments(command).map(unwrap)) {
     if (NO_OP_FLAG.test(segment.replace(/'[^']*'|"[^"]*"/g, ' '))) continue;
     const quoted = `blocked "${segment.slice(0, 80)}"`;
     for (const rx of GIT_DESTRUCTIVE) {
-      if (rx.test(segment)) return `${quoted} — git merge and git delete are human-only`;
+      if (rx.test(segment)) return `${quoted} — merge and delete are human-only`;
     }
     for (const rx of SHELL_DESTRUCTIVE) {
       if (rx.test(segment) && !onlyDisposable(segment)) {
-        return `${quoted} — delete is human-only outside build and temp paths. Move it aside instead`;
+        return `${quoted} — delete is human-only outside build and temp paths`;
       }
     }
     if (lockGit) {
       for (const rx of GIT_WRITE) {
-        if (rx.test(segment)) return `${quoted} — git is locked. Run npm run sync without --lock git to write`;
+        if (rx.test(segment)) return `${quoted} — git is locked (npm run sync without --lock git)`;
       }
     }
     for (const rx of AT_HEAD) {
       if (rx.test(segment)) return `${quoted} — outward action, human-only`;
     }
-    if (GH_MUTATION.test(segment)) return `${quoted} — a gh api call carrying fields writes, human-only`;
-    if (INTERPRETER_EGRESS.test(segment)) return `${quoted} — an interpreter one-liner posting over the network, human-only`;
+    if (GH_MUTATION.test(segment)) return `${quoted} — gh api writes, human-only`;
+    if (INTERPRETER_EGRESS.test(segment)) return `${quoted} — posts over the network, human-only`;
     if (depth < 2 && SHELLS.test(segment)) {
       const encoded = (ENCODED_CMD.exec(segment) || [])[1];
       const inner = encoded
@@ -110,7 +110,6 @@ const SAMPLE_BYTES = 64 * 1024;
 const SAMPLE_LINES = 200;
 const strip = (token) => token.replace(/^['"]|['"]$/g, '');
 const kb = (bytes) => `${Math.round(bytes / 1024)}KB`;
-const scoutDispatch = (file) => `Agent({ subagent_type: "handoff-os:scout", model: "haiku", prompt: "In ${file}, find <what you need> and quote it with file:line. Under 20 lines." })`;
 
 function lineLength(file, size) {
   if (!size) return 0;
@@ -256,10 +255,7 @@ function bookSlice(payload, file, spec, { shell = false, filtered = false } = {}
   let bytes = spec.whole ? stats.size : sliceBytes(file, stats.size, spec);
   if (shell) bytes = Math.min(bytes, BASH_OUTPUT_CAP);
   if (actorOf(payload) !== 'main') state.saved.offload += bytes;
-  else {
-    state.saved.read += bytes;
-    if (!filtered) state.read_bytes = (state.read_bytes || 0) + bytes;
-  }
+  else state.saved.read += bytes;
   save(root, session, state);
 }
 
@@ -312,7 +308,6 @@ function readBudget(payload, input, rewritable = false) {
   const key = `${actor}|${resolved}`;
   const fingerprint = `${stats.mtimeMs}:${stats.size}`;
   const name = path.basename(file);
-  const inThread = state.read_bytes || 0;
 
   const refuse = (action, bucket, credit, tag, message) => {
     const stamp = `${fingerprint}:${tag}`;
@@ -329,17 +324,7 @@ function readBudget(payload, input, rewritable = false) {
   if (seen === fingerprint || seen.startsWith(`${fingerprint}:`)) {
     const before = Number(seen.slice(fingerprint.length + 1));
     refuse('rereads', 'bytes', before || Math.min(stats.size, BIG_FILE_BYTES), 'r',
-      `${name} is unchanged and already in context${stats.size > BIG_FILE_BYTES ? ` (its first ${kb(BIG_FILE_BYTES)})` : ''}. Read a slice with offset/limit if you need one region.`);
-  }
-
-  if (main && inThread >= READ_CEILING_BYTES) {
-    refuse('slices', 'deferred', stats.size, 'c',
-      `${kb(inThread)} of files read into this thread, over the ${kb(READ_CEILING_BYTES)} ceiling. Read a slice with offset/limit, dispatch handoff-os:scout, or /compact to reset it.`);
-  }
-
-  if (main && ((state.whole_files || 0) >= WHOLE_FILES_MAX || inThread >= DELEGATE_BYTES)) {
-    refuse('offloads', 'deferred', stats.size, 'd',
-      `${state.whole_files || 0} whole files (${kb(inThread)}) are already in this thread. Hand this one to a scout — paste:\n  ${scoutDispatch(file)}\nOr read one region with offset/limit.`);
+      `${name} is unchanged and already in context${stats.size > BIG_FILE_BYTES ? ` (its first ${kb(BIG_FILE_BYTES)})` : ''}. Use offset/limit for a region.`);
   }
 
   let bytes = stats.size;
@@ -347,7 +332,7 @@ function readBudget(payload, input, rewritable = false) {
   if (stats.size > BIG_FILE_BYTES) {
     if (!rewritable) {
       refuse('slices', 'deferred', stats.size, 's',
-        `${name} is ${kb(stats.size)}, over the ${kb(BIG_FILE_BYTES)} whole-file limit. Read the region you need with offset/limit, or dispatch handoff-os:scout to answer from it.`);
+        `${name} is ${kb(stats.size)}, over the ${kb(BIG_FILE_BYTES)} whole-file limit. Use offset/limit, or handoff-os:scout.`);
     }
     const avg = lineLength(resolved, stats.size);
     const lines = Math.max(1, Math.floor(BIG_FILE_BYTES / (avg || stats.size)));
@@ -361,11 +346,8 @@ function readBudget(payload, input, rewritable = false) {
   }
 
   state.reads[key] = `${fingerprint}:${bytes}`;
-  if (main) {
-    state.whole_files = (state.whole_files || 0) + 1;
-    state.read_bytes = inThread + bytes;
-    state.saved.read += bytes;
-  } else state.saved.offload += bytes;
+  if (main) state.saved.read += bytes;
+  else state.saved.offload += bytes;
   save(root, session, state);
   return trim;
 }
@@ -377,8 +359,6 @@ function unbook(payload, before) {
   for (const key of Object.keys(state.reads)) {
     if (!(key in before.reads) && !key.includes('|x:')) delete state.reads[key];
   }
-  state.read_bytes = before.read_bytes;
-  state.whole_files = before.whole_files;
   for (const key of ['read', 'offload', 'rewrites', 'trimmed']) state.saved[key] = before.saved[key];
   save(root, session, state);
 }
@@ -404,7 +384,7 @@ function queryBudget(payload, input, tool) {
     if (state.reads[key] === 1) state.saved.queries += 1;
     state.reads[key] = 2;
     save(root, session, state);
-    throw new Blocked(`READ BUDGET: this exact ${tool} already ran and nothing has been written since. Change the query, or read the file you are checking.\n`);
+    throw new Blocked(`READ BUDGET: this exact ${tool} already ran and nothing has been written since. Change it.\n`);
   }
   state.reads[key] = 1;
   if (tool === 'Grep' && input.output_mode === 'content' && input.head_limit === undefined) {
@@ -412,7 +392,7 @@ function queryBudget(payload, input, tool) {
     save(root, session, state);
     return {
       updatedInput: { ...input, head_limit: GREP_HEAD_LIMIT },
-      reason: `HANDOFF OS: head_limit ${GREP_HEAD_LIMIT} set on this content-mode Grep so the match list cannot run away.`,
+      reason: `HANDOFF OS: set head_limit ${GREP_HEAD_LIMIT} on this Grep.`,
     };
   }
   save(root, session, state);
@@ -457,9 +437,9 @@ const spawnText = (input) => SPAWN_TEXT.map((key) => input[key]).filter((value) 
 const article = (word) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 
 function deniedVerdict(text, hit) {
-  if (REVIEW.test(text)) return { reason: `blocked ${article(hit)} ${hit} review. Review goes to sonnet; ${hit} is for prose you publish`, tier: hit };
+  if (REVIEW.test(text)) return { reason: `blocked ${article(hit)} ${hit} review — review goes to sonnet`, tier: hit };
   if (!QUALITY.test(text)) {
-    return { reason: `blocked ${article(hit)} ${hit} subagent. Research and review go to sonnet; ${hit} needs QUALITY: writing|creative|legal|security in the prompt`, tier: hit };
+    return { reason: `blocked ${article(hit)} ${hit} subagent — use sonnet, or add QUALITY: writing|creative|legal|security`, tier: hit };
   }
   return null;
 }
@@ -474,10 +454,10 @@ function dispatchBudget(input, tool = 'Agent', denied = deniedSubagentRx(process
       const hit = selectedTiers(text).find((tier) => denied.test(tier));
       return hit ? deniedVerdict(text, hit) : null;
     }
-    return { reason: 'blocked a subagent dispatch that names no model. Set one: haiku for lookups, sonnet for research and review, opus or fable only for prose you publish' };
+    return { reason: 'blocked a dispatch that names no model — haiku for lookups, sonnet for research and review' };
   }
   if (!MODEL_TIERS.test(model)) {
-    return { reason: `blocked a subagent dispatch whose model "${model}" names no tier. Use haiku, sonnet, opus or fable` };
+    return { reason: `blocked model "${model}" — use haiku, sonnet, opus or fable` };
   }
   const hit = (model.match(denied) || [])[0]?.toLowerCase();
   return hit ? deniedVerdict(text, hit) : null;
@@ -505,11 +485,11 @@ function costBudget(input, tool) {
   const text = spawnText(input);
   if (QUALITY.test(text)) return null;
   const think = (text.match(THINK_ESCALATION) || [])[0];
-  if (think) return `blocked a dispatch asking for "${think}". Drop it, or name QUALITY: writing|creative|legal|security`;
+  if (think) return `blocked "${think}" — drop it, or add QUALITY: writing|creative|legal|security`;
   if (tool !== 'Workflow' || declaredAgents(input)) return null;
   const fan = (code(input.script).match(UNBOUNDED_FANOUT) || [])[0];
   return fan
-    ? { reason: `blocked a workflow fanning out through "${fan.trim()}" — the script never states how many agents it can spawn. Declare it with a "// AGENTS: <n>" line, then it is capped at ${MAX_PER_WAVE} a wave like any other dispatch` }
+    ? { reason: `blocked a workflow fanning out through "${fan.trim()}" with no agent count — add a "// AGENTS: <n>" line` }
     : null;
 }
 
@@ -534,7 +514,7 @@ function fanOutCap(payload, count = 1) {
     state.saved.waves += 1;
     state.saved.agentsCapped += count - claimed.length;
     save(root, session, state);
-    throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Let these ${MAX_PER_WAVE} return, then dispatch the rest yourself in the next wave — sequential batches of ${MAX_PER_WAVE}, no waiting for the user.\n`);
+    throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Dispatch the rest yourself once these return.\n`);
   }
 }
 
@@ -557,7 +537,7 @@ export function judge(raw = {}) {
     const trim = readBudget(payload, input, 'read');
     return trim ? {
       updatedInput: { ...input, offset: 0, limit: trim.lines },
-      reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to its first ${trim.lines} lines (${kb(trim.admitted)}). Read further regions with offset/limit, or dispatch handoff-os:scout.`,
+      reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to its first ${trim.lines} lines. More with offset/limit.`,
     } : null;
   }
   if (tool === 'Grep' || tool === 'Glob') return queryBudget(payload, input, tool);
@@ -603,7 +583,7 @@ export function judge(raw = {}) {
                 + `head -c ${BIG_FILE_BYTES} ${shellQuote(read.file)}`
                 + command.slice(read.at + read.span),
             },
-            reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}. Read a region with sed -n 'a,bp', or dispatch handoff-os:scout.`,
+            reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}. More with sed -n 'a,bp'.`,
           };
         }
       }
@@ -637,7 +617,7 @@ export function judge(raw = {}) {
       || (READ_PREFIX.test(dashed) && !strong)
       || CONNECTOR_ALLOW.some((rx) => rx.test(dashed));
     if (hit && !allowed) {
-      deny(`blocked ${tool} — matched "${hit}": leaves the org or destroys a record, human-only`);
+      deny(`blocked ${tool} — "${hit}" leaves the org or destroys a record, human-only`);
     }
     const rawFetch = WEB_FETCH_SERVER.test(tool.split('__')[1] || '')
       && (READ_PREFIX.test(dashed) || /(?:scrape|crawl|extract|search)/.test(action));

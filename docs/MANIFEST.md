@@ -1,6 +1,6 @@
 # Manifest
 
-<sub><b>Answers</b> · everything the plugin loads at version 1.9.2 · generated, `npm run upkeep` rewrites it · <a href="../README.md">README</a></sub>
+<sub><b>Answers</b> · everything the plugin loads at version 1.10.0 · generated, `npm run upkeep` rewrites it · <a href="../README.md">README</a></sub>
 
 ## Skills
 
@@ -31,7 +31,7 @@
 
 | What ships | Count |
 |---|---|
-| Guard logic | **1376** lines of Node across 7 scripts (1241 non-blank) |
+| Guard logic | **1380** lines of Node across 7 scripts (1243 non-blank) |
 | Pattern rules | **63** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |

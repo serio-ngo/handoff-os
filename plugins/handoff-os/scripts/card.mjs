@@ -63,15 +63,15 @@ function descriptionChars(dir, pick) {
   } catch { return 0; }
 }
 
-export function footprint(text = memory(), locked = process.env.HANDOFF_LOCK_GIT === '1') {
+export function footprint(text = memory()) {
   const plugin = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const cardChars = card(text, locked).length;
+  const cardChars = card(text).length;
   const skillChars = descriptionChars(path.join(plugin, 'skills'), (name) => [path.join(plugin, 'skills', name, 'SKILL.md')]);
   const agentChars = descriptionChars(path.join(plugin, 'agents'), (name) => (name.endsWith('.md') ? [path.join(plugin, 'agents', name)] : []));
   return { cardChars, skillChars, agentChars, contextChars: cardChars + skillChars + agentChars };
 }
 
-export function card(text = memory(), locked = process.env.HANDOFF_LOCK_GIT === '1') {
+export function card(text = memory()) {
   const lines = text.trim() === '' ? 0 : text.trim().split('\n').length;
   const status = lines
     ? `set (${lines} lines) — read memory.md when owner context is needed`
@@ -80,7 +80,7 @@ export function card(text = memory(), locked = process.env.HANDOFF_LOCK_GIT === 
 TIERS  GREEN inward, reversible → act · YELLOW outside the repo → act, audit one line
        RED sends, pays, submits, publishes or is irreversible → STOP, hand off
 HANDOFF three lines, nothing else: DONE <prepared> · FILE <path> · YOU <verb> -> <where> -> <when>
-NEVER  send · pay · submit · publish · git merge / delete${locked ? ' · every state-changing git (locked)' : ''} · set ANTHROPIC_API_KEY /
+NEVER  send · pay · submit · publish · every state-changing git · set ANTHROPIC_API_KEY /
        ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN / apiKeyHelper · put org data in git
 MEMORY ${status}
 PROOF  a "done" claim needs a real run: node "${VERIFY}" <session_id>`;

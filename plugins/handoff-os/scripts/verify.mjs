@@ -92,7 +92,7 @@ export function report(payload) {
   if (changed) state.printed = stamp;
   if (total || changed) save(root, session, state);
   if (!changed || process.env.HANDOFF_STATS === '0') return null;
-  return sessionLine(state) || null;
+  return sessionLine(state, root, session) || null;
 }
 
 function announce(stats, extra) {
@@ -145,7 +145,7 @@ function gate() {
   try { blocks = parseInt(readFileSync(counter, 'utf8').trim(), 10) || 0; } catch { blocks = 0; }
 
   if (blocks >= MAX_BLOCKS) {
-    announce(stats, `Verify gate stood down. "${command}" is unproven — check it yourself.`);
+    announce(stats, `Verify gate stood down. "${command}" is unproven.`);
   }
 
   try {
@@ -153,8 +153,8 @@ function gate() {
     writeFileSync(counter, String(blocks + 1), 'utf8');
   } catch { }
 
-  const shown = process.env.HANDOFF_STATS === '0' ? '' : lifetimeLine(bump(payload, 'gated'));
-  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: done claimed, nothing run. Run this, then say done again:\n  node "${SELF}" ${session} "${root}"\nIt runs ${command}. Writing the marker by hand is forbidden.\n`);
+  const shown = process.env.HANDOFF_STATS === '0' ? '' : lifetimeLine(bump(payload, 'gated'), state, session);
+  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: done claimed, nothing run.\n  node "${SELF}" ${session} "${root}"\n`);
   process.exit(2);
 }
 

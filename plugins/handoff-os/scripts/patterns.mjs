@@ -45,6 +45,7 @@ export const GIT_DESTRUCTIVE = [
 
 export const GIT_WRITE = [
   git(String.raw`push\b`),
+  git(String.raw`branch(?:\s+-[A-Za-z-]+)*\s+[^-\s]`),
   git(String.raw`commit\b`),
   git(String.raw`add\b`),
   git(String.raw`rebase\b`),
@@ -61,7 +62,7 @@ export const GIT_WRITE = [
 
 export const AT_HEAD = [
   /^(?:npm|yarn|pnpm)\s+publish\b/i,
-  /^gh\s+(?:pr\s+(?:create|merge)|issue\s+create|release\s+create)\b/i,
+  /^gh\s+(?:pr\s+merge|issue\s+create|release\s+create)\b/i,
   /^gh\s+api\b[^\n]*(?:-X|--method)[\s=]*(?:POST|PUT|PATCH|DELETE)/i,
   /^(?:curl|wget)\b[^\n]*(?:-X[\s=]*(?:POST|PUT|PATCH|DELETE)|--request[\s=]*(?:POST|PUT|PATCH|DELETE)|\s-d\b|--data|\s-F\b|--form|--upload-file|\s-T\b|--post-data|--post-file)/i,
   /^(?:Invoke-WebRequest|iwr|Invoke-RestMethod|irm)\b[^\n]*(?:-Method[\s=]*(?:Post|Put|Patch|Delete)|-Body\b|-InFile\b)/i,

@@ -35,7 +35,8 @@
 ## Rules
 
 1. Each fact has one home. Do not duplicate facts between files.
-2. Never send, publish, pay or submit.
+2. Never send, publish, pay or submit. Branch, commit, push and `gh pr create` are allowed; `git
+   merge`, `gh pr merge` and the destructive git subset in `settings/policy.json` are not.
 3. Do not commit organisation data, secrets or identifiers. User memory lives in `config/memory.md`,
    which is gitignored.
 4. Use the cheapest sufficient actor: script, then haiku, sonnet, opus.

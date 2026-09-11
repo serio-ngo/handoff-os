@@ -14,9 +14,9 @@
 [![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic&color=57606a)](plugins/handoff-os/scripts)
 [![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Feval%2Fscores.json&query=%24.dependencies&label=dependencies&color=2da44e)](package.json)
 
-<img src="docs/demo.svg" width="720" alt="handoff-os on a 20-subagent request: 3 start, the FAN-OUT CAP holds 17 for the next wave, the Stop receipt prints the count">
+<img src="docs/demo.svg" width="860" alt="One session: a 35 KB read arrives trimmed, a 100-agent workflow is capped at 3, an opus review goes to sonnet, a send stops, a haiku lookup runs, and the Stop receipt prints the count">
 
-<sub>[Install](#install) · [Also stops](#also-stops) · [Method](docs/BENCHMARK.md) · [Contributing](CONTRIBUTING.md)</sub>
+<sub>[Install](#install) · [What it does](#what-it-does) · [Proof](#proof) · [Method](docs/BENCHMARK.md) · [Contributing](CONTRIBUTING.md)</sub>
 
 </div>
 
@@ -25,7 +25,7 @@ Claude Code can launch 20 subagents in one turn. A 5-hour window goes in seconds
 The hook caps each wave at 3 and queues the rest.
 
 <!-- handoff-flood -->
-<img src="docs/flood.svg" width="720" alt="20 subagents requested. Without the guard 20 start and burn about 490k tokens; with it 3 start and 17 wait.">
+<img src="docs/flood.svg" width="720" alt="20 subagents requested. Without the guard 20 start at once; with it 3 start and the rest wait for the next wave.">
 <!-- /handoff-flood -->
 
 ## Install
@@ -37,22 +37,31 @@ The hook caps each wave at 3 and queues the rest.
 
 Restart Claude Code. Hooks load at session start.
 
-## Also stops
+## What it does
 
 <img src="docs/tiles-stops.svg" width="720" alt="Stops: 3 subagents per wave; 24 KB whole-file read cap; destructive git and rm calls; Done with no verification run">
 
+| Guard | One line |
+|---|---|
+| Fan-out cap | Three subagents start; the rest go in the next wave. |
+| Read budget | A file over 24 KB arrives trimmed instead of whole, and the same unchanged file never arrives twice. |
+| Dispatch budget | Every subagent names a tier, and a review goes to sonnet. |
+| Egress lock | Sends, payments, publishes, merges and deletes stop before they run — shell, PowerShell and connectors alike. |
+| Verify gate | A "done" claim needs a real run behind it. |
+| Branch and PR | The agent opens the branch and the pull request; the merge stays yours. |
+| Audit trail | One local line per action, appended as it happens. |
+| Session receipt | The Stop hook prints what the session kept out of context. |
+
 <img src="docs/tiles-counts.svg" width="720" alt="Counts: subagents held back; read volume kept out; receipt printed at Stop">
 
+## Proof
+
+<img src="docs/tiles-proof.svg" width="720" alt="Proof: share of the labelled corpus caught; share wrongly blocked; labelled cases gated in CI">
+
+Every case is labelled in `eval/guard-corpus.jsonl` and re-scored on each run against four
+comparators. Cost, limits and full method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
+
 <img src="docs/tiles-never.svg" width="720" alt="Does not: 0 model calls, 0 network calls, 0 dependencies">
-
-<details>
-<summary>Cost and limits</summary>
-
-<img src="docs/tiles-cost.svg" width="720" alt="Cost and limits: more tokens on ordinary tasks; Cowork hooks do not fire; OpenCode subagents bypass the guard">
-
-Method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
-
-</details>
 
 <div align="center">
 <sub>

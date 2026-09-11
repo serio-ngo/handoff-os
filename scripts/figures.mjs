@@ -1,13 +1,16 @@
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { sessionLine } from '../plugins/handoff-os/scripts/ledger.mjs';
+import { load, sessionLine } from '../plugins/handoff-os/scripts/ledger.mjs';
 import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../plugins/handoff-os/scripts/patterns.mjs';
-import { REPO, inventory, readJson, writeBlock } from './generate.mjs';
+import { PLUGIN, REPO, inventory, readJson, writeBlock } from './generate.mjs';
 
 const INK = '#7d8590';
 const HUE = { without: '#d95926', with: '#2a78d6' };
-const REAL_REPO_TOKENS_PER_SUBAGENT = 50000;
-const DEMO_MODULES = 100;
+const DEMO_AGENTS = 100;
+const DEMO_FILE_BYTES = 35 * 1024;
+const DEMO_LINE_BYTES = 64;
 
 const FLOOD_OPEN = '<!-- handoff-flood -->';
 const FLOOD_CLOSE = '<!-- /handoff-flood -->';
@@ -20,7 +23,6 @@ const DOCS = (name) => path.join(REPO, 'docs', name);
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const num = (n) => Number(n || 0).toLocaleString('en-US');
-const compact = (n) => (n >= 1e6 ? `${String(Math.round((n / 1e6) * 10) / 10).replace(/\.0$/, '')}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
 const secs = (ms) => `${Math.round(ms / 1000)}s`;
 const width = (s, size) => s.length * size * 0.7;
 
@@ -32,9 +34,6 @@ const file = (lines) => `${lines.join('\n')}\n`;
 
 export const started = (row) => row.spawned ?? Math.max(0, row.spawnRequested - row.spawnBlocked);
 const held = (r) => Math.max(0, r.requested - started(r.arms.with));
-const perSubagent = (r) => Math.round(r.arms.without.subagentRaw?.mean || 0);
-const waveTokens = (r) => r.requested * perSubagent(r);
-const estimateTokens = (r) => r.requested * REAL_REPO_TOKENS_PER_SUBAGENT;
 
 function glyphs(x0, y0, count, filled, fill) {
   const cols = 5; const w = 24; const h = 28; const gap = 10;
@@ -55,11 +54,11 @@ function stat(x, y, big, unit, note) {
   ];
 }
 
-const floodAlt = (r) => `${r.requested} subagents requested. Without the guard ${started(r.arms.without)} start and burn about `
-  + `${compact(waveTokens(r))} tokens; with it ${started(r.arms.with)} start and ${held(r)} wait.`;
+const floodAlt = (r) => `${r.requested} subagents requested. Without the guard ${started(r.arms.without)} start at once; `
+  + `with it ${started(r.arms.with)} start and the rest wait for the next wave.`;
 
 function floodSvg(r) {
-  const W = 720; const H = 372; const L = 24; const R = 384;
+  const W = 720; const H = 282; const L = 24; const R = 384;
   const measured = `measured · ${r.model}`;
   return file([
     open(W, H, floodAlt(r)),
@@ -69,11 +68,8 @@ function floodSvg(r) {
     text(R, 48, 'same prompt, same files', { size: 11 }),
     ...glyphs(L, 62, r.requested, started(r.arms.without), HUE.without),
     ...glyphs(R, 62, r.requested, started(r.arms.with), HUE.with),
-    ...stat(L, 240, String(started(r.arms.without)), 'started at once', measured),
-    ...stat(L, 290, `≈ ${compact(waveTokens(r))}`, 'tokens, one wave', 'measured'),
-    ...stat(L, 340, `${compact(estimateTokens(r))}+`, 'tokens in a real repo', 'estimate'),
-    ...stat(R, 240, String(started(r.arms.with)), 'started at once', measured),
-    ...stat(R, 290, String(held(r)), 'held for the next wave', 'measured'),
+    ...stat(L, 244, String(started(r.arms.without)), 'started at once', measured),
+    ...stat(R, 244, String(started(r.arms.with)), 'started at once', measured),
     '</svg>',
   ]);
 }
@@ -89,8 +85,6 @@ function floodDocBlock(r) {
     '|---|---|---|---|---|---|---|---|',
     floodRow('without', r.arms.without),
     floodRow('with', r.arms.with),
-    '',
-    `Figure estimate line: ${num(REAL_REPO_TOKENS_PER_SUBAGENT)} raw tokens per subagent in a real repo.`,
   ];
 }
 
@@ -126,6 +120,11 @@ function tiles(r, scores = readJson('eval', 'scores.json')) {
       [`${scores.keptPct}%`, 'read volume kept out'],
       ['Receipt', 'printed at Stop'],
     ],
+    proof: [
+      [`${scores.recall}%`, 'of the corpus caught'],
+      [`${scores.fpRate}%`, 'wrongly blocked'],
+      [String(scores.cases), 'labelled cases, gated in CI'],
+    ],
     never: [
       ['0', 'model calls'],
       ['0', 'network calls'],
@@ -158,12 +157,6 @@ function tileRow(items) {
   ]);
 }
 
-function fanOutReason(guard = readFileSync(path.join(REPO, 'plugins', 'handoff-os', 'scripts', 'guard.mjs'), 'utf8')) {
-  const match = /`(FAN-OUT CAP: [^`]*?)\\n`/.exec(guard);
-  if (!match) throw new Error('guard.mjs: FAN-OUT CAP text not found');
-  return match[1].replace(/\$\{slot\}/g, MAX_PER_WAVE + 1).replace(/\$\{MAX_PER_WAVE\}/g, MAX_PER_WAVE);
-}
-
 function wrap(line, max) {
   const out = [];
   let current = '';
@@ -174,30 +167,64 @@ function wrap(line, max) {
   return out;
 }
 
-function demoSvg(modules = DEMO_MODULES) {
-  const W = 860; const LOOP = 12;
-  const heldBack = modules - MAX_PER_WAVE;
-  const receipt = sessionLine({ saved: { agents: MAX_PER_WAVE, blocked: heldBack, waves: heldBack, agentsCapped: heldBack } }, 0).split('\n');
-  const prompt = `> src/ has ${modules} modules. Launch one subagent per module, all ${modules} in parallel.`;
-  const reason = wrap(`⨯  ${fanOutReason()}`, 96);
-  const rows = [
-    { at: 0.2, text: '$ claude' },
-    { at: 0.8, text: prompt, typed: true, weight: 600 },
-    ...Array.from({ length: MAX_PER_WAVE }, (_, i) => ({ at: 2.6 + i * 0.4, text: `⏺  Agent · mod${String(i + 1).padStart(3, '0')}.js`, fill: HUE.with })),
-    ...reason.map((line, i) => ({ at: 4.2, text: i ? `   ${line}` : line, fill: HUE.without, weight: 600, bar: i === 0 })),
-    { at: 5.2, text: `⨯  mod${String(MAX_PER_WAVE + 2).padStart(3, '0')} … mod${modules} · ${heldBack - 1} more, same refusal`, fill: HUE.without },
-    { at: 6.2, text: `⏺  ${MAX_PER_WAVE} returned · next wave dispatches the rest`, fill: HUE.with },
-    ...receipt.map((line, i) => ({ at: 7.2 + i * 0.6, text: line, weight: i ? undefined : 600, box: i === 0 })),
-  ];
+// every demo verdict is this guard's own stderr or rewrite reason, captured live
+function probe() {
+  const root = mkdtempSync(path.join(tmpdir(), 'handoff-figure-'));
+  const big = path.join(root, 'src', 'big.js');
+  mkdirSync(path.dirname(big), { recursive: true });
+  writeFileSync(big, `${'x'.repeat(DEMO_LINE_BYTES - 1)}\n`.repeat(DEMO_FILE_BYTES / DEMO_LINE_BYTES), 'utf8');
+
+  const fire = (tool_name, tool_input) => {
+    const run = spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', 'guard.mjs')], {
+      input: JSON.stringify({ hook_event_name: 'PreToolUse', session_id: 'demo', cwd: root, tool_name, tool_input }),
+      encoding: 'utf8',
+      env: { ...process.env, HANDOFF_OS_DIR: root, HANDOFF_LOCK_GIT: '' },
+    });
+    if (run.status === 2) return { blocked: true, verdict: run.stderr.trim() };
+    if (run.status !== 0) throw new Error(`guard exited ${run.status}: ${run.stderr}`);
+    return { blocked: false, verdict: run.stdout ? JSON.parse(run.stdout).hookSpecificOutput.permissionDecisionReason : '' };
+  };
+
+  const steps = [
+    ['Read src/big.js · 35 KB', 'Read', { file_path: big }],
+    [`Workflow · ${DEMO_AGENTS} agents`, 'Workflow', { script: `// AGENTS: ${DEMO_AGENTS}\nawait parallel(mods.map((m) => () => agent(m)))` }],
+    ['Agent model:opus · "review the diff"', 'Agent', { model: 'opus', prompt: 'review the diff' }],
+    ['gmail send_message', 'mcp__gmail__send_message', { to: 'board@example.org' }],
+    ['Agent model:haiku · "name the exports"', 'Agent', { model: 'haiku', prompt: 'name the exports in src/index.js' }],
+  ].map(([label, tool, input]) => ({ label, ...fire(tool, input) }));
+
+  const receipt = sessionLine(load(root, 'demo'));
+  rmSync(root, { recursive: true, force: true });
+  return { steps, receipt };
+}
+
+function demoSvg({ steps, receipt } = probe()) {
+  const W = 860; const LOOP = 16; const WRAP = 96;
+  const prompt = `> read src/big.js, fan out over ${DEMO_AGENTS} modules, get opus to review, then email the board`;
+  const rows = [{ text: '$ claude' }, { text: prompt, typed: true, weight: 600 }];
+  for (const step of steps) {
+    rows.push({ text: `⏺  ${step.label}`, fill: step.blocked ? undefined : HUE.with, weight: 600 });
+    if (!step.verdict) continue;
+    const hue = step.blocked ? HUE.without : HUE.with;
+    wrap(`${step.blocked ? '⨯' : '↻'}  ${step.verdict}`, WRAP)
+      .forEach((line, i) => rows.push({ text: i ? `   ${line}` : line, fill: hue, bar: i === 0 }));
+  }
+  receipt.split('\n').forEach((line, i) => rows.push({ text: line, weight: i ? undefined : 600, box: i === 0 }));
+
   const y0 = 60; const step = 24;
   const H = y0 + rows.length * step + 30;
-  const barLines = reason.length;
   const body = [];
+  let at = 0.2;
   rows.forEach((row, i) => {
+    row.at = at;
+    at += row.typed ? 1.8 : row.bar === undefined ? 0.5 : 0.35;
     const y = y0 + i * step;
     const cls = `row d${i}`;
     if (row.box) body.push(`<rect class="${cls}" x="14" y="${y - 17}" width="${W - 28}" height="${(rows.length - i) * step + 6}" rx="4" fill="${INK}" fill-opacity=".08" stroke="${INK}" stroke-opacity=".35"/>`);
-    if (row.bar) body.push(`<rect class="${cls}" x="14" y="${y - 16}" width="${W - 28}" height="${barLines * step - 2}" rx="4" fill="${HUE.without}" fill-opacity=".1"/>`);
+    if (row.bar) {
+      const span = rows.slice(i).findIndex((next, n) => n > 0 && next.bar !== false);
+      body.push(`<rect class="${cls}" x="14" y="${y - 16}" width="${W - 28}" height="${(span < 0 ? rows.length - i : span) * step - 2}" rx="4" fill="${row.fill}" fill-opacity=".1"/>`);
+    }
     if (row.typed) {
       body.push(`<clipPath id="t"><rect class="typed" x="22" y="${y - 14}" height="18"/></clipPath>`);
       body.push(`<g class="${cls}" clip-path="url(#t)">${text(22, y, row.text, { weight: row.weight, fill: row.fill })}</g>`);
@@ -205,17 +232,17 @@ function demoSvg(modules = DEMO_MODULES) {
   });
   const last = rows.length - 1;
   const delays = rows.map((row, i) => `.d${i}{animation-delay:${Math.round(row.at * 10) / 10}s}`).join('');
-  const label = `handoff-os on a ${modules}-subagent request: ${MAX_PER_WAVE} start, the FAN-OUT CAP holds ${heldBack} for the next wave, the Stop receipt prints ${receipt.join(' / ')}`;
+  const label = `handoff-os session: ${steps.map((s) => `${s.label} → ${s.verdict}`).join(' · ')} · ${receipt.split('\n').join(' / ')}`;
   return file([
     open(W, H, label, MONO),
     '<style>',
-    `text{font-size:13.5px;white-space:pre}`,
+    'text{font-size:13.5px;white-space:pre}',
     `.row{opacity:0;animation:in ${LOOP}s infinite both}`,
-    '@keyframes in{0%{opacity:0;transform:translateY(4px)}3%{opacity:1;transform:translateY(0)}94%{opacity:1}97%,100%{opacity:0}}',
+    '@keyframes in{0%{opacity:0;transform:translateY(4px)}2%{opacity:1;transform:translateY(0)}95%{opacity:1}98%,100%{opacity:0}}',
     `@keyframes type{0%{width:0}100%{width:${Math.ceil(prompt.length * 8.2)}px}}`,
     '@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}',
     `.typed{animation:type 1.4s steps(${prompt.length}) .8s both}`,
-    `.cursor{animation:blink 1s steps(1) infinite}`,
+    '.cursor{animation:blink 1s steps(1) infinite}',
     delays,
     '</style>',
     `<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="10" fill="${INK}" fill-opacity=".07" stroke="${INK}" stroke-opacity=".35"/>`,

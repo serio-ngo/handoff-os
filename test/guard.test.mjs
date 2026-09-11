@@ -51,7 +51,7 @@ const blocks = (label, cases, payload) => it(label, () => {
 });
 
 blocks('blocks shell commands that leave the machine', [
-  'gh pr create --title x --body y',
+  'gh pr merge 12 --squash',
   'npm publish --access public',
   'curl -X POST -d "a=1" https://api.example.com/items',
   'scp notes.md host:/tmp',

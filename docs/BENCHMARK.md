@@ -12,6 +12,17 @@
 | Track B | does the bill actually fall | `npm run benchmark:ab` |
 | Flood | what one 20-subagent prompt costs, with and without | `npm run benchmark:flood` |
 
+## Cost and limits
+
+<img src="tiles-cost.svg" width="720" alt="Cost and limits: more tokens on ordinary tasks; Cowork hooks do not fire; OpenCode subagents bypass the guard">
+
+| Limit | Detail |
+|---|---|
+| Ordinary tasks | cost more tokens, not fewer — the guard buys a ceiling on the tail, not an average saving |
+| Cowork | hooks do not fire there |
+| OpenCode | its subagents bypass the guard |
+| Known bypasses | four, listed open in [Track A](#track-a) |
+
 ## Context savings — what `npm run benchmark` prints
 
 | Figure | Definition |
@@ -95,30 +106,30 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Live ledger — what the guard did on this machine
 
 <!-- handoff-stats -->
-| Measured over 4 turns | Tokens | Share |
+| Measured over 7 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~300.6k | 100% |
-| **Kept out** | **~244.9k** | **81%** |
+| Read volume the session asked for | ~302.4k | 100% |
+| **Kept out** | **~245.0k** | **81%** |
 | — re-read dedup | ~29.7k | 10% |
-| — whole-file cap | ~8,030 | 3% |
-| — moved to a subagent | ~194.0k | 65% |
-| Admitted to the main thread | ~55.7k | 19% |
+| — whole-file cap | ~8,200 | 3% |
+| — moved to a subagent | ~194.0k | 64% |
+| Admitted to the main thread | ~57.4k | 19% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
-| Session card, always in context | ~161 |
+| Session card, always in context | ~185 |
 | Skill descriptions, always in context | ~65 |
 | Agent descriptions, always in context | ~50 |
-| **Total footprint** | **~276** |
+| **Total footprint** | **~300** |
 | Per turn, on top of that | **0** (since 1.6.0) |
-| **Net kept out minus footprint** | **~244.6k** |
+| **Net kept out minus footprint** | **~244.7k** |
 
 | Measured billing | Tokens |
 |---|---|
-| Fresh — input + output + cache write | 8,099,628 |
-| Cache-read | 249,414,860 |
-| **Context re-send ratio** | **30.8×** |
-| Re-sends removed, kept × turns that followed | ~13.9M |
+| Fresh — input + output + cache write | 11,390,802 |
+| Cache-read | 440,921,295 |
+| **Context re-send ratio** | **38.7×** |
+| Re-sends removed, kept × turns that followed | ~15.2M |
 
 Guard actions: 38. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
 <!-- /handoff-stats -->
@@ -127,7 +138,7 @@ Guard actions: 38. Token counts are file bytes / 4 from this repo's own local le
 
 | Item | Value |
 |---|---|
-| Corpus | `eval/guard-corpus.jsonl`, 72 labelled cases — 68 scored, 4 documented evasions apart |
+| Corpus | `eval/guard-corpus.jsonl`, one labelled case per line — 4 documented evasions scored apart; live counts in [Comparison](#comparison) |
 | Runner | `npm run benchmark:eval`, exits 1 on a miss, gated in CI |
 | Verdict | exit 2 means blocked |
 | `origin` field | `spec` = derived from the rule table, self-confirming · `probe` = found by adversarial probing · `regression` = reproduces a shipped bug |
@@ -158,14 +169,14 @@ npm run benchmark:compare
 | Guard | Caught | Wrongly blocked | F1 |
 |---|---|---|---|
 | no guard, permission prompts only | 0% | 0% | 0.00 |
-| Claude Code permissions.deny globs | 17% | 6% | 0.29 |
+| Claude Code permissions.deny globs | 17% | 5% | 0.29 |
 | a pattern-list PreToolUse hook | 39% | 11% | 0.53 |
-| block every tool call | 100% | 100% | 0.72 |
+| block every tool call | 100% | 100% | 0.71 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-85 cases, 2026-09-11; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code.
+87 cases, 2026-09-11; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code.
 
-58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+60 of 83 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
 
 - Mechanism baselines from published rule shapes, not vendor code; no product named.
@@ -176,24 +187,24 @@ npm run benchmark:compare
 - Multiple roots aggregate: `node scripts/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
-Run 2026-09-11 · 85 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-11 · 87 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
 
 | Metric | Value |
 |---|---|
 | Recall | 46/46 (100%) |
 | Precision | 46/46 (100%) |
-| False-positive rate | 0/35 (0%) |
+| False-positive rate | 0/37 (0%) |
 | F1 | 1.00 |
 | Known bypasses caught | 0/4 (0%) |
 
-Confusion: TP 46 · FN 0 · FP 0 · TN 35. Bypasses scored apart.
+Confusion: TP 46 · FN 0 · FP 0 · TN 37. Bypasses scored apart.
 
 - `evasion-01` open — the binary name is held in a shell variable.
 - `evasion-02` open — payload decoded by a pipeline, not by a shell flag.
 - `evasion-03` open — an unquoted no-op flag used as a POST body excuses the segment.
 - `evasion-04` open — connector action whose name carries no classifiable verb.
 
-58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+60 of 83 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /eval-results -->
 
 ## Track B — paired runs, with and without the plugin
@@ -410,11 +421,11 @@ npm run benchmark:ab -- --model claude-haiku-4-5-20251001
 | Started | `subagent_stats.spawned` from the result event |
 | Refused | subagent calls answered by a `PreToolUse` hook error |
 | Tokens billed | `input + cache write + 0.1 × cache read`, transcript `usage`, subagents included |
-| Raw tokens per subagent | `input + cache write + cache read` of one subagent's messages, grouped by `parent_tool_use_id`, mean over the arm; the figure's per-wave line is `requested × mean` |
+| Raw tokens per subagent | `input + cache write + cache read` of one subagent's messages, grouped by `parent_tool_use_id`, mean over the arm |
 | Finished | reply names all 20 modules |
 | Budget | stops once cumulative billed tokens pass `--budget` (default 2,000,000); partial result still written |
 | Output | `eval/flood-results.json` · `docs/flood.svg` · README `<!-- handoff-flood -->` · this file's `<!-- flood-results -->` |
-| Figures | `scripts/figures.mjs` renders `docs/flood.svg`, `docs/tiles-*.svg`, `docs/demo.svg` from `eval/*.json` and plugin constants; `npm run upkeep` rewrites them, `upkeep:check` fails when they differ |
+| Figures | `scripts/figures.mjs` renders `docs/flood.svg` and `docs/tiles-*.svg` from `eval/*.json` and plugin constants; `docs/demo.svg` fires five payloads at `guard.mjs` in a temp root and prints its live stderr, rewrite reason and Stop receipt verbatim; `npm run upkeep` rewrites them, `upkeep:check` fails when they differ |
 
 ```bash
 npm run benchmark:flood                 # both arms, one prompt
@@ -429,6 +440,4 @@ Run 2026-09-10 · model `claude-sonnet-5` · plugin build 8e9d9c4 (1.9.1) · `ev
 |---|---|---|---|---|---|---|---|
 | without | 20 | 20 | 0 | 24,480 | 174,757 | 39s | yes |
 | with | 43 | 3 | 40 | 18,813 | 104,751 | 120s | no |
-
-Figure estimate line: 50,000 raw tokens per subagent in a real repo.
 <!-- /flood-results -->

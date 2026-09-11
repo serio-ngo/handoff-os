@@ -239,8 +239,8 @@ function doctor() {
 
   check('the plugin is enabled', settings.enabledPlugins?.[`${PLUGIN_NAME}@${marketplace.name}`] === true);
   check('login is restricted to the subscription', settings.forceLoginMethod === 'claudeai');
-  const denied = (settings.permissions?.deny ?? []).some((r) => /^Bash\(git (?:commit|push)\b/i.test(r));
-  const openGit = !denied;
+  const gitLock = readJson('settings', 'policy.json').lock?.git ?? [];
+  const denied = (settings.permissions?.deny ?? []).some((r) => gitLock.includes(r));
   check(denied ? 'every git write is denied by a deny rule' : 'git writes are allowed — the default',
     denied === (settings.env?.HANDOFF_LOCK_GIT === '1'), 'deny rules and HANDOFF_LOCK_GIT must agree');
   check('no metered credential is configured', !new RegExp(`${BANNED.join('|')}|apiKeyHelper`).test(JSON.stringify(settings)));
@@ -279,7 +279,9 @@ function doctor() {
   const fire = (payload, env) => at(cache, 'guard.mjs', payload, env).status;
   const shell = (command, env) => fire(pre('Bash', { command }), env);
   check('the installed guard blocks a merge', shell('git merge main') === BLOCKED);
-  if (!openGit) check('the installed guard blocks a push', shell('git push origin main', { HANDOFF_LOCK_GIT: '1' }) === BLOCKED);
+  check('the installed guard blocks a commit and a push under the git lock',
+    ['git commit -m x', 'git push origin main'].every((c) => shell(c, { HANDOFF_LOCK_GIT: '1' }) === BLOCKED),
+    'whatever the deny list currently says');
   check('the installed guard blocks an outward connector call', fire(pre('mcp__x__send_message', {})) === BLOCKED);
   check('the installed guard blocks an opus review, whatever the spawn tool',
     SPAWN_TOOLS.every((tool) => fire(pre(tool, { model: 'opus', prompt: 'review the diff' })) === BLOCKED),

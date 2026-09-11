@@ -1,7 +1,7 @@
 {
   "generated": "2026-09-11",
   "version": "1.9.2",
-  "cases": 85,
+  "cases": 87,
   "recall": 100,
   "precision": 100,
   "fpRate": 0,
@@ -10,12 +10,12 @@
     "tp": 46,
     "fn": 0,
     "fp": 0,
-    "tn": 35
+    "tn": 37
   },
   "bypassesOpen": 4,
   "bypassesTotal": 4,
-  "contextTokens": 276,
-  "logicLines": 1376,
+  "contextTokens": 301,
+  "logicLines": 1377,
   "dependencies": 0,
   "baselines": {
     "none": {
@@ -25,7 +25,7 @@
     },
     "policy": {
       "recall": 17,
-      "fpRate": 6,
+      "fpRate": 5,
       "f1": 0.29
     },
     "keyword": {
@@ -36,20 +36,20 @@
     "denyall": {
       "recall": 100,
       "fpRate": 100,
-      "f1": 0.72
+      "f1": 0.71
     }
   },
   "keptPct": 81,
-  "keptTokens": 244859,
-  "readVolumeTokens": 300573,
+  "keptTokens": 245029,
+  "readVolumeTokens": 302401,
   "offloadTokens": 193981,
-  "resendRatio": 30.8,
-  "ledgerTurns": 4,
-  "resendsRemoved": 13927835,
-  "taxTokens": 276,
+  "resendRatio": 38.7,
+  "ledgerTurns": 7,
+  "resendsRemoved": 15230027,
+  "taxTokens": 301,
   "repos": 1,
   "origins": {
-    "spec": 58,
+    "spec": 60,
     "probe": 19,
     "regression": 4
   }

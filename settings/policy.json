@@ -23,7 +23,6 @@
     "Bash(npm publish *)",
     "Bash(yarn publish *)",
     "Bash(pnpm publish *)",
-    "Bash(gh pr create *)",
     "Bash(gh pr merge *)",
     "Bash(gh issue create *)",
     "Bash(gh release create *)",
@@ -74,6 +73,9 @@
   ],
   "ask": [],
   "lock": {
+    "pr": [
+      "Bash(gh pr create *)"
+    ],
     "git": [
       "Bash(git push)",
       "Bash(git push *)",

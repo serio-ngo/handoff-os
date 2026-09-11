@@ -39,7 +39,7 @@ function parse(argv) {
     if (next === undefined || next.startsWith('--')) { args[key] = true; continue; }
     args[key] = argv[++i];
   }
-  for (const key of ['without', 'lock']) {
+  for (const key of ['without', 'unlock']) {
     if (typeof args[key] === 'string') {
       args[key] = args[key].split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
     } else if (args[key] === true) args[key] = [];
@@ -105,12 +105,19 @@ function installation() {
 }
 
 function releaseLocks(settings, requested) {
-  const bundles = readJson('settings', 'policy.json').lock ?? {};
+  const bundles = readJson('settings', 'policy.json').unlock ?? {};
   const stale = Object.entries(bundles)
-    .filter(([token]) => !requested.includes(token))
+    .filter(([token]) => requested.includes(token))
     .flatMap(([, rules]) => rules);
   if (!stale.length || !settings.permissions?.deny) return settings;
   const deny = settings.permissions.deny.filter((rule) => !stale.includes(rule));
+  return { ...settings, permissions: { ...settings.permissions, deny } };
+}
+
+function retire(settings) {
+  const gone = readJson('settings', 'policy.json').retired ?? [];
+  if (!gone.length || !settings.permissions?.deny) return settings;
+  const deny = settings.permissions.deny.filter((rule) => !gone.includes(rule));
   return { ...settings, permissions: { ...settings.permissions, deny } };
 }
 
@@ -120,11 +127,13 @@ function sync(args) {
   const target = path.resolve(args.target
     || (scope === 'project' ? path.join(REPO, '.claude', 'settings.json') : path.join(CONFIG_DIR, 'settings.json')));
   const before = readJsonFile(target, {});
-  let after = merge(before, policyFor(scope, args.without, undefined, args.lock));
+  let after = merge(before, policyFor(scope, args.without, undefined, args.unlock));
   if (scope === 'user') after = merge(after, installation());
-  after = releaseLocks(after, args.lock ?? []);
+  after = releaseLocks(after, args.unlock ?? []);
+  after = retire(after);
   after.env = { ...after.env };
-  delete after.env.HANDOFF_LOCK_GIT;
+  if ((args.unlock ?? []).includes('git')) after.env.HANDOFF_GIT_WRITE = '1';
+  else delete after.env.HANDOFF_GIT_WRITE;
   if (Object.keys(after.env).length === 0) delete after.env;
   refuseMeteredAuth(after);
   if (!args.dryRun) writeJson(target, after);
@@ -238,9 +247,11 @@ function doctor() {
 
   check('the plugin is enabled', settings.enabledPlugins?.[`${PLUGIN_NAME}@${marketplace.name}`] === true);
   check('login is restricted to the subscription', settings.forceLoginMethod === 'claudeai');
+  const open = settings.env?.HANDOFF_GIT_WRITE === '1';
   const writes = ['Bash(git commit *)', 'Bash(git push *)', 'Bash(git branch *)'];
-  check('every git write is denied by a deny rule',
-    writes.every((rule) => (settings.permissions?.deny ?? []).includes(rule)), writes.join(' '));
+  const shut = writes.every((rule) => (settings.permissions?.deny ?? []).includes(rule));
+  check(shut ? 'every git write is denied by a deny rule' : 'git writes are open — HANDOFF_GIT_WRITE=1',
+    shut === !open, 'deny rules and HANDOFF_GIT_WRITE must agree');
   check('no metered credential is configured', !new RegExp(`${BANNED.join('|')}|apiKeyHelper`).test(JSON.stringify(settings)));
   check('no metered credential is in the environment', !BANNED.some((key) => process.env[key]));
 
@@ -278,8 +289,8 @@ function doctor() {
   const shell = (command, env) => fire(pre('Bash', { command }), env);
   check('the installed guard blocks a merge', shell('git merge main') === BLOCKED);
   check('the installed guard blocks every git write',
-    ['git commit -m x', 'git push origin main', 'git switch -c feat/x', 'git branch feat/x'].every((c) => shell(c) === BLOCKED),
-    'commit, push, switch -c, branch');
+    ['git commit -m x', 'git push origin main', 'git switch -c feat/x', 'git branch feat/x'].every((c) => shell(c, { HANDOFF_GIT_WRITE: '0' }) === BLOCKED),
+    'commit, push, switch -c, branch — with the flag at 0');
   check('the installed guard blocks an outward connector call', fire(pre('mcp__x__send_message', {})) === BLOCKED);
   check('the installed guard blocks an opus review, whatever the spawn tool',
     SPAWN_TOOLS.every((tool) => fire(pre(tool, { model: 'opus', prompt: 'review the diff' })) === BLOCKED),

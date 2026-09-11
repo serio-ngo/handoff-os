@@ -23,12 +23,13 @@ const SCOPES = {
   project: ({ deny }) => ({ permissions: { deny } }),
 };
 
-export function policyFor(scope, without = [], policy = readJson('settings', 'policy.json'), lock = []) {
+export function policyFor(scope, without = [], policy = readJson('settings', 'policy.json'), unlock = []) {
   const drop = (rules) => without.length
     ? rules.filter((rule) => !without.some((token) => rule.toLowerCase().includes(token)))
     : rules;
-  const locked = lock.flatMap((token) => (policy.lock ?? {})[token] ?? []);
-  return SCOPES[scope]({ deny: drop([...policy.deny, ...locked]), ask: drop(policy.ask) });
+  const shut = Object.entries(policy.unlock ?? {})
+    .filter(([token]) => !unlock.includes(token)).flatMap(([, rules]) => rules);
+  return SCOPES[scope]({ deny: drop([...policy.deny, ...shut]), ask: drop(policy.ask) });
 }
 
 const table = (header, rows) => [

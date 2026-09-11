@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 92" width="720" height="92" role="img" aria-label="100% of the corpus caught; 0% wrongly blocked; 87 labelled cases, gated in CI" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 92" width="720" height="92" role="img" aria-label="100% of the corpus caught; 0% wrongly blocked; 88 labelled cases, gated in CI" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
 <rect x="0.5" y="0.5" width="228.33333333333334" height="91" rx="8" fill="none" stroke="#7d8590" stroke-opacity=".35"/>
 <rect x="16" y="22" width="3" height="48" rx="1.5" fill="#2a78d6"/>
 <text x="30" y="50" fill="#7d8590" font-size="26" font-weight="700">100%</text>
@@ -9,6 +9,6 @@
 <text x="275.33333333333337" y="71" fill="#7d8590" font-size="12">wrongly blocked</text>
 <rect x="491.1666666666667" y="0.5" width="228.33333333333334" height="91" rx="8" fill="none" stroke="#7d8590" stroke-opacity=".35"/>
 <rect x="506.6666666666667" y="22" width="3" height="48" rx="1.5" fill="#2a78d6"/>
-<text x="520.6666666666667" y="50" fill="#7d8590" font-size="26" font-weight="700">87</text>
+<text x="520.6666666666667" y="50" fill="#7d8590" font-size="26" font-weight="700">88</text>
 <text x="520.6666666666667" y="71" fill="#7d8590" font-size="12">labelled cases, gated in CI</text>
 </svg>

@@ -1,7 +1,7 @@
 {
   "generated": "2026-09-11",
   "version": "1.9.2",
-  "cases": 87,
+  "cases": 88,
   "recall": 100,
   "precision": 100,
   "fpRate": 0,
@@ -10,12 +10,12 @@
     "tp": 49,
     "fn": 0,
     "fp": 0,
-    "tn": 34
+    "tn": 35
   },
   "bypassesOpen": 4,
   "bypassesTotal": 4,
-  "contextTokens": 280,
-  "logicLines": 1377,
+  "contextTokens": 277,
+  "logicLines": 1380,
   "dependencies": 0,
   "baselines": {
     "none": {
@@ -24,13 +24,13 @@
       "f1": 0
     },
     "policy": {
-      "recall": 24,
+      "recall": 16,
       "fpRate": 6,
-      "f1": 0.38
+      "f1": 0.27
     },
     "keyword": {
       "recall": 37,
-      "fpRate": 12,
+      "fpRate": 11,
       "f1": 0.51
     },
     "denyall": {
@@ -39,17 +39,17 @@
       "f1": 0.74
     }
   },
-  "keptPct": 65,
+  "keptPct": 64,
   "keptTokens": 245749,
-  "readVolumeTokens": 380877,
+  "readVolumeTokens": 381060,
   "offloadTokens": 193981,
-  "resendRatio": 41.9,
-  "ledgerTurns": 14,
-  "resendsRemoved": 15270487,
-  "taxTokens": 280,
+  "resendRatio": 43.6,
+  "ledgerTurns": 15,
+  "resendsRemoved": 15272111,
+  "taxTokens": 277,
   "repos": 1,
   "origins": {
-    "spec": 60,
+    "spec": 61,
     "probe": 19,
     "regression": 4
   }

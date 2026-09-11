@@ -106,32 +106,32 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Live ledger — what the guard did on this machine
 
 <!-- handoff-stats -->
-| Measured over 14 turns | Tokens | Share |
+| Measured over 15 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~380.9k | 100% |
-| **Kept out** | **~245.7k** | **65%** |
+| Read volume the session asked for | ~381.1k | 100% |
+| **Kept out** | **~245.7k** | **64%** |
 | — re-read dedup | ~29.8k | 8% |
 | — whole-file cap | ~8,200 | 2% |
 | — moved to a subagent | ~194.0k | 51% |
-| Admitted to the main thread | ~135.1k | 35% |
+| Admitted to the main thread | ~135.3k | 36% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
-| Session card, always in context | ~165 |
+| Session card, always in context | ~162 |
 | Skill descriptions, always in context | ~65 |
 | Agent descriptions, always in context | ~50 |
-| **Total footprint** | **~280** |
+| **Total footprint** | **~277** |
 | Per turn, on top of that | **0** (since 1.6.0) |
 | **Net kept out minus footprint** | **~245.5k** |
 
 | Measured billing | Tokens |
 |---|---|
-| Fresh — input + output + cache write | 16,145,224 |
-| Cache-read | 676,591,547 |
-| **Context re-send ratio** | **41.9×** |
+| Fresh — input + output + cache write | 17,281,288 |
+| Cache-read | 753,493,960 |
+| **Context re-send ratio** | **43.6×** |
 | Re-sends removed, kept × turns that followed | ~15.3M |
 
-Guard actions: 45. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
+Guard actions: 47. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
 <!-- /handoff-stats -->
 
 ## Track A
@@ -169,14 +169,14 @@ npm run benchmark:compare
 | Guard | Caught | Wrongly blocked | F1 |
 |---|---|---|---|
 | no guard, permission prompts only | 0% | 0% | 0.00 |
-| Claude Code permissions.deny globs | 24% | 6% | 0.38 |
-| a pattern-list PreToolUse hook | 37% | 12% | 0.51 |
+| Claude Code permissions.deny globs | 16% | 6% | 0.27 |
+| a pattern-list PreToolUse hook | 37% | 11% | 0.51 |
 | block every tool call | 100% | 100% | 0.74 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-87 cases, 2026-09-11; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code.
+88 cases, 2026-09-11; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code.
 
-60 of 83 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+61 of 84 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
 
 - Mechanism baselines from published rule shapes, not vendor code; no product named.
@@ -187,24 +187,24 @@ npm run benchmark:compare
 - Multiple roots aggregate: `node scripts/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
-Run 2026-09-11 · 87 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-11 · 88 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
 
 | Metric | Value |
 |---|---|
 | Recall | 49/49 (100%) |
 | Precision | 49/49 (100%) |
-| False-positive rate | 0/34 (0%) |
+| False-positive rate | 0/35 (0%) |
 | F1 | 1.00 |
 | Known bypasses caught | 0/4 (0%) |
 
-Confusion: TP 49 · FN 0 · FP 0 · TN 34. Bypasses scored apart.
+Confusion: TP 49 · FN 0 · FP 0 · TN 35. Bypasses scored apart.
 
 - `evasion-01` open — the binary name is held in a shell variable.
 - `evasion-02` open — payload decoded by a pipeline, not by a shell flag.
 - `evasion-03` open — an unquoted no-op flag used as a POST body excuses the segment.
 - `evasion-04` open — connector action whose name carries no classifiable verb.
 
-60 of 83 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+61 of 84 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /eval-results -->
 
 ## Track B — paired runs, with and without the plugin

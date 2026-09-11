@@ -31,7 +31,7 @@
 
 | What ships | Count |
 |---|---|
-| Guard logic | **1377** lines of Node across 7 scripts (1240 non-blank) |
+| Guard logic | **1380** lines of Node across 7 scripts (1243 non-blank) |
 | Pattern rules | **63** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |

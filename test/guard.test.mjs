@@ -51,7 +51,6 @@ const blocks = (label, cases, payload) => it(label, () => {
 });
 
 blocks('blocks shell commands that leave the machine', [
-  'gh pr create --title x --body y',
   'gh pr merge 12 --squash',
   'npm publish --access public',
   'curl -X POST -d "a=1" https://api.example.com/items',
@@ -105,9 +104,9 @@ it('judges a connector payload, not only its name', () => {
   assert.equal(guard(connector('workspace__bash', { command: 'curl -X POST -d "a=1" https://api.example.com/items' })), BLOCKED);
 });
 
-it('blocks every state-changing git command', () => {
+it('blocks every state-changing git command while HANDOFF_GIT_WRITE is not 1', () => {
   for (const command of [`${VCS} ${OUT} origin main`, `${VCS} commit -m x`, `${VCS} add -A`, `${VCS} switch -c feat/x`, `${VCS} branch feat/x`]) {
-    assert.equal(guard(bash(command)), BLOCKED, command);
+    assert.equal(guard(bash(command), { ...process.env, HANDOFF_GIT_WRITE: '0' }), BLOCKED, command);
   }
 });
 

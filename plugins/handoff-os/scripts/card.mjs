@@ -80,7 +80,7 @@ export function card(text = memory()) {
 TIERS  GREEN inward, reversible → act · YELLOW outside the repo → act, audit one line
        RED sends, pays, submits, publishes or is irreversible → STOP, hand off
 HANDOFF three lines, nothing else: DONE <prepared> · FILE <path> · YOU <verb> -> <where> -> <when>
-NEVER  send · pay · submit · publish · every state-changing git · open a PR · set ANTHROPIC_API_KEY /
+NEVER  send · pay · submit · publish · every state-changing git · set ANTHROPIC_API_KEY /
        ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN / apiKeyHelper · put org data in git
 MEMORY ${status}
 PROOF  a "done" claim needs a real run: node "${VERIFY}" <session_id>`;

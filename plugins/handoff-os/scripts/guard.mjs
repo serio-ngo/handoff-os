@@ -514,7 +514,9 @@ function fanOutCap(payload, count = 1) {
     state.saved.waves += 1;
     state.saved.agentsCapped += count - claimed.length;
     save(root, session, state);
-    throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}\n`);
+    throw new Blocked(count > 1
+      ? `FAN-OUT CAP: ${count} subagents requested, wave capped at ${MAX_PER_WAVE}\n`
+      : `FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}\n`);
   }
 }
 

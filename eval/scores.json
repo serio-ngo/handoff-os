@@ -15,7 +15,7 @@
   "bypassesOpen": 4,
   "bypassesTotal": 4,
   "contextTokens": 301,
-  "logicLines": 1377,
+  "logicLines": 1380,
   "dependencies": 0,
   "baselines": {
     "none": {
@@ -39,13 +39,13 @@
       "f1": 0.71
     }
   },
-  "keptPct": 81,
-  "keptTokens": 245029,
-  "readVolumeTokens": 302401,
+  "keptPct": 72,
+  "keptTokens": 245720,
+  "readVolumeTokens": 342944,
   "offloadTokens": 193981,
-  "resendRatio": 38.7,
-  "ledgerTurns": 7,
-  "resendsRemoved": 15230027,
+  "resendRatio": 39.3,
+  "ledgerTurns": 10,
+  "resendsRemoved": 15269414,
   "taxTokens": 301,
   "repos": 1,
   "origins": {

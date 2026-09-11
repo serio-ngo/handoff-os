@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { GREP_HEAD_LIMIT } from './patterns.mjs';
 
@@ -64,7 +64,6 @@ export function savings(state) {
 const num = (value) => Number(value || 0).toLocaleString('en-US');
 const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
 const compact = (value) => (value >= 1e6 ? `${(value / 1e6).toFixed(1)}M` : value >= 10000 ? `${(value / 1000).toFixed(1)}k` : num(value));
-const kb = (bytes) => (bytes >= 1024 ? `${num(Math.round(bytes / 1024))} KB` : `${num(bytes)} B`);
 
 function fold(base, add = {}) {
   const out = { ...zero(), ...(base || {}) };
@@ -74,50 +73,52 @@ function fold(base, add = {}) {
 
 const lifetime = (state) => fold(state.lifetime, state.saved);
 
+// every session this root has seen, not just this one
+function allTime(state, root, session) {
+  const mine = lifetime(state);
+  if (!root || !session) return mine;
+  let names = [];
+  try { names = readdirSync(path.join(root, '.claude')); } catch { return mine; }
+  return names.reduce((out, name) => {
+    const other = /^\.session-(.+)\.json$/.exec(name);
+    if (!other || other[1] === session) return out;
+    try { return fold(out, JSON.parse(readFileSync(path.join(root, '.claude', name), 'utf8')).lifetime); } catch { return out; }
+  }, mine);
+}
+
 export function bank(state) {
   state.lifetime = lifetime(state);
   state.session = fold(state.session, state.saved);
   return state.lifetime;
 }
 
-export function sessionLine(state) {
+export function sessionLine(state, root, session) {
   const s = fold(state.session, state.saved);
-  const life = lifetime(state);
-  const reads = [];
-  if (s.rewrites) reads.push(`${num(s.rewrites)} trimmed (${kb(s.trimmed)} out)`);
-  if (s.rereads + s.queries) reads.push(`${num(s.rereads + s.queries)} re-reads stopped`);
-  if (s.slices) reads.push(`${plural(s.slices, 'action guarded', 'actions guarded')}`);
-  if (s.caps) reads.push(`${num(s.caps)} capped at ${GREP_HEAD_LIMIT}`);
-  const disp = [];
-  if (s.agentsCapped) disp.push(`${num(s.agentsCapped)} held for the next wave`);
-  if (s.redirects) disp.push(`${num(s.redirects)} redirected`);
+  const life = allTime(state, root, session);
+  const parts = [];
+  if (s.rewrites) parts.push(`${num(s.rewrites)} trimmed`);
+  if (s.rereads + s.queries) parts.push(`${num(s.rereads + s.queries)} re-reads stopped`);
+  if (s.slices) parts.push(plural(s.slices, 'read deferred', 'reads deferred'));
+  if (s.caps) parts.push(`${num(s.caps)} capped at ${GREP_HEAD_LIMIT}`);
+  if (s.agentsCapped) parts.push(`${num(s.agentsCapped)} held`);
+  if (s.redirects) parts.push(`${num(s.redirects)} redirected`);
   const other = s.blocked - s.redirects - s.waves;
-  if (other > 0) disp.push(`${num(other)} blocked`);
-  if (s.agents) disp.push(`${num(s.agents)} used`);
-  const tail = [];
-  if (kept(s)) tail.push(`session: ~${compact(tok(kept(s)))} (${keptPct(s)}%)`);
-  if (kept(life)) tail.push(`all-time: ~${compact(tok(kept(life)))}`);
-  const lines = [];
-  if (reads.length) lines.push(`reads: ${reads.join(' · ')}`);
-  if (disp.length) lines.push(`dispatches: ${disp.join(' · ')}`);
-  if (tail.length) lines.push(`tokens kept out of context — ${tail.join(' · ')}`);
-  if (!lines.length) return '';
-  lines[0] = `HANDOFF OS · ${lines[0]}`;
-  return lines.join('\n');
+  if (other > 0) parts.push(`${num(other)} blocked`);
+  if (s.agents) parts.push(`${num(s.agents)} used`);
+  if (kept(s)) parts.push(`~${compact(tok(kept(s)))} tok kept out (${keptPct(s)}%)`);
+  if (kept(life) > kept(s)) parts.push(`all-time ~${compact(tok(kept(life)))} tok`);
+  return parts.length ? `HANDOFF OS · ${parts.join(' · ')}` : '';
 }
 
-export function lifetimeLine(state) {
-  const life = lifetime(state);
-  const lines = [];
-  if (kept(life)) lines.push(`~${compact(tok(kept(life)))} kept out of context (${keptPct(life)}%)`);
-  const stopped = Number(life.rereads || 0) + Number(life.slices || 0);
-  const capped = Number(life.queries || 0) + Number(life.caps || 0);
-  const blocked = Number(life.blocked || 0);
-  if (stopped + capped + blocked) lines.push(plural(stopped + capped + blocked, 'guard action', 'guard actions'));
-  if (Number(life.gated || 0)) lines.push(`${num(life.gated)} gated`);
-  const used = [];
-  if (Number(life.scouts || 0)) used.push(plural(Number(life.scouts), 'scout', 'scouts'));
-  if (Number(life.runners || 0)) used.push(plural(Number(life.runners), 'runner', 'runners'));
-  if (used.length) lines.push(`used ${used.join(' · ')}`);
-  return lines.length ? `HANDOFF OS · ${lines.join('\n')}` : '';
+export function lifetimeLine(state, root, session) {
+  const life = allTime(state, root, session);
+  const parts = [];
+  if (kept(life)) parts.push(`~${compact(tok(kept(life)))} tok kept out (${keptPct(life)}%)`);
+  const actions = Number(life.rereads || 0) + Number(life.slices || 0)
+    + Number(life.queries || 0) + Number(life.caps || 0) + Number(life.blocked || 0);
+  if (actions) parts.push(plural(actions, 'guard action', 'guard actions'));
+  if (Number(life.gated || 0)) parts.push(`${num(life.gated)} gated`);
+  if (Number(life.scouts || 0)) parts.push(plural(Number(life.scouts), 'scout', 'scouts'));
+  if (Number(life.runners || 0)) parts.push(plural(Number(life.runners), 'runner', 'runners'));
+  return parts.length ? `HANDOFF OS · ${parts.join(' · ')}` : '';
 }

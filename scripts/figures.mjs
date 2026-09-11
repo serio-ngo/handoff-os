@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { load, sessionLine } from '../plugins/handoff-os/scripts/ledger.mjs';
+import { COUNTERS, bank, load, save, sessionLine } from '../plugins/handoff-os/scripts/ledger.mjs';
 import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../plugins/handoff-os/scripts/patterns.mjs';
 import { PLUGIN, REPO, inventory, readJson, writeBlock } from './generate.mjs';
 
@@ -11,7 +11,10 @@ const HUE = { without: '#d95926', with: '#2a78d6' };
 const DEMO_AGENTS = 100;
 const DEMO_FILE_BYTES = 35 * 1024;
 const DEMO_LINE_BYTES = 64;
+const DEMO_HISTORY = 8;
 
+const DEMO_OPEN = '<!-- handoff-demo -->';
+const DEMO_CLOSE = '<!-- /handoff-demo -->';
 const FLOOD_OPEN = '<!-- handoff-flood -->';
 const FLOOD_CLOSE = '<!-- /handoff-flood -->';
 const FLOOD_DOC_OPEN = '<!-- flood-results -->';
@@ -174,9 +177,9 @@ function probe() {
   mkdirSync(path.dirname(big), { recursive: true });
   writeFileSync(big, `${'x'.repeat(DEMO_LINE_BYTES - 1)}\n`.repeat(DEMO_FILE_BYTES / DEMO_LINE_BYTES), 'utf8');
 
-  const fire = (tool_name, tool_input) => {
+  const fire = (tool_name, tool_input, { session = 'demo', agent_type } = {}) => {
     const run = spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', 'guard.mjs')], {
-      input: JSON.stringify({ hook_event_name: 'PreToolUse', session_id: 'demo', cwd: root, tool_name, tool_input }),
+      input: JSON.stringify({ hook_event_name: 'PreToolUse', session_id: session, cwd: root, tool_name, tool_input, agent_type }),
       encoding: 'utf8',
       env: { ...process.env, HANDOFF_OS_DIR: root, HANDOFF_LOCK_GIT: '' },
     });
@@ -185,22 +188,34 @@ function probe() {
     return { blocked: false, verdict: run.stdout ? JSON.parse(run.stdout).hookSpecificOutput.permissionDecisionReason : '' };
   };
 
+  // all-time is earlier sessions of this root, banked the way the Stop hook banks them
+  for (let i = 0; i < DEMO_HISTORY; i += 1) {
+    const session = `turn${i}`;
+    fire('Bash', { command: `cat -n ${big}` }, { session });
+    fire('Read', { file_path: big }, { session, agent_type: 'handoff-os:scout' });
+    fire('Agent', { model: 'opus', prompt: 'review the diff' }, { session });
+    const state = load(root, session);
+    bank(state);
+    for (const key of COUNTERS) state.saved[key] = 0;
+    save(root, session, state);
+  }
+
   const steps = [
     ['Read src/big.js · 35 KB', 'Read', { file_path: big }],
     [`Workflow · ${DEMO_AGENTS} agents`, 'Workflow', { script: `// AGENTS: ${DEMO_AGENTS}\nawait parallel(mods.map((m) => () => agent(m)))` }],
     ['Agent model:opus · "review the diff"', 'Agent', { model: 'opus', prompt: 'review the diff' }],
     ['gmail send_message', 'mcp__gmail__send_message', { to: 'board@example.org' }],
-    ['Agent model:haiku · "name the exports"', 'Agent', { model: 'haiku', prompt: 'name the exports in src/index.js' }],
+    ['Agent model:sonnet · "review src/parse.js"', 'Agent', { model: 'sonnet', prompt: 'review src/parse.js' }],
   ].map(([label, tool, input]) => ({ label, ...fire(tool, input) }));
 
-  const receipt = sessionLine(load(root, 'demo'));
+  const receipt = sessionLine(load(root, 'demo'), root, 'demo');
   rmSync(root, { recursive: true, force: true });
   return { steps, receipt };
 }
 
 function demoSvg({ steps, receipt } = probe()) {
-  const W = 860; const LOOP = 16; const WRAP = 96;
-  const prompt = `> read src/big.js, fan out over ${DEMO_AGENTS} modules, get opus to review, then email the board`;
+  const LOOP = 16; const WRAP = 110; const CH = 8.2;
+  const prompt = '> review whole app and send results to me.';
   const rows = [{ text: '$ claude' }, { text: prompt, typed: true, weight: 600 }];
   for (const step of steps) {
     rows.push({ text: `⏺  ${step.label}`, fill: step.blocked ? undefined : HUE.with, weight: 600 });
@@ -213,6 +228,7 @@ function demoSvg({ steps, receipt } = probe()) {
 
   const y0 = 60; const step = 24;
   const H = y0 + rows.length * step + 30;
+  const W = Math.max(720, Math.ceil(Math.max(...rows.map((r) => r.text.length)) * CH) + 52);
   const body = [];
   let at = 0.2;
   rows.forEach((row, i) => {
@@ -232,14 +248,14 @@ function demoSvg({ steps, receipt } = probe()) {
   });
   const last = rows.length - 1;
   const delays = rows.map((row, i) => `.d${i}{animation-delay:${Math.round(row.at * 10) / 10}s}`).join('');
-  const label = `handoff-os session: ${steps.map((s) => `${s.label} → ${s.verdict}`).join(' · ')} · ${receipt.split('\n').join(' / ')}`;
-  return file([
-    open(W, H, label, MONO),
+  const alt = `handoff-os session: ${steps.map((s) => (s.verdict ? `${s.label} → ${s.verdict}` : `${s.label}, allowed`)).join(' · ')} · ${receipt}`;
+  return { width: W, alt, svg: file([
+    open(W, H, alt, MONO),
     '<style>',
     'text{font-size:13.5px;white-space:pre}',
     `.row{opacity:0;animation:in ${LOOP}s infinite both}`,
     '@keyframes in{0%{opacity:0;transform:translateY(4px)}2%{opacity:1;transform:translateY(0)}95%{opacity:1}98%,100%{opacity:0}}',
-    `@keyframes type{0%{width:0}100%{width:${Math.ceil(prompt.length * 8.2)}px}}`,
+    `@keyframes type{0%{width:0}100%{width:${Math.ceil(prompt.length * CH)}px}}`,
     '@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}',
     `.typed{animation:type 1.4s steps(${prompt.length}) .8s both}`,
     '.cursor{animation:blink 1s steps(1) infinite}',
@@ -249,9 +265,9 @@ function demoSvg({ steps, receipt } = probe()) {
     `<path d="M0 34 H${W}" stroke="${INK}" stroke-opacity=".35"/>`,
     text(22, 22, '— handoff-os session', { size: 11.5 }),
     ...body,
-    `<g class="row d${last}"><rect class="cursor" x="${22 + Math.ceil(rows[last].text.length * 8.2) + 6}" y="${y0 + last * step - 11}" width="7" height="13" fill="${HUE.with}"/></g>`,
+    `<g class="row d${last}"><rect class="cursor" x="${22 + Math.ceil(rows[last].text.length * CH) + 6}" y="${y0 + last * step - 11}" width="7" height="13" fill="${HUE.with}"/></g>`,
     '</svg>',
-  ]);
+  ]) };
 }
 
 export function writeFigures() {
@@ -261,7 +277,11 @@ export function writeFigures() {
     writeFileSync(DOCS(`tiles-${name}.svg`), tileRow(items), 'utf8');
     out.push(`wrote docs/tiles-${name}.svg`);
   }
-  writeFileSync(DOCS('demo.svg'), demoSvg(), 'utf8');
+  const demo = demoSvg();
+  writeFileSync(DOCS('demo.svg'), demo.svg, 'utf8');
   out.push('wrote docs/demo.svg');
+  out.push(writeBlock(path.join(REPO, 'README.md'), DEMO_OPEN, DEMO_CLOSE, [
+    `<img src="docs/demo.svg" width="${demo.width}" alt="${esc(demo.alt)}">`,
+  ]));
   return out;
 }

@@ -106,32 +106,32 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Live ledger — what the guard did on this machine
 
 <!-- handoff-stats -->
-| Measured over 7 turns | Tokens | Share |
+| Measured over 10 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~302.4k | 100% |
-| **Kept out** | **~245.0k** | **81%** |
-| — re-read dedup | ~29.7k | 10% |
-| — whole-file cap | ~8,200 | 3% |
-| — moved to a subagent | ~194.0k | 64% |
-| Admitted to the main thread | ~57.4k | 19% |
+| Read volume the session asked for | ~342.9k | 100% |
+| **Kept out** | **~245.7k** | **72%** |
+| — re-read dedup | ~29.7k | 9% |
+| — whole-file cap | ~8,200 | 2% |
+| — moved to a subagent | ~194.0k | 57% |
+| Admitted to the main thread | ~97.2k | 28% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
-| Session card, always in context | ~185 |
+| Session card, always in context | ~186 |
 | Skill descriptions, always in context | ~65 |
 | Agent descriptions, always in context | ~50 |
-| **Total footprint** | **~300** |
+| **Total footprint** | **~301** |
 | Per turn, on top of that | **0** (since 1.6.0) |
-| **Net kept out minus footprint** | **~244.7k** |
+| **Net kept out minus footprint** | **~245.4k** |
 
 | Measured billing | Tokens |
 |---|---|
-| Fresh — input + output + cache write | 11,390,802 |
-| Cache-read | 440,921,295 |
-| **Context re-send ratio** | **38.7×** |
-| Re-sends removed, kept × turns that followed | ~15.2M |
+| Fresh — input + output + cache write | 13,396,393 |
+| Cache-read | 526,431,946 |
+| **Context re-send ratio** | **39.3×** |
+| Re-sends removed, kept × turns that followed | ~15.3M |
 
-Guard actions: 38. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
+Guard actions: 40. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
 <!-- /handoff-stats -->
 
 ## Track A
@@ -425,7 +425,9 @@ npm run benchmark:ab -- --model claude-haiku-4-5-20251001
 | Finished | reply names all 20 modules |
 | Budget | stops once cumulative billed tokens pass `--budget` (default 2,000,000); partial result still written |
 | Output | `eval/flood-results.json` · `docs/flood.svg` · README `<!-- handoff-flood -->` · this file's `<!-- flood-results -->` |
-| Figures | `scripts/figures.mjs` renders `docs/flood.svg` and `docs/tiles-*.svg` from `eval/*.json` and plugin constants; `docs/demo.svg` fires five payloads at `guard.mjs` in a temp root and prints its live stderr, rewrite reason and Stop receipt verbatim; `npm run upkeep` rewrites them, `upkeep:check` fails when they differ |
+| Figures | `scripts/figures.mjs` renders `docs/flood.svg` and `docs/tiles-*.svg` from `eval/*.json` and plugin constants; `npm run upkeep` rewrites them, `upkeep:check` fails when they differ |
+| `docs/demo.svg` | fires five payloads at `guard.mjs` in a temp root and prints its live stderr, rewrite reason and Stop receipt verbatim — no line in the figure is typed by hand |
+| Demo `all-time` | 8 earlier sessions in that same temp root, each a real refused read and a real refused dispatch, banked the way the Stop hook banks them; the figure's own generator is the only traffic it counts |
 
 ```bash
 npm run benchmark:flood                 # both arms, one prompt

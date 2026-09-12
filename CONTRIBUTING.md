@@ -52,6 +52,7 @@ refusal, into a permanent check.
 | Dependencies | none; Node standard library only |
 | Comments | none explanatory in code |
 | Models | scripts do deterministic work, never models |
+| File size | 300 lines max per file in `plugins/`; must-ship helpers in `scripts/lib/`, analysis-only code in `tooling/` |
 
 ## Tests
 

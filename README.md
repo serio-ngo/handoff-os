@@ -48,7 +48,7 @@ Restart Claude Code. Hooks load at session start.
 | Fan-out cap | Three subagents start; the rest go in the next wave. |
 | Read budget | A file over 24 KB arrives trimmed instead of whole, and the same unchanged file never arrives twice. |
 | Dispatch budget | Every subagent names a tier, and a review goes to sonnet. |
-| Egress lock | Sends, payments, publishes, merges and deletes stop before they run — shell, PowerShell and connectors alike. |
+| Egress lock | Sends, payments, publishes, merges and deletes stop before they run — shell, PowerShell and connectors alike. Deletes stay blocked inside the repo too (build, temp and disposable paths exempt) to prevent unexpected loss. |
 | Verify gate | A "done" claim needs a real run behind it. |
 | Git writes | Branch, commit and push stop until `HANDOFF_GIT_WRITE=1`. Merge never runs; reads and `gh pr create` always do. |
 | Audit trail | One local line per action, appended as it happens. |

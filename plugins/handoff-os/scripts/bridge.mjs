@@ -1,5 +1,4 @@
 import { Blocked, judge } from './guard.mjs';
-import { receipt } from './receipt.mjs';
 
 const TOOLS = { read: 'Read', edit: 'Edit', write: 'Write', bash: 'Bash', grep: 'Grep', glob: 'Glob', task: 'TaskCreate' };
 const ALIAS = { filePath: 'file_path', oldString: 'old_string', newString: 'new_string' };
@@ -37,8 +36,4 @@ export function verdictFor(tool, args, sessionID, cwd) {
     if (!(error instanceof Blocked)) throw error;
     return error.message.trim();
   }
-}
-
-export function flush(sessionID, cwd = process.cwd()) {
-  receipt({ hook_event_name: 'Stop', session_id: String(sessionID || 'unknown'), cwd });
 }

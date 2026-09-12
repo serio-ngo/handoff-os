@@ -3,7 +3,7 @@
     "SessionStart": [
       {
         "matcher": "startup|resume|clear|compact|fork",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/card.mjs\"", "timeout": 10, "statusMessage": "Session card" }]
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session.mjs\"", "timeout": 10, "statusMessage": "Read dedup reset" }]
       }
     ],
     "PreToolUse": [

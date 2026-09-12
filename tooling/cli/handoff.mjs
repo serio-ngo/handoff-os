@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
 import { writeFigures } from './figures.mjs';
-import { PLUGIN, REPO, inventory, manifest, markdown, pluginVersion, policyFor, readJson, walk } from './generate.mjs';
+import { PLUGIN, REPO, manifest, markdown, pluginVersion, policyFor, readJson, walk } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
 const BANNED = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN'];
@@ -283,9 +283,7 @@ function doctor() {
   check('the installed guard lets a sonnet review through', fire(pre('Agent', { model: 'sonnet', prompt: 'review the diff' })) === 0);
   check('the installed guard lets a teammate spawn through, which cannot name a model',
     fire(pre('TaskCreate', { description: 'analyse the config', subject: 'config' })) === 0);
-  check('the installed card prints', spawnSync(process.execPath, [path.join(cache, 'scripts', 'card.mjs')], { encoding: 'utf8' }).stdout.trim().length > 0);
-  check(`the plugin costs ~${Math.round(inventory().contextChars / 4)} tok of context`, true,
-    'card plus skill and agent descriptions, always in context');
+  check('the installed session hook runs', spawnSync(process.execPath, [path.join(cache, 'scripts', 'session.mjs')], { input: '{}', encoding: 'utf8' }).status === 0);
 
   const failed = checks.filter((ok) => !ok).length;
   console.log(`  ${checks.length - failed} of ${checks.length} yes`);
@@ -341,7 +339,7 @@ function setup(args) {
   console.log('');
   console.log(failed
     ? '  Restart Claude Code, then run: npm run doctor'
-    : '  Ready. Restart Claude Code so the session card loads.');
+    : '  Ready. Restart Claude Code so the hooks load.');
 }
 
 const args = parse(process.argv.slice(2));

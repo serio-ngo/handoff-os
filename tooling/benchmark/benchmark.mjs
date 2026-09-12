@@ -6,7 +6,7 @@ import path from 'node:path';
 import { MODES } from './baselines.mjs';
 import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
 import { started, writeFlood } from '../cli/figures.mjs';
-import { compact, num, secs } from '../cli/format.mjs';
+import { num, secs } from '../cli/format.mjs';
 import { inventory, pluginVersion, writeBlock } from '../cli/generate.mjs';
 
 const flags = { write: false, eval: false, compare: false, latency: false, ab: false, flood: false };
@@ -44,14 +44,6 @@ REPO = REPOS[0];
 
 const rate = (a, t) => (t ? `${a}/${t} (${Math.round((a / t) * 100)}%)` : 'n/a');
 const percent = (a, t) => (t ? Math.round((a / t) * 100) : 0);
-const taxOf = (inv) => ({
-  card: Math.round(inv.cardChars / 4),
-  skills: Math.round(inv.skillChars / 4),
-  agents: Math.round(inv.agentChars / 4),
-  total: Math.round(inv.contextChars / 4),
-});
-const row = (label, value, extra = '') => console.log(`  ${label.padEnd(36)}${String(value).padStart(11)}${extra && `   ${extra}`}`);
-const rule = (name, fired, effect) => console.log(`  ${name.padEnd(22)}${num(fired).padStart(6)}   ${effect}`);
 const OWN = 'plugins/handoff-os/scripts/guard.mjs';
 const ORIGINS = ['spec', 'probe', 'regression'];
 
@@ -176,15 +168,9 @@ function run() {
     }
   }
   const lat = flags.latency || flags.compare ? latency() : null;
-  const tax = taxOf(inventory(REPO));
 
   console.log(`\n${evalBlock(own, label).join('\n')}\n`);
   if (flags.compare) console.log(`${compareBlock(own, baselines).join('\n')}\n`);
-  console.log('  context tax — what the plugin itself costs the window');
-  row('session card', `~${compact(tax.card)}`, 'tok   always in context');
-  row('skill descriptions', `~${compact(tax.skills)}`, 'tok   always in context');
-  row('agent descriptions', `~${compact(tax.agents)}`, 'tok   always in context');
-  row('total footprint', `~${compact(tax.total)}`, 'tok   chars / 4, an estimate');
   if (lat) console.log(`  spawn ${lat.medianMs} ms median, ${lat.p95Ms} ms p95 over ${lat.samples} calls — machine-specific, not published\n`);
 
   if (flags.write) {
@@ -196,7 +182,6 @@ function run() {
         generated: new Date().toISOString().slice(0, 10),
         version: JSON.parse(readFileSync(path.join(REPO, 'package.json'), 'utf8')).version,
         cases: own.cases,
-        taxTokens: tax.total,
         recall: own.recall,
         precision: own.precision,
         fpRate: own.fpRate,
@@ -204,7 +189,6 @@ function run() {
         confusion: { tp: own.tp, fn: own.fn, fp: own.fp, tn: own.tn },
         origins: own.origins,
         logicLines: inv.logicLines,
-        contextTokens: tax.total,
         dependencies: inv.dependencies,
         baselines: Object.fromEntries(Object.entries(baselines)
           .map(([mode, s]) => [mode, { recall: s.recall, fpRate: s.fpRate, f1: s.f1 }])),
@@ -531,7 +515,6 @@ function abDocBlock(r) {
   const status = r.dryRun ? `Not run: dry-run on ${r.generated}` : `${runLabel(r, 1)} · ${r.generated} · model \`${r.model}\` · N = ${r.n}${r.stopped ? ` · stopped: ${r.stopped}` : ''}`;
   const lines = [
     `| Status | ${status} |`, '|---|---|',
-    `| Footprint | ~${compact(r.plugin.footprintTokens)} tok |`,
     `| Tokens | billed = input + cache write + cache read from transcript usage; weighted = 1× + 1.25×/2× write + 0.1× read |`,
     '| History | overwritten each run — only the current run is kept, no history files |',
     ...abVerdict(r),
@@ -595,7 +578,6 @@ function ab(opts) {
   const pick = (key) => (row) => Number(row[key] ?? 0);
   const pluginDir = abPluginDir(opts);
   const pluginRoot = path.basename(path.dirname(pluginDir)) === 'plugins' ? path.dirname(path.dirname(pluginDir)) : REPO;
-  const inv = inventory(pluginRoot);
   const result = {
     generated: new Date().toISOString().slice(0, 10),
     model: opts.model,
@@ -608,7 +590,6 @@ function ab(opts) {
       version: pluginVersion(pluginDir),
       commit: gitAt(pluginRoot, ['rev-parse', 'HEAD']),
       ref: gitAt(pluginRoot, ['rev-parse', '--abbrev-ref', 'HEAD']),
-      footprintTokens: taxOf(inv).total,
     },
     tokens: { weights: { cacheWrite5m: CACHE_WRITE_5M, cacheWrite1h: CACHE_WRITE_1H, cacheRead: CACHE_READ } },
     aggregate: {

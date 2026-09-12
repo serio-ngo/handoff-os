@@ -1,7 +1,6 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { card } from '../../plugins/handoff-os/scripts/card.mjs';
 
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const PLUGIN = path.join(REPO, 'plugins', 'handoff-os');
@@ -10,19 +9,6 @@ const frontmatter = (text, key) => {
   const hit = new RegExp(`^${key}:\\s*([\\s\\S]*?)(?=^[a-z_]+:|^---)`, 'm').exec(text);
   return (hit ? hit[1] : '').trim().replace(/^["']|["']$/g, '');
 };
-
-function descriptionChars(dir, pick) {
-  try {
-    return readdirSync(dir).flatMap(pick).reduce((sum, file) => sum + frontmatter(readFileSync(file, 'utf8'), 'description').length, 0);
-  } catch { return 0; }
-}
-
-function footprint(text) {
-  const cardChars = card(text).length;
-  const skillChars = descriptionChars(path.join(PLUGIN, 'skills'), (name) => [path.join(PLUGIN, 'skills', name, 'SKILL.md')]);
-  const agentChars = descriptionChars(path.join(PLUGIN, 'agents'), (name) => (name.endsWith('.md') ? [path.join(PLUGIN, 'agents', name)] : []));
-  return { cardChars, skillChars, agentChars, contextChars: cardChars + skillChars + agentChars };
-}
 
 export const read = (...parts) => readFileSync(path.join(REPO, ...parts), 'utf8');
 export const readJson = (...parts) => JSON.parse(read(...parts));
@@ -148,7 +134,6 @@ export function inventory(root = REPO) {
 
   const patterns = (readFileSync(path.join(plugin, 'scripts', 'lib', 'patterns.mjs'), 'utf8').match(/^export const/gm) || []).length;
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const { cardChars, skillChars, agentChars, contextChars } = footprint('');
 
   return {
     skills: skills.length,
@@ -159,11 +144,6 @@ export function inventory(root = REPO) {
     logicLines: lines,
     patterns,
     dependencies: Object.keys(pkg.dependencies || {}).length,
-    cardChars,
-    skillChars,
-    agentChars,
-    contextChars,
-    contextTokens: Math.round(contextChars / 4),
   };
 }
 

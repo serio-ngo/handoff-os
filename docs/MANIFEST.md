@@ -22,7 +22,7 @@
 | Event | Matcher | Script |
 |---|---|---|
 | `PreToolUse` | `^(Read\|Bash\|PowerShell\|Edit\|Write\|NotebookEdit\|MultiEdit\|Task\|Agent\|Workflow\|Grep\|Glob\|mcp__)` | `scripts/guard.mjs` |
-| `SessionStart` | `startup\|resume\|clear\|compact\|fork` | `scripts/card.mjs` |
+| `SessionStart` | `startup\|resume\|clear\|compact\|fork` | `scripts/session.mjs` |
 | `Stop` | `*` | `scripts/receipt.mjs` |
 
 ## Inventory

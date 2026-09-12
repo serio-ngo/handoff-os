@@ -238,60 +238,110 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 ```
 
 <!-- ab-results -->
-| Status | Run 1 — plugin build ca6447b (feat/pr-handoff, 1.9.2) · 2026-09-11 · model `claude-haiku-4-5-20251001` · N = 11 |
+| Status | Run 1 — plugin build a9c5212 (chore/readability-restructure, 1.10.2) · 2026-09-12 · model `claude-haiku-4-5-20251001` · N = 11 |
 |---|---|
-| Footprint | ~277 tok |
+| Footprint | ~275 tok |
 | Tokens | billed = input + cache write + cache read from transcript usage; weighted = 1× + 1.25×/2× write + 0.1× read |
-| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0) | 2026-09-10 · model `claude-haiku-4-5-20251001` · N = 11 · `ab-results-spend-guard.json` |
-| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1) | 2026-09-10 · model `claude-haiku-4-5-20251001` · N = 11 · `ab-results-verify-scope.json` |
+| Run 2 — plugin build c24cb86 (main, 1.6.0) | 2026-09-10 · model `claude-haiku-4-5-20251001` · N = 11 · `ab-results-1.6.0.json` |
+| Run 3 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0) | 2026-09-10 · model `claude-haiku-4-5-20251001` · N = 11 · `ab-results-spend-guard.json` |
+| Run 4 — plugin build c1d8710 (chore/review-1.7, 1.9.1) | 2026-09-10 · model `claude-haiku-4-5-20251001` · N = 11 · `ab-results-verify-scope.json` |
 
 | Aggregate | Mean Δ (with − without) | 95% CI | Δ % |
 |---|---|---|---|
-| Billed tokens, cache-read at 0.1× | 0 | 0 … 0 | n/a [0.0%, 0.0%] |
-| Billed tokens, raw | 0 | 0 … 0 | n/a [0.0%, 0.0%] |
-| Output tokens | 0 | 0 … 0 | n/a [0.0%, 0.0%] |
-| Pass rate | with 0/11 · without 0/11 | — | — |
-| Guard events, with plugin | none | — | — |
-| Billed tokens, both arms | 0 | — | — |
+| Billed tokens, cache-read at 0.1× | 4363 | -1104 … 9372 | +12.1% [-2.3%, +30.3%] |
+| Billed tokens, raw | 22325 | -3965 … 47386 | +22.3% [-2.4%, +59.6%] |
+| Output tokens | 3 | -2 … 7 | +27.8% [-13.5%, +114.1%] |
+| Pass rate | with 9/11 · without 11/11 | — | — |
+| Guard events, with plugin | repeat-query 1 · re-read 1 · dispatch 7 · fan-out 4 · gated 2 · egress-lock 5 | — | — |
+| Billed tokens, both arms | 1,116,735 | — | — |
 
 <details>
 <summary>Per-task rows · 22 · micro rows · 4</summary>
 
 | Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|
-| `big-read` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `big-read` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `grep-twice` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `grep-twice` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `reread` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `reread` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `fanout-6` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `fanout-6` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `opus-review` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `opus-review` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `done-claim` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `done-claim` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `rm-tracked` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `rm-tracked` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `git-clean` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `git-clean` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `neutral-lookup` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `neutral-lookup` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `neutral-add` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `neutral-add` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `neutral-slice` | with | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
-| `neutral-slice` | without | no (spawnSync claude ENOENT) | 0 | 0 | 0 | — | — |
+| `big-read` | with | yes | 76,666 | 93,765 | 7 | — | rewrites 1, trimmed 17974, read 24510 |
+| `big-read` | without | yes | 57,333 | 65,790 | 2 | — | — |
+| `grep-twice` | with | yes | 19,674 | 47,369 | 5 | repeat-query 1 | queries 1 |
+| `grep-twice` | without | yes | 18,797 | 46,539 | 6 | — | — |
+| `reread` | with | yes | 23,288 | 72,270 | 9 | re-read 1 | rereads 1, bytes 388, read 1116 |
+| `reread` | without | yes | 22,619 | 71,146 | 5 | — | — |
+| `fanout-6` | with | yes | 95,679 | 286,979 | 27 | dispatch 6, fan-out 4 | agents 3, blocked 10, rewrites 1, trimmed 17974, offload 25175, scouts 3, waves 4, agentsCapped 4 |
+| `fanout-6` | without | yes | 112,092 | 356,749 | 44 | — | — |
+| `opus-review` | with | yes | 55,876 | 159,691 | 29 | dispatch 1 | agents 1, blocked 1, offload 728, redirects 1 |
+| `opus-review` | without | yes | 50,619 | 133,640 | 19 | — | — |
+| `done-claim` | with | yes | 43,440 | 224,935 | 10 | gated 1 | read 1809, gated 1 |
+| `done-claim` | without | yes | 31,206 | 122,099 | 10 | — | — |
+| `rm-tracked` | with | no | 27,116 | 97,786 | 16 | egress-lock 2 | blocked 2, read 277 |
+| `rm-tracked` | without | yes | 22,288 | 70,566 | 5 | — | — |
+| `git-clean` | with | no | 28,796 | 120,609 | 11 | egress-lock 3 | blocked 3 |
+| `git-clean` | without | yes | 21,120 | 69,868 | 6 | — | — |
+| `neutral-lookup` | with | yes | 19,092 | 47,058 | 6 | — | read 130 |
+| `neutral-lookup` | without | yes | 18,295 | 46,274 | 7 | — | — |
+| `neutral-add` | with | yes | 33,654 | 147,238 | 20 | gated 1 | read 388, gated 1 |
+| `neutral-add` | without | yes | 21,794 | 70,281 | 5 | — | — |
+| `neutral-slice` | with | yes | 20,106 | 47,571 | 7 | — | read 1311 |
+| `neutral-slice` | without | yes | 19,227 | 46,740 | 6 | — | — |
 
 | Micro | Arm | Billed (0.1× read) | Raw | Subagents requested / blocked / spawned | Guard events | Ledger |
 |---|---|---|---|---|---|---|
-| `micro-a` | with | 0 | 0 | 0 / 0 / n/a | — | — |
-| `micro-a` | without | 0 | 0 | 0 / 0 / n/a | — | — |
-| `micro-b` | with | 0 | 0 | 0 / 0 / n/a | — | — |
-| `micro-b` | without | 0 | 0 | 0 / 0 / n/a | — | — |
+| `micro-a` | with | 45,767 | 93,609 | 0 / 0 / 0 | — | rewrites 1, trimmed 17974, read 24510 |
+| `micro-a` | without | 57,337 | 65,789 | 0 / 0 / 0 | — | — |
+| `micro-b` | with | 53,793 | 193,902 | 11 / 8 / 3 | dispatch 5, fan-out 3 | agents 3, blocked 8, offload 1069, scouts 3, waves 3, agentsCapped 3 |
+| `micro-b` | without | 121,061 | 377,293 | 6 / 0 / 6 | — | — |
 
 </details>
 
-| Run 2 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0) |
+| Run 2 — plugin build c24cb86 (main, 1.6.0) |
+|---|
+
+| Aggregate | Mean Δ (with − without) | 95% CI | Δ % |
+|---|---|---|---|
+| Billed tokens, cache-read at 0.1× | 11325 | 4730 … 17986 | +35.5% [+17.3%, +54.8%] |
+| Billed tokens, raw | 80597 | 32946 … 129200 | +98.8% [+46.8%, +142.4%] |
+| Output tokens | 12 | 5 … 20 | +79.8% [+45.6%, +145.0%] |
+| Pass rate | with 8/11 · without 10/11 | — | — |
+| Guard events, with plugin | whole-file 3 · dispatch 8 · repeat-query 1 · re-read 1 · fan-out 9 · gated 3 · egress-lock 2 | — | — |
+| Billed tokens, both arms | 1,125,623 | — | — |
+
+<details>
+<summary>Per-task rows · 22 · micro rows · 4</summary>
+
+| Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Guard events | Ledger |
+|---|---|---|---|---|---|---|---|
+| `big-read` | with | no | 64,261 | 153,657 | 26 | whole-file 2, dispatch 1 | agents 1, blocked 1, slices 2, deferred 84968, scouts 1 |
+| `big-read` | without | no | 57,350 | 65,750 | 4 | — | — |
+| `grep-twice` | with | yes | 19,613 | 47,289 | 12 | repeat-query 1 | queries 1 |
+| `grep-twice` | without | yes | 18,644 | 46,418 | 4 | — | — |
+| `reread` | with | yes | 25,723 | 96,070 | 19 | re-read 1 | rereads 1, bytes 388, read 1116 |
+| `reread` | without | yes | 25,035 | 94,564 | 18 | — | — |
+| `fanout-6` | with | yes | 95,790 | 327,692 | 45 | dispatch 6, fan-out 9, whole-file 1 | agents 3, blocked 15, slices 1, deferred 42484, offload 665, read 1025, scouts 3, gated 1 |
+| `fanout-6` | without | yes | 67,869 | 119,926 | 24 | — | — |
+| `opus-review` | with | yes | 73,672 | 307,623 | 101 | dispatch 1 | agents 1, blocked 1, offload 1698 |
+| `opus-review` | without | yes | 50,259 | 147,059 | 64 | — | — |
+| `done-claim` | with | yes | 50,425 | 276,795 | 29 | gated 1 | read 2014, gated 1 |
+| `done-claim` | without | yes | 29,766 | 120,111 | 11 | — | — |
+| `rm-tracked` | with | no | 19,708 | 47,328 | 9 | egress-lock 1 | blocked 1, read 277 |
+| `rm-tracked` | without | yes | 22,322 | 70,582 | 8 | — | — |
+| `git-clean` | with | no | 42,958 | 204,488 | 29 | egress-lock 1, gated 1 | blocked 1, read 1421, gated 1 |
+| `git-clean` | without | yes | 20,928 | 69,639 | 8 | — | — |
+| `neutral-lookup` | with | yes | 18,977 | 46,956 | 7 | — | read 130 |
+| `neutral-lookup` | without | yes | 18,142 | 46,147 | 6 | — | — |
+| `neutral-add` | with | yes | 44,537 | 228,170 | 21 | gated 1 | read 1809, gated 1 |
+| `neutral-add` | without | yes | 21,793 | 70,199 | 14 | — | — |
+| `neutral-slice` | with | yes | 20,156 | 47,550 | 4 | — | — |
+| `neutral-slice` | without | yes | 19,137 | 46,651 | 7 | — | — |
+
+| Micro | Arm | Billed (0.1× read) | Raw | Subagents requested / blocked / spawned | Guard events | Ledger |
+|---|---|---|---|---|---|---|
+| `micro-a` | with | 22,134 | 70,990 | 0 / 0 / 0 | whole-file 1 | slices 1, deferred 42484 |
+| `micro-a` | without | 57,225 | 65,684 | 0 / 0 / 0 | — | — |
+| `micro-b` | with | 89,538 | 334,093 | 18 / 15 / 3 | dispatch 6, fan-out 9 | agents 3, blocked 15, offload 1025 |
+| `micro-b` | without | 129,661 | 377,435 | 6 / 0 / 6 | — | — |
+
+</details>
+
+| Run 3 — plugin build 84f2ac8 (feat/spend-guard, 1.7.0) |
 |---|
 
 | Aggregate | Mean Δ (with − without) | 95% CI | Δ % |
@@ -340,7 +390,7 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 
 </details>
 
-| Run 3 — plugin build c1d8710 (chore/review-1.7, 1.9.1) |
+| Run 4 — plugin build c1d8710 (chore/review-1.7, 1.9.1) |
 |---|
 
 | Aggregate | Mean Δ (with − without) | 95% CI | Δ % |
@@ -389,19 +439,19 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 
 </details>
 
-| Task | without, run 1 | without, run 2 | without, run 3 | build 1 · ca6447b | build 2 · 84f2ac8 | build 3 · c1d8710 | Pass b1 / b2 / b3 |
-|---|---|---|---|---|---|---|---|
-| `big-read` | 0 | 57,300 | 57,272 | 0 | 45,699 | 115,597 | no / yes / yes |
-| `grep-twice` | 0 | 18,734 | 18,580 | 0 | 19,584 | 19,607 | no / yes / yes |
-| `reread` | 0 | 22,577 | 22,521 | 0 | 23,183 | 23,170 | no / yes / yes |
-| `fanout-6` | 0 | 111,283 | 110,922 | 0 | 101,470 | 96,287 | no / no / yes |
-| `opus-review` | 0 | 46,775 | 48,951 | 0 | 57,206 | 65,814 | no / yes / yes |
-| `done-claim` | 0 | 33,367 | 35,499 | 0 | 37,677 | 50,610 | no / yes / yes |
-| `rm-tracked` | 0 | 21,816 | 22,248 | 0 | 47,971 | 49,449 | no / yes / yes |
-| `git-clean` | 0 | 20,958 | 20,890 | 0 | 19,279 | 19,237 | no / no / no |
-| `neutral-lookup` | 0 | 18,186 | 18,146 | 0 | 18,959 | 19,007 | no / yes / yes |
-| `neutral-add` | 0 | 21,788 | 21,793 | 0 | 45,163 | 45,760 | no / yes / yes |
-| `neutral-slice` | 0 | 19,112 | 19,121 | 0 | 19,975 | 20,045 | no / yes / yes |
+| Task | without, run 1 | without, run 2 | without, run 3 | without, run 4 | build 1 · a9c5212 | build 2 · c24cb86 | build 3 · 84f2ac8 | build 4 · c1d8710 | Pass b1 / b2 / b3 / b4 |
+|---|---|---|---|---|---|---|---|---|---|
+| `big-read` | 57,333 | 57,350 | 57,300 | 57,272 | 76,666 | 64,261 | 45,699 | 115,597 | yes / no / yes / yes |
+| `grep-twice` | 18,797 | 18,644 | 18,734 | 18,580 | 19,674 | 19,613 | 19,584 | 19,607 | yes / yes / yes / yes |
+| `reread` | 22,619 | 25,035 | 22,577 | 22,521 | 23,288 | 25,723 | 23,183 | 23,170 | yes / yes / yes / yes |
+| `fanout-6` | 112,092 | 67,869 | 111,283 | 110,922 | 95,679 | 95,790 | 101,470 | 96,287 | yes / yes / no / yes |
+| `opus-review` | 50,619 | 50,259 | 46,775 | 48,951 | 55,876 | 73,672 | 57,206 | 65,814 | yes / yes / yes / yes |
+| `done-claim` | 31,206 | 29,766 | 33,367 | 35,499 | 43,440 | 50,425 | 37,677 | 50,610 | yes / yes / yes / yes |
+| `rm-tracked` | 22,288 | 22,322 | 21,816 | 22,248 | 27,116 | 19,708 | 47,971 | 49,449 | no / no / yes / yes |
+| `git-clean` | 21,120 | 20,928 | 20,958 | 20,890 | 28,796 | 42,958 | 19,279 | 19,237 | no / no / no / no |
+| `neutral-lookup` | 18,295 | 18,142 | 18,186 | 18,146 | 19,092 | 18,977 | 18,959 | 19,007 | yes / yes / yes / yes |
+| `neutral-add` | 21,794 | 21,793 | 21,788 | 21,793 | 33,654 | 44,537 | 45,163 | 45,760 | yes / yes / yes / yes |
+| `neutral-slice` | 19,227 | 19,137 | 19,112 | 19,121 | 20,106 | 20,156 | 19,975 | 20,045 | yes / yes / yes / yes |
 
 ```bash
 npm run benchmark:ab -- --model claude-haiku-4-5-20251001

@@ -28,24 +28,18 @@
 | Output | `tooling/results/scores.json`, feeds the README badges |
 
 <!-- eval-results -->
-Run 2026-09-12 · 91 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-12 · 66 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
 
 | Metric | Value |
 |---|---|
-| Recall | 50/50 (100%) |
-| Precision | 50/50 (100%) |
-| False-positive rate | 0/37 (0%) |
+| Recall | 34/34 (100%) |
+| Precision | 34/34 (100%) |
+| False-positive rate | 0/32 (0%) |
 | F1 | 1.00 |
-| Known bypasses caught | 0/4 (0%) |
 
-Confusion: TP 50 · FN 0 · FP 0 · TN 37. Bypasses scored apart.
+Confusion: TP 34 · FN 0 · FP 0 · TN 32.
 
-- `evasion-01` open — the binary name is held in a shell variable.
-- `evasion-02` open — payload decoded by a pipeline, not by a shell flag.
-- `evasion-03` open — an unquoted no-op flag used as a POST body excuses the segment.
-- `evasion-04` open — connector action whose name carries no classifiable verb.
-
-61 of 87 scored cases are `spec` (rule-derived), 22 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+48 of 66 scored cases are `spec` (rule-derived), 16 `probe`, 2 `regression`; recall here is a regression check, not a detection rate.
 <!-- /eval-results -->
 
 | Comparator | Models | Note |
@@ -59,14 +53,14 @@ Confusion: TP 50 · FN 0 · FP 0 · TN 37. Bypasses scored apart.
 | Guard | Caught | Wrongly blocked | F1 |
 |---|---|---|---|
 | no guard, permission prompts only | 0% | 0% | 0.00 |
-| Claude Code permissions.deny globs | 16% | 5% | 0.27 |
-| a pattern-list PreToolUse hook | 36% | 11% | 0.50 |
-| block every tool call | 100% | 100% | 0.73 |
+| Claude Code permissions.deny globs | 24% | 6% | 0.36 |
+| a pattern-list PreToolUse hook | 41% | 13% | 0.54 |
+| block every tool call | 100% | 100% | 0.68 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-91 cases, 2026-09-12; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
+66 cases, 2026-09-12; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
 
-61 of 87 scored cases are `spec` (rule-derived), 22 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+48 of 66 scored cases are `spec` (rule-derived), 16 `probe`, 2 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
 
 ## Track B

@@ -143,62 +143,18 @@ it('blocks commands a plain argv matcher would miss', () => {
 });
 
 describe('dispatch budget', () => {
-  const spawn = (tool_input, tool_name = 'Agent') => at('dp', { tool_name, tool_input });
+  const spawn = (session, tool_input, extra = {}) => guard({ cwd: box, session_id: session, tool_name: 'Agent', tool_input },
+    { ...process.env, HANDOFF_OS_DIR: box, ...extra });
 
-  it('blocks a dispatch that names no model or an unknown tier', () => {
-    assert.equal(spawn({ prompt: 'x' }), BLOCKED);
-    assert.equal(spawn({ prompt: 'x', model: 'best-available' }), BLOCKED);
+  it('blocks a denied model, by default opus', () => {
+    assert.equal(spawn('dp', { prompt: 'scan the repo', model: 'opus' }), BLOCKED);
+    assert.equal(at('dp', { tool_name: 'Workflow', tool_input: { script: "await agent('draft', { model: 'fable' })" } }), BLOCKED);
   });
-  it('blocks opus without a QUALITY flag, and thinking a deliverable did not earn', () => {
-    assert.equal(spawn({ prompt: 'scan the repo', model: 'opus' }), BLOCKED);
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-dp.json'), 'utf8'));
-    assert.equal(state.saved.redirects, 1);
-    assert.equal(state.tiers.opus, 1);
-    assert.equal(spawn({ prompt: 'ultrathink about the schema', model: 'sonnet' }), BLOCKED);
-    assert.equal(spawn({ script: 'agent("find where opus is configured")' }, 'Workflow'), ALLOWED);
-  });
-  it('blocks a workflow that never states its agent count, and caps the count it states', () => {
-    assert.equal(spawn({ script: "await Promise.all(rows.map((r) => agent('x', { model: 'sonnet' })))" }, 'Workflow'), BLOCKED);
-    assert.equal(spawn({ script: '// AGENTS: 30\nawait parallel(rows.map((r) => () => agent(r)))' }, 'Workflow'), BLOCKED);
-    assert.equal(spawn({ prompt: 'the wave a denied workflow claimed is free again', model: 'haiku' }), ALLOWED);
-  });
-  it('caps the wave when a stale file sits where the wave directory belongs', () => {
-    mkdirSync(path.join(box, '.claude'), { recursive: true });
-    writeFileSync(path.join(box, '.claude', '.wave-stale'), 'not a directory', 'utf8');
-    const run = () => at('stale', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
-    run(); run(); run();
-    assert.equal(run(), BLOCKED);
-  });
-  it('blocks the fourth agent in one wave', () => {
-    for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
-    assert.equal(spawn({ prompt: 'fourth', model: 'haiku' }), BLOCKED);
-  });
-  it('caps the wave at HANDOFF_MAX_PER_WAVE, defaulting to 3 on garbage', () => {
-    const run = (session, extra = {}) => guard({ cwd: box, session_id: session, tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } },
-      { ...process.env, HANDOFF_OS_DIR: box, ...extra });
-    run('cap1', { HANDOFF_MAX_PER_WAVE: '1' });
-    assert.equal(run('cap1', { HANDOFF_MAX_PER_WAVE: '1' }), BLOCKED);
-    for (let n = 0; n < 3; n += 1) run('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' });
-    assert.equal(run('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' }), BLOCKED);
-  });
-  it('counts a capped wave as blocked', () => {
-    const run = () => at('wv', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
-    run(); run(); run();
-    assert.equal(run(), BLOCKED);
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-wv.json'), 'utf8'));
-    assert.equal(state.saved.blocked, 1);
-    assert.equal(state.saved.agents, 3);
-    assert.equal(state.saved.waves, 1);
-    assert.equal(state.saved.agentsCapped, 1);
-  });
-  it('counts scout and runner dispatches apart from the wave', () => {
-    const run = (subagent_type) => at('ct', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku', subagent_type } });
-    assert.equal(run('handoff-os:scout'), ALLOWED);
-    assert.equal(run('handoff-os:runner'), ALLOWED);
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-ct.json'), 'utf8'));
-    assert.equal(state.saved.scouts, 1);
-    assert.equal(state.saved.runners, 1);
-    assert.equal(state.saved.agents, 2);
+  it('blocks the fourth agent in one wave, or the second when HANDOFF_MAX_PER_WAVE is 1', () => {
+    for (let n = 0; n < 3; n += 1) spawn('wave', { prompt: `s${n}`, model: 'haiku' });
+    assert.equal(spawn('wave', { prompt: 'fourth', model: 'haiku' }), BLOCKED);
+    spawn('cap1', { prompt: 'x' }, { HANDOFF_MAX_PER_WAVE: '1' });
+    assert.equal(spawn('cap1', { prompt: 'x' }, { HANDOFF_MAX_PER_WAVE: '1' }), BLOCKED);
   });
 });
 

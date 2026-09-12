@@ -42,7 +42,6 @@ for (let i = 0; i < argv.length; i += 1) {
 if (!REPOS.length) REPOS.push(REPO);
 REPO = REPOS[0];
 
-const share = (part, whole) => (whole ? Math.round((part / whole) * 100) : 0);
 const rate = (a, t) => (t ? `${a}/${t} (${Math.round((a / t) * 100)}%)` : 'n/a');
 const percent = (a, t) => (t ? Math.round((a / t) * 100) : 0);
 const taxOf = (inv) => ({

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { SPAWN_TOOLS, WRITE_TOOLS } from './lib/patterns.mjs';
 import { bump } from './lib/ledger.mjs';
-import { Blocked, agentsRequested, bookRedirect, costBudget, dispatchBudget, fanOutCap } from './lib/dispatch.mjs';
+import { Blocked, deniedModel, fanOutCap } from './lib/dispatch.mjs';
 import { judgeShell, shellWriteTargets } from './lib/shell.mjs';
 import { kb, noteWrite, queryBudget, readBudget, shellReadBudget } from './lib/reads.mjs';
 import { judgeWrite } from './lib/writes.mjs';
@@ -33,19 +33,10 @@ export function judge(raw = {}) {
   }
   if (tool === 'Grep' || tool === 'Glob') return queryBudget(payload, input, tool);
   if (SPAWN_TOOLS.includes(tool)) {
-    const verdict = dispatchBudget(input, tool) || costBudget(input, tool);
-    if (verdict) {
-      if (verdict.tier) bookRedirect(payload, verdict.tier);
-      deny(verdict.reason, 'DISPATCH BUDGET');
-    }
-    const count = agentsRequested(input, tool);
-    fanOutCap(payload, count);
-    bump(payload, 'agents', count);
-    const kind = String(input.subagent_type || '');
-    if (/scout/i.test(kind)) bump(payload, 'scouts', count);
-    else if (/runner/i.test(kind)) bump(payload, 'runners', count);
-  }
-  else if (tool === 'Bash' || tool === 'PowerShell') {
+    const reason = deniedModel(input);
+    if (reason) deny(reason, 'DISPATCH BUDGET');
+    fanOutCap(payload);
+  } else if (tool === 'Bash' || tool === 'PowerShell') {
     if ('command' in input && typeof input.command !== 'string') deny('blocked a shell call whose command was not a string');
     const command = typeof input.command === 'string' ? input.command : '';
     const verdict = judgeShell(command);

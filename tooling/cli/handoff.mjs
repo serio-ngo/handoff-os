@@ -295,7 +295,6 @@ function doctor() {
   check('the installed guard blocks an opus review, whatever the spawn tool',
     SPAWN_TOOLS.every((tool) => fire(pre(tool, { model: 'opus', prompt: 'review the diff' })) === BLOCKED),
     SPAWN_TOOLS.join(', '));
-  check('the installed guard blocks a dispatch that names no model', fire(pre('Agent', { prompt: 'audit the repo' })) === BLOCKED);
   check('the installed guard lets a sonnet review through', fire(pre('Agent', { model: 'sonnet', prompt: 'review the diff' })) === 0);
   check('the installed guard lets a teammate spawn through, which cannot name a model',
     fire(pre('TaskCreate', { description: 'analyse the config', subject: 'config' })) === 0);

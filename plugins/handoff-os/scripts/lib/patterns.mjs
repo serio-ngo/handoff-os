@@ -8,10 +8,6 @@ export const waveWindow = (raw = process.env.HANDOFF_WAVE_MS) => {
   const n = Math.floor(Number(raw));
   return Number.isInteger(n) && n > 0 ? n : WAVE_MS;
 };
-export const THINK_ESCALATION = /\b(?:ultrathink|megathink|think\s+(?:hard(?:er)?|deeply)|(?:reasoning[-_ ]?)?effort\s*[=:]\s*(?:high|xhigh|max))\b/i;
-export const WORKFLOW_AGENT_CALL = /(?<![.\w$])agent\s*\(/g;
-export const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)\s*\(/;
-export const FANOUT_BUDGET = /(?:^|\n)\s*\/\/\s*AGENTS:\s*(\d+)\b/;
 export const BIG_FILE_BYTES = 24 * 1024;
 export const GREP_HEAD_LIMIT = 50;
 export const BASH_OUTPUT_CAP = 30000;
@@ -22,12 +18,8 @@ export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
   const esc = names.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   return new RegExp(`\\b(?:${esc})\\b`, 'i');
 }
-export const QUALITY = /\bQUALITY:\s*(?:writing|creative|legal|security)\b/;
-export const REVIEW = /\b(?:review|audit)(?:s|ed|ing|er|ers|or|ors)?\b/i;
 export const SPAWN_TOOLS = ['Agent', 'Task', 'TaskCreate', 'Workflow'];
 export const WRITE_TOOLS = ['Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
-export const MODEL_BEARING = ['Agent', 'Task'];
-export const SPAWN_TEXT = ['prompt', 'description', 'subagent_type', 'subject', 'script', 'name', 'title'];
 export const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
 export const SHELL_INNER = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+(['"])([\s\S]*)\1\s*$/i;
 export const SHELL_INNER_BARE = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+()(?!['"])([\s\S]+)$/i;
@@ -123,7 +115,6 @@ export const WRITE_VERBS = ['write', 'execute', 'truncate', 'drop', 'overwrite',
 export const STRONG = ['send', 'pay', 'charge', 'invoice', 'checkout', 'publish', 'publication', 'submit',
   'submission', 'deploy', 'tweet', 'broadcast', 'resend', ...DESTRUCTIVE, ...WRITE_VERBS];
 export const SQL_DESTRUCTIVE = /\b(?:drop\s+(?:table|database|index|schema)|truncate\s+table|delete\s+from|alter\s+table)\b/i;
-export const MODEL_TIERS = /\b(?:haiku|sonnet|opus|fable)\b/i;
 export const MODEL_OPTION = /\bmodel\s*[:=]\s*['"`]?\s*(haiku|sonnet|opus|fable)\b/gi;
 export const OUTWARD_PREFIX = /^(?:request|run|trigger|dispatch|approve)[-_]/;
 export const READ_PREFIX = /^(?:list|get|search|read|fetch|find|describe|count|preview|resolve|export)[-_]/;

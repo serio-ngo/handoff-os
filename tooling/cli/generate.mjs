@@ -26,6 +26,7 @@ function footprint(text) {
 
 export const read = (...parts) => readFileSync(path.join(REPO, ...parts), 'utf8');
 export const readJson = (...parts) => JSON.parse(read(...parts));
+export const pluginVersion = (dir = PLUGIN) => JSON.parse(readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')).version;
 
 export const walk = (dir, base = '') => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : [])
   .flatMap((entry) => {
@@ -199,7 +200,7 @@ function hookRows() {
 }
 
 export function manifest() {
-  const { version } = readJson('plugins', 'handoff-os', '.claude-plugin', 'plugin.json');
+  const version = pluginVersion();
   return [
     '# Manifest',
     '',

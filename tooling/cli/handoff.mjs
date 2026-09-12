@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
 import { writeFigures } from './figures.mjs';
-import { PLUGIN, REPO, inventory, manifest, markdown, policyFor, readJson, walk } from './generate.mjs';
+import { PLUGIN, REPO, inventory, manifest, markdown, pluginVersion, policyFor, readJson, walk } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
 const BANNED = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN'];
@@ -170,7 +170,7 @@ function register(version) {
 }
 
 function installTargets() {
-  const declared = readJson('plugins', PLUGIN_NAME, '.claude-plugin', 'plugin.json').version;
+  const declared = pluginVersion();
   const existing = existsSync(cacheRoot())
     ? readdirSync(cacheRoot(), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
     : [];

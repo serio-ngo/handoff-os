@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { COUNTERS, bank, load, save, sessionLine } from '../../plugins/handoff-os/scripts/lib/ledger.mjs';
 import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
+import { num, secs } from './format.mjs';
 import { PLUGIN, REPO, readJson, writeBlock } from './generate.mjs';
 
 const INK = '#7d8590';
@@ -25,8 +26,6 @@ const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monos
 const DOCS = (name) => path.join(REPO, 'docs', name);
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const num = (n) => Number(n || 0).toLocaleString('en-US');
-const secs = (ms) => `${Math.round(ms / 1000)}s`;
 const width = (s, size) => s.length * size * 0.7;
 
 const text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" fill="${o.fill ?? INK}" font-size="${o.size ?? 12}"`

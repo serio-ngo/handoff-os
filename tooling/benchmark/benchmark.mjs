@@ -9,7 +9,8 @@ import { BYTE_COUNTERS, COUNTERS, kept, keptPct } from '../../plugins/handoff-os
 import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
 import { usage } from '../../plugins/handoff-os/scripts/lib/transcript.mjs';
 import { started, writeFlood } from '../cli/figures.mjs';
-import { inventory, writeBlock } from '../cli/generate.mjs';
+import { compact, num, secs, tok } from '../cli/format.mjs';
+import { inventory, pluginVersion, writeBlock } from '../cli/generate.mjs';
 
 const flags = { write: false, eval: false, compare: false, latency: false, replay: false, ab: false, flood: false };
 const AB = {
@@ -45,12 +46,6 @@ for (let i = 0; i < argv.length; i += 1) {
 if (!REPOS.length) REPOS.push(REPO);
 REPO = REPOS[0];
 
-const num = (n) => Number(n || 0).toLocaleString('en-US');
-const tok4 = (bytes) => Math.round(bytes / 4);
-const tokc = (n) => {
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
-  return n >= 10000 ? `${(n / 1000).toFixed(1)}k` : num(n);
-};
 const share = (part, whole) => (whole ? Math.round((part / whole) * 100) : 0);
 const rate = (a, t) => (t ? `${a}/${t} (${Math.round((a / t) * 100)}%)` : 'n/a');
 const percent = (a, t) => (t ? Math.round((a / t) * 100) : 0);
@@ -198,10 +193,10 @@ function run() {
   console.log(`\n${evalBlock(own, label).join('\n')}\n`);
   if (flags.compare) console.log(`${compareBlock(own, baselines).join('\n')}\n`);
   console.log('  context tax — what the plugin itself costs the window');
-  row('session card', `~${tokc(tax.card)}`, 'tok   always in context');
-  row('skill descriptions', `~${tokc(tax.skills)}`, 'tok   always in context');
-  row('agent descriptions', `~${tokc(tax.agents)}`, 'tok   always in context');
-  row('total footprint', `~${tokc(tax.total)}`, 'tok   chars / 4, an estimate');
+  row('session card', `~${compact(tax.card)}`, 'tok   always in context');
+  row('skill descriptions', `~${compact(tax.skills)}`, 'tok   always in context');
+  row('agent descriptions', `~${compact(tax.agents)}`, 'tok   always in context');
+  row('total footprint', `~${compact(tax.total)}`, 'tok   chars / 4, an estimate');
   if (lat) console.log(`  spawn ${lat.medianMs} ms median, ${lat.p95Ms} ms p95 over ${lat.samples} calls — machine-specific, not published\n`);
 
   if (flags.write) {
@@ -503,7 +498,7 @@ function aggregateTable(r, n) {
     `| Pass rate, with plugin | ${a.passA}/${r.n} |`,
     `| Pass rate, without plugin | ${a.passB}/${r.n} |`,
     `| Guard events, with plugin | ${guard.length ? guard.map(([rule, count]) => `${rule} ${count}`).join(' · ') : 'none'} |`,
-    `| Plugin footprint, always in context | ~${tokc(r.plugin.footprintTokens)} tok |`,
+    `| Plugin footprint, always in context | ~${compact(r.plugin.footprintTokens)} tok |`,
     `| Total billed tokens, both arms | ${num(a.spendTokens)} tok |`,
   ];
 }
@@ -559,7 +554,7 @@ function abDocBlock(r, extra = []) {
   const status = r.dryRun ? `Not run: dry-run on ${r.generated}` : `${runLabel(r, 1)} · ${r.generated} · model \`${r.model}\` · N = ${r.n}${r.stopped ? ` · stopped: ${r.stopped}` : ''}`;
   const lines = [
     `| Status | ${status} |`, '|---|---|',
-    `| Footprint | ~${tokc(r.plugin.footprintTokens)} tok |`,
+    `| Footprint | ~${compact(r.plugin.footprintTokens)} tok |`,
     `| Tokens | billed = input + cache write + cache read from transcript usage; weighted = 1× + 1.25×/2× write + 0.1× read |`,
     ...extra.map((x, i) => `| ${runLabel(x, i + 2)} | ${x.generated} · model \`${x.model}\` · N = ${x.n}${x.stopped ? ` · stopped: ${x.stopped}` : ''} · \`${path.basename(x.file)}\` |`),
     '',
@@ -646,7 +641,7 @@ function ab(opts) {
     stopped,
     plugin: {
       dir: path.basename(pluginDir),
-      version: JSON.parse(readFileSync(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8')).version,
+      version: pluginVersion(pluginDir),
       commit: gitAt(pluginRoot, ['rev-parse', 'HEAD']),
       ref: gitAt(pluginRoot, ['rev-parse', '--abbrev-ref', 'HEAD']),
       footprintTokens: taxOf(inv).total,
@@ -701,8 +696,6 @@ const floodTask = () => ({
   files: floodFiles(),
 });
 
-const secs = (ms) => `${Math.round(ms / 1000)}s`;
-
 function flood(opts) {
   const outFile = path.resolve(REPO, opts.out);
   if (opts.render) {
@@ -733,7 +726,7 @@ function flood(opts) {
     stopped,
     plugin: {
       dir: path.basename(pluginDir),
-      version: JSON.parse(readFileSync(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8')).version,
+      version: pluginVersion(pluginDir),
       commit: gitAt(pluginRoot, ['rev-parse', 'HEAD']),
       ref: gitAt(pluginRoot, ['rev-parse', '--abbrev-ref', 'HEAD']),
     },
@@ -851,12 +844,12 @@ function collect(root) {
         real = JSON.parse(entry.result);
       } catch { continue; }
       t.turns += 1;
-      for (const key of COUNTERS) t[key] += BYTES.has(key) ? tok4(saved[key] || 0) : Number(saved[key] || 0);
+      for (const key of COUNTERS) t[key] += BYTES.has(key) ? tok(saved[key] || 0) : Number(saved[key] || 0);
       t.fresh += Number(real.fresh || 0);
       t.cacheRead += Number(real.cacheRead || 0);
       marks.push({
         turn: Number(real.turns || 0),
-        kept: tok4(kept(saved)),
+        kept: tok(kept(saved)),
       });
     }
   }
@@ -918,19 +911,19 @@ function resends(rows) {
 console.log('\nhandoff-os — context kept out of the main thread, all recorded turns');
 console.log(`  source: ${REPOS.length > 1 ? `${REPOS.length} repos` : 'audit/*.jsonl'}, ${t.turns} recorded turn(s)\n`);
 
-row('read volume the session asked for', `~${tokc(readVolume)}`, 'tok');
-row('kept out', `~${tokc(keptBytes)}`, `tok   ${keptShare}% of read volume`);
-row('  re-read dedup', `~${tokc(t.bytes)}`, 'tok   file was already in context, unchanged');
-row('  whole-file cap', `~${tokc(t.deferred)}`, 'tok   over 24KB, a slice or scout instead');
-row('  moved to a subagent', `~${tokc(t.offload)}`, 'tok   read under a scout, never in this thread');
-row('admitted to the main thread', `~${tokc(t.read)}`, `tok   ${100 - keptShare}% of read volume`);
+row('read volume the session asked for', `~${compact(readVolume)}`, 'tok');
+row('kept out', `~${compact(keptBytes)}`, `tok   ${keptShare}% of read volume`);
+row('  re-read dedup', `~${compact(t.bytes)}`, 'tok   file was already in context, unchanged');
+row('  whole-file cap', `~${compact(t.deferred)}`, 'tok   over 24KB, a slice or scout instead');
+row('  moved to a subagent', `~${compact(t.offload)}`, 'tok   read under a scout, never in this thread');
+row('admitted to the main thread', `~${compact(t.read)}`, `tok   ${100 - keptShare}% of read volume`);
 console.log('  token counts above are file bytes / 4, an estimate, never billing');
 console.log('\n  context tax — what the plugin itself costs the window');
-row('session card', `~${tokc(tax.card)}`, 'tok   always in context');
-row('skill descriptions', `~${tokc(tax.skills)}`, 'tok   always in context');
-row('agent descriptions', `~${tokc(tax.agents)}`, 'tok   always in context');
-row('total footprint', `~${tokc(tax.total)}`, 'tok   chars / 4, an estimate');
-row('net kept out minus footprint', `~${tokc(net)}`, 'tok   rot avoided less tax');
+row('session card', `~${compact(tax.card)}`, 'tok   always in context');
+row('skill descriptions', `~${compact(tax.skills)}`, 'tok   always in context');
+row('agent descriptions', `~${compact(tax.agents)}`, 'tok   always in context');
+row('total footprint', `~${compact(tax.total)}`, 'tok   chars / 4, an estimate');
+row('net kept out minus footprint', `~${compact(net)}`, 'tok   rot avoided less tax');
 
 if (t.fresh) {
   console.log(`\n  real billing, measured${billing.sessions ? ` across ${billing.sessions} session transcript(s)` : ' from the ledger'}`);
@@ -940,7 +933,7 @@ if (t.fresh) {
 }
 console.log(`
   re-sends the refusals removed${stamped ? '' : ' — no turn-stamped ledger line yet'}`);
-if (stamped) row('kept tok x turns that followed', `~${tokc(notResent)}`, 'tok   summed per block, per session');
+if (stamped) row('kept tok x turns that followed', `~${compact(notResent)}`, 'tok   summed per block, per session');
 
 const REPLAY_OPEN = '<!-- handoff-replay -->';
 const REPLAY_CLOSE = '<!-- /handoff-replay -->';
@@ -960,8 +953,8 @@ if (flags.replay) {
   console.log(`\n  trace replay — ${num(r.judged)} judged call(s) from ${r.sessions} real session(s)${scope}`);
   row('refused', num(r.blocked), `${pct(r.blocked)}% of judged calls`);
   for (const [rule, count] of rules) row(`  ${rule}`, num(count), `${pct(count)}%`);
-  row('bytes kept out', `~${tokc(tok4(r.kept))}`, 'tok');
-  row('bytes admitted', `~${tokc(tok4(r.admitted))}`, 'tok');
+  row('bytes kept out', `~${compact(tok(r.kept))}`, 'tok');
+  row('bytes admitted', `~${compact(tok(r.admitted))}`, 'tok');
   if (flags.write) {
     console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), REPLAY_OPEN, REPLAY_CLOSE, [
       `| The maintainer's ${num(r.sessions)} sessions${scope} — run it on yours | Count | Share of judged |`,
@@ -997,21 +990,21 @@ const statsBlock = () => {
   return [
     `| Measured over ${num(t.turns)} turns | Tokens | Share |`,
     '|---|---|---|',
-    `| Read volume the session asked for | ~${tokc(readVolume)} | 100% |`,
-    `| **Kept out** | **~${tokc(keptBytes)}** | **${keptShare}%** |`,
-    `| — re-read dedup | ~${tokc(t.bytes)} | ${share(t.bytes, readVolume)}% |`,
-    `| — whole-file cap | ~${tokc(t.deferred)} | ${share(t.deferred, readVolume)}% |`,
-    `| — moved to a subagent | ~${tokc(t.offload)} | ${share(t.offload, readVolume)}% |`,
-    `| Admitted to the main thread | ~${tokc(t.read)} | ${100 - keptShare}% |`,
+    `| Read volume the session asked for | ~${compact(readVolume)} | 100% |`,
+    `| **Kept out** | **~${compact(keptBytes)}** | **${keptShare}%** |`,
+    `| — re-read dedup | ~${compact(t.bytes)} | ${share(t.bytes, readVolume)}% |`,
+    `| — whole-file cap | ~${compact(t.deferred)} | ${share(t.deferred, readVolume)}% |`,
+    `| — moved to a subagent | ~${compact(t.offload)} | ${share(t.offload, readVolume)}% |`,
+    `| Admitted to the main thread | ~${compact(t.read)} | ${100 - keptShare}% |`,
     '',
     `| Context tax — the plugin's own footprint | Tokens |`,
     '|---|---|',
-    `| Session card, always in context | ~${tokc(tax.card)} |`,
-    `| Skill descriptions, always in context | ~${tokc(tax.skills)} |`,
-    `| Agent descriptions, always in context | ~${tokc(tax.agents)} |`,
-    `| **Total footprint** | **~${tokc(tax.total)}** |`,
+    `| Session card, always in context | ~${compact(tax.card)} |`,
+    `| Skill descriptions, always in context | ~${compact(tax.skills)} |`,
+    `| Agent descriptions, always in context | ~${compact(tax.agents)} |`,
+    `| **Total footprint** | **~${compact(tax.total)}** |`,
     '| Per turn, on top of that | **0** (since 1.6.0) |',
-    `| **Net kept out minus footprint** | **~${tokc(net)}** |`,
+    `| **Net kept out minus footprint** | **~${compact(net)}** |`,
     '',
     ...(t.fresh ? [
       `| Measured billing${billing.sessions ? `, ${billing.sessions} session transcripts` : ''} | Tokens |`,
@@ -1019,7 +1012,7 @@ const statsBlock = () => {
       `| Fresh — input + output + cache write | ${num(t.fresh)} |`,
       `| Cache-read | ${num(t.cacheRead)} |`,
       `| **Context re-send ratio** | **${resend.toFixed(1)}×** |`,
-      ...(stamped ? [`| Re-sends removed, kept × turns that followed | ~${tokc(notResent)} |`] : []),
+      ...(stamped ? [`| Re-sends removed, kept × turns that followed | ~${compact(notResent)} |`] : []),
       '',
     ] : []),
     `Guard actions: ${num(actions)}${t.scouts || t.runners ? ` (used ${num(t.scouts)} scout, ${num(t.runners)} runner)` : ''}. Token counts are file bytes / 4 from this repo's own local `

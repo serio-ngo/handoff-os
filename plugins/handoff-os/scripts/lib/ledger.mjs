@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { GREP_HEAD_LIMIT } from './patterns.mjs';
 
@@ -17,6 +17,26 @@ export const rootOf = (payload = {}) => process.env.HANDOFF_OS_DIR
 export const sessionOf = (payload = {}) => String(payload.session_id || 'unknown').replace(/[^A-Za-z0-9_-]/g, '');
 
 const ledgerPath = (root, session) => path.join(root, '.claude', `.session-${session}.json`);
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const STALE = [[/^\.wave-/, DAY_MS], [/^\.verif(?:ied|y-gate-count)-/, DAY_MS], [/^\.session-/, 30 * DAY_MS]];
+
+export function sweep(root) {
+  const dir = path.join(root, '.claude');
+  let names = [];
+  try { names = readdirSync(dir); } catch { return 0; }
+  let swept = 0;
+  for (const name of names) {
+    const age = (STALE.find(([rx]) => rx.test(name)) || [])[1];
+    if (age === undefined) continue;
+    try {
+      if (Date.now() - statSync(path.join(dir, name)).mtimeMs < age) continue;
+      rmSync(path.join(dir, name), { recursive: true, force: true });
+      swept += 1;
+    } catch { }
+  }
+  return swept;
+}
 
 export function load(root, session) {
   const blank = EMPTY();
@@ -73,7 +93,6 @@ function fold(base, add = {}) {
 
 const lifetime = (state) => fold(state.lifetime, state.saved);
 
-// every session this root has seen, not just this one
 function allTime(state, root, session) {
   const mine = lifetime(state);
   if (!root || !session) return mine;

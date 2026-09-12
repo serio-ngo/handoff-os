@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/patterns.mjs';
+import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
 
 const BLOCKED = 2;
 const ALLOWED = 0;
@@ -26,10 +26,11 @@ after(() => {
   }
 });
 
-const fire = (file, payload, env) => spawnSync(process.execPath, [file], {
+const box = sandbox('guard-');
+const fire = (file, payload, env = { ...process.env, HANDOFF_OS_DIR: box }) => spawnSync(process.execPath, [file], {
   input: typeof payload === 'string' ? payload : JSON.stringify(payload ?? {}),
   encoding: 'utf8',
-  env: env ?? process.env,
+  env,
 }).status;
 
 const VCS = ['g', 'i', 't'].join('');
@@ -39,7 +40,6 @@ const HELPER = ['api', 'Key', 'Helper'].join('');
 const ACCOUNT = 'PL10000000000000000000000000';
 const ENC = Buffer.from([VCS, 'merge', 'main'].join(' '), 'utf16le').toString('base64');
 
-const box = sandbox('guard-');
 const guard = (payload, env) => fire(script('guard.mjs'), payload, env);
 const at = (session, payload) => guard({ cwd: box, session_id: session, ...payload },
   { ...process.env, HANDOFF_OS_DIR: box });
@@ -107,7 +107,7 @@ it('judges a connector payload, not only its name', () => {
 
 it('blocks every state-changing git command while HANDOFF_GIT_WRITE is not 1', () => {
   for (const command of [`${VCS} ${OUT} origin main`, `${VCS} commit -m x`, `${VCS} add -A`, `${VCS} switch -c feat/x`, `${VCS} branch feat/x`]) {
-    assert.equal(guard(bash(command), { ...process.env, HANDOFF_GIT_WRITE: '0' }), BLOCKED, command);
+    assert.equal(guard(bash(command), { ...process.env, HANDOFF_OS_DIR: box, HANDOFF_GIT_WRITE: '0' }), BLOCKED, command);
   }
 });
 
@@ -174,6 +174,14 @@ describe('dispatch budget', () => {
   it('blocks the fourth agent in one wave', () => {
     for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
     assert.equal(spawn({ prompt: 'fourth', model: 'haiku' }), BLOCKED);
+  });
+  it('caps the wave at HANDOFF_MAX_PER_WAVE, defaulting to 3 on garbage', () => {
+    const run = (session, extra = {}) => guard({ cwd: box, session_id: session, tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } },
+      { ...process.env, HANDOFF_OS_DIR: box, ...extra });
+    run('cap1', { HANDOFF_MAX_PER_WAVE: '1' });
+    assert.equal(run('cap1', { HANDOFF_MAX_PER_WAVE: '1' }), BLOCKED);
+    for (let n = 0; n < 3; n += 1) run('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' });
+    assert.equal(run('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' }), BLOCKED);
   });
   it('counts a capped wave as blocked', () => {
     const run = () => at('wv', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });

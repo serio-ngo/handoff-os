@@ -1,8 +1,9 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { BASH_OUTPUT_CAP, BIG_FILE_BYTES, GREP_HEAD_LIMIT } from '../patterns.mjs';
-import { load, rootOf, save, sessionOf } from '../ledger.mjs';
+import { BASH_OUTPUT_CAP, BIG_FILE_BYTES, GREP_HEAD_LIMIT } from './patterns.mjs';
+import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
 import { Blocked } from './dispatch.mjs';
+import { shellQuote, shellReads } from './shell.mjs';
 
 export const actorOf = (payload = {}) => String(payload.agent_type || 'main').replace(/[:|]/g, '');
 
@@ -44,7 +45,7 @@ export function fileStats(file) {
   } catch { return null; }
 }
 
-export function bookSlice(payload, file, spec, { shell = false, filtered = false } = {}) {
+export function bookSlice(payload, file, spec, { shell = false } = {}) {
   const stats = fileStats(file);
   if (!stats) return;
   const root = rootOf(payload);
@@ -121,6 +122,36 @@ export function readBudget(payload, input, rewritable = false) {
   else state.saved.offload += bytes;
   save(root, session, state);
   return trim;
+}
+
+export function shellReadBudget(payload, input, tool) {
+  const command = typeof input.command === 'string' ? input.command : '';
+  const before = load(rootOf(payload), sessionOf(payload));
+  let rewrite = null;
+  try {
+    for (const read of shellReads(command)) {
+      if (read.unjudged) { bump(payload, 'unjudged'); continue; }
+      const file = path.resolve(typeof payload.cwd === 'string' ? payload.cwd : process.cwd(), read.file);
+      if (!read.whole) { bookSlice(payload, file, read, { shell: true }); continue; }
+      if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true }); continue; }
+      const trim = readBudget(payload, { file_path: file }, tool === 'Bash' && read.rewritable && !rewrite ? 'shell' : false);
+      if (trim) {
+        rewrite = {
+          updatedInput: {
+            ...input,
+            command: command.slice(0, read.at)
+              + `head -c ${BIG_FILE_BYTES} ${shellQuote(read.file)}`
+              + command.slice(read.at + read.span),
+          },
+          reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}`,
+        };
+      }
+    }
+  } catch (error) {
+    if (error instanceof Blocked) unbook(payload, before);
+    throw error;
+  }
+  return rewrite;
 }
 
 export function unbook(payload, before) {

@@ -1,12 +1,12 @@
 import { closeSync, mkdirSync, openSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import {
-  DENY_SUBAGENT_DEFAULT, FANOUT_BUDGET, MAX_PER_WAVE, MODEL_BEARING, MODEL_OPTION, MODEL_TIERS,
-  QUALITY, REVIEW, SPAWN_TEXT, THINK_ESCALATION, UNBOUNDED_FANOUT, WAVE_MS, WORKFLOW_AGENT_CALL,
-  deniedSubagentRx,
-} from '../patterns.mjs';
+  DENY_SUBAGENT_DEFAULT, FANOUT_BUDGET, MODEL_BEARING, MODEL_OPTION, MODEL_TIERS,
+  QUALITY, REVIEW, SPAWN_TEXT, THINK_ESCALATION, UNBOUNDED_FANOUT, WORKFLOW_AGENT_CALL,
+  deniedSubagentRx, waveCap, waveWindow,
+} from './patterns.mjs';
 import { append } from '../audit.mjs';
-import { load, rootOf, save, sessionOf } from '../ledger.mjs';
+import { load, rootOf, save, sessionOf } from './ledger.mjs';
 
 export class Blocked extends Error {}
 
@@ -94,12 +94,13 @@ export function claimSlot(dir, bucket, cap) {
 }
 
 export function fanOutCap(payload, count = 1) {
+  const cap = waveCap();
   const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
-  const bucket = Math.floor(Date.now() / WAVE_MS);
+  const bucket = Math.floor(Date.now() / waveWindow());
   const claimed = [];
   for (let n = 0; n < count; n += 1) {
-    const slot = claimSlot(dir, bucket, MAX_PER_WAVE);
-    if (slot <= MAX_PER_WAVE) { claimed.push(slot); continue; }
+    const slot = claimSlot(dir, bucket, cap);
+    if (slot <= cap) { claimed.push(slot); continue; }
     for (const held of claimed) {
       try { rmSync(path.join(dir, `${bucket}-${held}`), { force: true }); } catch { }
     }
@@ -111,8 +112,8 @@ export function fanOutCap(payload, count = 1) {
     state.saved.agentsCapped += count;
     save(root, session, state);
     throw new Blocked(count > 1
-      ? `FAN-OUT CAP: ${count} subagents requested, wave capped at ${MAX_PER_WAVE}\n`
-      : `FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}\n`);
+      ? `FAN-OUT CAP: ${count} subagents requested, wave capped at ${cap}\n`
+      : `FAN-OUT CAP: subagent ${slot}, wave capped at ${cap}\n`);
   }
 }
 

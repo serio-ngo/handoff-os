@@ -35,7 +35,6 @@ const VCS = ['g', 'i', 't'].join('');
 const OUT = ['p', 'u', 's', 'h'].join('');
 const KEY = ['ANTHROPIC', 'API', 'KEY'].join('_');
 const HELPER = ['api', 'Key', 'Helper'].join('');
-const ACCOUNT = 'PL10000000000000000000000000';
 
 const guard = (payload, env) => fire(script('guard.mjs'), payload, env);
 const at = (session, payload) => guard({ cwd: box, session_id: session, ...payload },
@@ -88,11 +87,9 @@ blocks('blocks raw web-fetch connectors', [
   'mcp__tavily__search', 'mcp__fetch__fetch_url', 'mcp__brave-search__web_search',
 ], (name) => ({ tool_name: name, tool_input: {} }));
 
-blocks('blocks writes to brand-locked and secret-bearing paths', [
-  'assets/brand/logo.png',
+blocks('blocks writes to secret-bearing paths', [
   '/synthetic/repo/.env',
   'deploy/id_ed25519',
-  '/synthetic/repo/contacts.csv',
 ], (file_path) => ({ tool_name: 'Write', tool_input: { file_path, content: 'x' } }));
 
 it('judges a connector payload, not only its name', () => {
@@ -100,14 +97,6 @@ it('judges a connector payload, not only its name', () => {
   assert.equal(guard(connector('execute_code')), BLOCKED);
   assert.equal(guard(connector('workspace__bash', { command: 'git merge main' })), BLOCKED);
   assert.equal(guard(connector('workspace__bash', { command: 'curl -X POST -d "a=1" https://api.example.com/items' })), BLOCKED);
-});
-
-it('blocks an account number through Write, Edit, MultiEdit, NotebookEdit and a shell redirect', () => {
-  assert.equal(guard({ tool_name: 'Write', tool_input: { file_path: 'notes.md', content: `IBAN ${ACCOUNT}` } }), BLOCKED);
-  assert.equal(guard({ tool_name: 'Edit', tool_input: { file_path: 'notes.md', old_string: 'a', new_string: ACCOUNT } }), BLOCKED);
-  assert.equal(guard({ tool_name: 'MultiEdit', tool_input: { file_path: 'notes.md', edits: [{ old_string: 'a', new_string: ACCOUNT }] } }), BLOCKED);
-  assert.equal(guard({ tool_name: 'NotebookEdit', tool_input: { notebook_path: 'notes.ipynb', new_source: ACCOUNT } }), BLOCKED);
-  assert.equal(sh('ac', `echo ${ACCOUNT} >> README.md`), BLOCKED);
 });
 
 it('blocks commands a plain argv matcher would miss', () => {

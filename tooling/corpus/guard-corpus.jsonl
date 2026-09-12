@@ -53,12 +53,9 @@
 {"id":"secrets-d02","category":"secrets","tool":"PowerShell","input":{"command":"$env:ANTHROPIC_AUTH_TOKEN = \"x\""},"want":"block","origin":"spec","note":"metered credential in PowerShell"}
 {"id":"secrets-d03","category":"secrets","tool":"Write","input":{"file_path":".env","content":"x=1"},"want":"block","origin":"spec","note":"secret-bearing path"}
 {"id":"secrets-d04","category":"secrets","tool":"Write","input":{"file_path":"deploy/id_ed25519","content":"x"},"want":"block","origin":"spec","note":"private key name"}
-{"id":"secrets-d05","category":"secrets","tool":"Write","input":{"file_path":"notes.md","content":"IBAN PL10000000000000000000000000"},"want":"block","origin":"spec","note":"account number in tracked file"}
-{"id":"secrets-d06","category":"secrets","tool":"Bash","input":{"command":"echo PL10000000000000000000000000 >> README.md"},"want":"block","origin":"spec","note":"account number via shell redirect"}
 {"id":"secrets-d07","category":"secrets","tool":"NotebookEdit","input":{"notebook_path":".env","new_source":"x=1"},"want":"block","origin":"probe","note":"secret-bearing path through a write tool the matcher missed"}
 {"id":"secrets-b01","category":"secrets","tool":"Bash","input":{"command":"export MY_APP_KEY=123"},"want":"allow","origin":"spec","note":"unrelated env name"}
 {"id":"secrets-b02","category":"secrets","tool":"Write","input":{"file_path":"notes.md","content":"hello"},"want":"allow","origin":"spec","note":"plain write, no secret"}
-{"id":"secrets-b03","category":"secrets","tool":"Write","input":{"file_path":"config/memory.md","content":"IBAN PL10000000000000000000000000"},"want":"allow","origin":"spec","note":"memory.md is exempt by design"}
 {"id":"secrets-b04","category":"secrets","tool":"Write","input":{"file_path":".env.example","content":"KEY="},"want":"allow","origin":"spec","note":"example env file is a template, not a secret"}
 {"id":"budget-d01","category":"budget","tool":"Agent","input":{"prompt":"scan the repo","model":"opus"},"want":"block","origin":"spec","note":"top tier dispatched for ordinary work"}
 {"id":"budget-d07","category":"budget","tool":"Workflow","input":{"script":"await agent('draft', { model: 'fable' })"},"want":"block","origin":"spec","note":"top tier selected inside a workflow script"}

@@ -176,7 +176,6 @@ function installTargets() {
 function install() {
   const { declared, targets, stale } = installTargets();
   const wanted = walk(PLUGIN);
-  const memory = path.join(REPO, 'config', 'memory.md');
   let pruned = 0;
   for (const version of targets) {
     const dest = path.join(cacheRoot(), version);
@@ -185,11 +184,10 @@ function install() {
       copyFileSync(path.join(PLUGIN, rel), path.join(dest, rel));
     }
     for (const rel of walk(dest)) {
-      if (wanted.includes(rel) || rel === 'memory.md' || RUNTIME_OWNED.some((rx) => rx.test(rel))) continue;
+      if (wanted.includes(rel) || RUNTIME_OWNED.some((rx) => rx.test(rel))) continue;
       rmSync(path.join(dest, rel), { force: true });
       pruned += 1;
     }
-    if (existsSync(memory)) copyFileSync(memory, path.join(dest, 'memory.md'));
   }
   const entry = register(declared);
   for (const version of stale) {

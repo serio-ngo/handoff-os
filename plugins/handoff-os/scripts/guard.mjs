@@ -43,7 +43,7 @@ export function judge(raw = {}) {
     if (verdict) deny(verdict);
     const targets = shellWriteTargets(command);
     for (const target of targets) {
-      const reason = judgeWrite(target, command, 'a shell write');
+      const reason = judgeWrite(target, 'a shell write');
       if (reason) deny(reason);
     }
     if (targets.length) noteWrite(payload);
@@ -52,10 +52,7 @@ export function judge(raw = {}) {
     const reason = judgeConnector(tool, input);
     if (reason) deny(reason);
   } else if (WRITE_TOOLS.includes(tool)) {
-    const edits = Array.isArray(input.edits) ? input.edits.map((edit) => edit?.new_string ?? '') : [];
-    const content = [input.content, input.new_string, input.new_source, ...edits]
-      .filter((value) => typeof value === 'string').join('\n');
-    const reason = judgeWrite(String(input.file_path || input.notebook_path || ''), content);
+    const reason = judgeWrite(String(input.file_path || input.notebook_path || ''));
     if (reason) deny(reason);
     noteWrite(payload);
   }

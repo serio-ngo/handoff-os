@@ -18,7 +18,7 @@ export function judgeConnector(tool, input) {
     const verdict = judgeShell(input[key]);
     if (verdict) return `blocked ${tool} — ${verdict}`;
     for (const target of shellWriteTargets(input[key])) {
-      const reason = judgeWrite(target, input[key], 'a shell write');
+      const reason = judgeWrite(target, 'a shell write');
       if (reason) return `blocked ${tool} — ${reason}`;
     }
   }

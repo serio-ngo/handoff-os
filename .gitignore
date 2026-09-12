@@ -1,7 +1,5 @@
 .claude/.session-*
 .claude/.wave-*
-plugins/handoff-os/memory.md
-config/memory.md
 node_modules/
 .DS_Store
 *.log

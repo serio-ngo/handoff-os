@@ -103,20 +103,6 @@ export const SECRET_NAMES = [
   /\.(?:pem|key|p12|pfx)$/i,
   /^id_(?:rsa|ed25519|ecdsa)/i,
 ];
-export const ORG_PATHS = [
-  /(^|[/\\])(?:brand|brand-kit|brand_assets)[/\\]/i,
-];
-export const ORG_NAMES = [
-  /^(?:org|beneficiar\w*|contacts|donors)\.(?:json|ya?ml|csv|tsv)$/i,
-];
-export const FIXTURES = [
-  /(^|[/\\])(?:tests?|__tests__|fixtures?)[/\\]/i,
-  /(^|[/\\])test-[^/\\]*$/i,
-  /\.(?:test|spec)\.[a-z]+$/i,
-  /(^|[/\\])(?:temp|tmp|scratchpad)[/\\]/i,
-];
-export const ACCOUNT_NUMBER = /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,4})?\b/;
-
 export const WHOLE_FILE_CMD = /^(?:cat|bat|more|less|type|gc|get-content)$/i;
 export const REWRITABLE_READ = /^(?:cat|bat|more|less)$/i;
 export const PIPE = /(?<!\|)\|(?!\|)/;

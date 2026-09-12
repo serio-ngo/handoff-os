@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { sessionLine } from '../plugins/handoff-os/scripts/ledger.mjs';
-import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../plugins/handoff-os/scripts/patterns.mjs';
+import { sessionLine } from '../../plugins/handoff-os/scripts/ledger.mjs';
+import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/handoff-os/scripts/patterns.mjs';
 import { REPO, inventory, readJson, writeBlock } from './generate.mjs';
 
 const INK = '#7d8590';
@@ -83,7 +83,7 @@ const floodRow = (label, row) => `| ${label} | ${row.spawnRequested} | ${started
 
 function floodDocBlock(r) {
   return [
-    `Run ${r.generated} · model \`${r.model}\` · plugin build ${String(r.plugin.commit || 'unknown').slice(0, 7)} (${r.plugin.version}) · \`eval/flood-results.json\`${r.stopped ? ` · stopped: ${r.stopped}` : ''}`,
+    `Run ${r.generated} · model \`${r.model}\` · plugin build ${String(r.plugin.commit || 'unknown').slice(0, 7)} (${r.plugin.version}) · \`tooling/results/flood-results.json\`${r.stopped ? ` · stopped: ${r.stopped}` : ''}`,
     '',
     '| Arm | Subagent calls | Started | Refused by the guard | Raw tokens per subagent | Tokens billed | Wall time | Finished |',
     '|---|---|---|---|---|---|---|---|',
@@ -106,14 +106,14 @@ export function writeFlood(r) {
 }
 
 function abRange() {
-  const dir = path.join(REPO, 'eval');
+  const dir = path.join(REPO, 'tooling', 'results');
   const pcts = readdirSync(dir).filter((f) => /^ab-results.*\.json$/.test(f))
     .map((f) => JSON.parse(readFileSync(path.join(dir, f), 'utf8')).aggregate?.billedWeighted?.pct)
     .filter((x) => typeof x === 'number').map(Math.round);
   return pcts.length ? `+${Math.min(...pcts)}–${Math.max(...pcts)}%` : 'n/a';
 }
 
-function tiles(r, scores = readJson('eval', 'scores.json')) {
+function tiles(r, scores = readJson('tooling', 'results', 'scores.json')) {
   return {
     stops: [
       [String(MAX_PER_WAVE), 'subagents per wave'],
@@ -228,7 +228,7 @@ function demoSvg(modules = DEMO_MODULES) {
 }
 
 export function writeFigures() {
-  const r = readJson('eval', 'flood-results.json');
+  const r = readJson('tooling', 'results', 'flood-results.json');
   const out = writeFlood(r);
   for (const [name, items] of Object.entries(tiles(r))) {
     writeFileSync(DOCS(`tiles-${name}.svg`), tileRow(items), 'utf8');

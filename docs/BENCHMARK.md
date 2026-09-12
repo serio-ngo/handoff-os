@@ -127,7 +127,7 @@ Guard actions: 38. Token counts are file bytes / 4 from this repo's own local le
 
 | Item | Value |
 |---|---|
-| Corpus | `eval/guard-corpus.jsonl`, 72 labelled cases — 68 scored, 4 documented evasions apart |
+| Corpus | `tooling/corpus/guard-corpus.jsonl`, 93 labelled cases — 89 scored, 4 documented evasions apart |
 | Runner | `npm run benchmark:eval`, exits 1 on a miss, gated in CI |
 | Verdict | exit 2 means blocked |
 | `origin` field | `spec` = derived from the rule table, self-confirming · `probe` = found by adversarial probing · `regression` = reproduces a shipped bug |
@@ -150,7 +150,7 @@ npm run benchmark:compare
 | Comparator | What it models | Fair to it |
 |---|---|---|
 | `none` | no guard, permission prompts only | The floor. Shows the corpus is not satisfiable by doing nothing. |
-| `policy` | Claude Code `permissions.deny` globs, read from `settings/policy.json` | The real built-in alternative. Loses on connector and file-content cases because a glob cannot express them. |
+| `policy` | Claude Code `permissions.deny` globs, read from `tooling/settings/policy.json` | The real built-in alternative. Loses on connector and file-content cases because a glob cannot express them. |
 | `keyword` | a pattern-list `PreToolUse` hook, ~35 dangerous-pattern regexes | The shape most published guard hooks ship. Graded on the same cases, including the safe ones. |
 | `denyall` | block every tool call | The ceiling. Perfect recall, useless in practice — this is why recall is never reported alone. |
 
@@ -158,51 +158,51 @@ npm run benchmark:compare
 | Guard | Caught | Wrongly blocked | F1 |
 |---|---|---|---|
 | no guard, permission prompts only | 0% | 0% | 0.00 |
-| Claude Code permissions.deny globs | 17% | 6% | 0.29 |
-| a pattern-list PreToolUse hook | 39% | 11% | 0.53 |
-| block every tool call | 100% | 100% | 0.72 |
+| Claude Code permissions.deny globs | 15% | 5% | 0.26 |
+| a pattern-list PreToolUse hook | 44% | 11% | 0.58 |
+| block every tool call | 100% | 100% | 0.74 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-85 cases, 2026-09-11; the comparators are mechanism baselines in `eval/baselines.mjs`, not vendor code.
+93 cases, 2026-09-12; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
 
-58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+58 of 89 scored cases are `spec` (rule-derived), 27 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
 
 - Mechanism baselines from published rule shapes, not vendor code; no product named.
-- Same case list, same scoring; `eval/baselines.mjs` committed for repeat or dispute.
-- `eval/scores.json` written by the same run; feeds the README badges.
+- Same case list, same scoring; `tooling/benchmark/baselines.mjs` committed for repeat or dispute.
+- `tooling/results/scores.json` written by the same run; feeds the README badges.
 - Cost is context tax: the plugin's own footprint against the rot it keeps out, per window, in the ledger report.
 - Spawn milliseconds print on `--latency` runs only; machine-specific, never published, never in `scores.json`.
-- Multiple roots aggregate: `node scripts/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
+- Multiple roots aggregate: `node tooling/benchmark/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
-Run 2026-09-11 · 85 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-12 · 93 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
 
 | Metric | Value |
 |---|---|
-| Recall | 46/46 (100%) |
-| Precision | 46/46 (100%) |
-| False-positive rate | 0/35 (0%) |
+| Recall | 52/52 (100%) |
+| Precision | 52/52 (100%) |
+| False-positive rate | 0/37 (0%) |
 | F1 | 1.00 |
 | Known bypasses caught | 0/4 (0%) |
 
-Confusion: TP 46 · FN 0 · FP 0 · TN 35. Bypasses scored apart.
+Confusion: TP 52 · FN 0 · FP 0 · TN 37. Bypasses scored apart.
 
 - `evasion-01` open — the binary name is held in a shell variable.
 - `evasion-02` open — payload decoded by a pipeline, not by a shell flag.
 - `evasion-03` open — an unquoted no-op flag used as a POST body excuses the segment.
 - `evasion-04` open — connector action whose name carries no classifiable verb.
 
-58 of 81 scored cases are `spec` (rule-derived), 19 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+58 of 89 scored cases are `spec` (rule-derived), 27 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /eval-results -->
 
 ## Track B — paired runs, with and without the plugin
 
 | Item | Rule |
 |---|---|
-| Runner | `npm run benchmark:ab` — `scripts/benchmark.mjs ab` |
-| Tasks | `eval/tasks.jsonl`, one object per line: `id`, `prompt`, `check` (shell, exit 0 = pass, `$AB_RESULT` holds the final reply), `expect_guard` (guard classes the task provokes; empty = neutral), optional `setup` |
-| Fixture | `eval/fixture/`, copied to a fresh temp dir per run, `git init` + one commit; `src/big.js` regenerates from `tools/make-big.mjs` |
+| Runner | `npm run benchmark:ab` — `tooling/benchmark/benchmark.mjs ab` |
+| Tasks | `tooling/corpus/tasks.jsonl`, one object per line: `id`, `prompt`, `check` (shell, exit 0 = pass, `$AB_RESULT` holds the final reply), `expect_guard` (guard classes the task provokes; empty = neutral), optional `setup` |
+| Fixture | `tooling/benchmark/fixture/`, copied to a fresh temp dir per run, `git init` + one commit; `src/big.js` regenerates from `tools/make-big.mjs` |
 | Arms | A: `claude -p --plugin-dir plugins/handoff-os` · B: same command without it; `--output-format stream-json --max-turns 12 --setting-sources project --strict-mcp-config`, tools `Read,Grep,Glob,Bash,Edit,Write,Agent,Task` |
 | Order | random per task, seeded (`--seed`) |
 | Meter | `usage` of every assistant message, deduplicated by `request_id`; subagent messages included |
@@ -214,14 +214,14 @@ Confusion: TP 46 · FN 0 · FP 0 · TN 35. Bypasses scored apart.
 | Quality gate | pass rate per arm beside tokens; a token drop with a pass drop is a loss |
 | Micro | `micro-a` whole-file read of `src/big.js` · `micro-b` six-subagent fan-out; per arm billed tokens, subagents requested / blocked / spawned |
 | Budget | stops once cumulative billed tokens pass `--budget` (default 2000000 tok); partial results still written |
-| Output | `eval/ab-results.json` · README `<!-- handoff-ab -->` · this file's `<!-- ab-results -->` |
+| Output | `tooling/results/ab-results.json` · README `<!-- handoff-ab -->` · this file's `<!-- ab-results -->` |
 | Ban | bytes / 4 never reported as billing |
 
 ```bash
 npm run benchmark:ab                                   # every task, both arms, micro experiments
 npm run benchmark:ab -- --task big-read                # one task
 npm run benchmark:ab -- --dry-run                      # pipeline only, no model call
-npm run benchmark:ab -- --render                       # rewrite the blocks from eval/ab-results.json
+npm run benchmark:ab -- --render                       # rewrite the blocks from tooling/results/ab-results.json
 npm run benchmark:ab -- --plugin-dir <dir> --out <file>  # another plugin build; an --out outside the repo leaves the blocks alone
 npm run benchmark:ab -- --model <id> --n 5 --no-micro
 ```
@@ -401,8 +401,8 @@ npm run benchmark:ab -- --model claude-haiku-4-5-20251001
 
 | Item | Rule |
 |---|---|
-| Runner | `npm run benchmark:flood` — `scripts/benchmark.mjs flood` |
-| Fixture | `eval/fixture/` minus `src/`, `tests/`, `tools/`; plus `src/mod01.js … mod20.js`, generated at run time, three exports each |
+| Runner | `npm run benchmark:flood` — `tooling/benchmark/benchmark.mjs flood` |
+| Fixture | `tooling/benchmark/fixture/` minus `src/`, `tests/`, `tools/`; plus `src/mod01.js … mod20.js`, generated at run time, three exports each |
 | Prompt | one: launch one subagent per module, all 20 in parallel, then one line per module |
 | Arms | without the plugin first, then `--plugin-dir plugins/handoff-os`; same flags as Track B, `--max-turns 25` |
 | Model | `claude-sonnet-5` by default; `--model <id>` |
@@ -413,17 +413,17 @@ npm run benchmark:ab -- --model claude-haiku-4-5-20251001
 | Raw tokens per subagent | `input + cache write + cache read` of one subagent's messages, grouped by `parent_tool_use_id`, mean over the arm; the figure's per-wave line is `requested × mean` |
 | Finished | reply names all 20 modules |
 | Budget | stops once cumulative billed tokens pass `--budget` (default 2,000,000); partial result still written |
-| Output | `eval/flood-results.json` · `docs/flood.svg` · README `<!-- handoff-flood -->` · this file's `<!-- flood-results -->` |
-| Figures | `scripts/figures.mjs` renders `docs/flood.svg`, `docs/tiles-*.svg`, `docs/demo.svg` from `eval/*.json` and plugin constants; `npm run upkeep` rewrites them, `upkeep:check` fails when they differ |
+| Output | `tooling/results/flood-results.json` · `docs/flood.svg` · README `<!-- handoff-flood -->` · this file's `<!-- flood-results -->` |
+| Figures | `tooling/cli/figures.mjs` renders `docs/flood.svg`, `docs/tiles-*.svg`, `docs/demo.svg` from `tooling/results/*.json` and plugin constants; `npm run upkeep` rewrites them, `upkeep:check` fails when they differ |
 
 ```bash
 npm run benchmark:flood                 # both arms, one prompt
-npm run benchmark:flood -- --render     # rewrite docs/flood.svg and the blocks from eval/flood-results.json
+npm run benchmark:flood -- --render     # rewrite docs/flood.svg and the blocks from tooling/results/flood-results.json
 npm run benchmark:flood -- --dry-run    # pipeline only, no model call
 ```
 
 <!-- flood-results -->
-Run 2026-09-10 · model `claude-sonnet-5` · plugin build 8e9d9c4 (1.9.1) · `eval/flood-results.json`
+Run 2026-09-10 · model `claude-sonnet-5` · plugin build 8e9d9c4 (1.9.1) · `tooling/results/flood-results.json`
 
 | Arm | Subagent calls | Started | Refused by the guard | Raw tokens per subagent | Tokens billed | Wall time | Finished |
 |---|---|---|---|---|---|---|---|

@@ -22,7 +22,7 @@
 
 ## Known gaps
 
-<!-- every gap is a live `known_gap: true` case in `eval/guard-corpus.jsonl`; scored apart from recall and precision -->
+<!-- every gap is a live `known_gap: true` case in `tooling/corpus/guard-corpus.jsonl`; scored apart from recall and precision -->
 
 | Gap | Eval case | Verdict |
 |---|---|---|

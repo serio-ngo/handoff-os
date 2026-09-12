@@ -3,9 +3,9 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
-import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
+import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/patterns.mjs';
 import { writeFigures } from './figures.mjs';
-import { PLUGIN, REPO, inventory, manifest, markdown, policyFor, readJson, walk, writeBlock } from './generate.mjs';
+import { PLUGIN, REPO, inventory, manifest, markdown, policyFor, readJson, walk } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
 const BANNED = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN'];
@@ -105,7 +105,7 @@ function installation() {
 }
 
 function releaseLocks(settings, requested) {
-  const bundles = readJson('settings', 'policy.json').lock ?? {};
+  const bundles = readJson('tooling', 'settings', 'policy.json').lock ?? {};
   const stale = Object.entries(bundles)
     .filter(([token]) => !requested.includes(token))
     .flatMap(([, rules]) => rules);
@@ -199,7 +199,7 @@ function install() {
 function normalise() {
   const files = walk(REPO)
     .filter((file) => TEXT.test(file))
-    .filter((file) => !/^(\.git|node_modules|audit)\//.test(file));
+    .filter((file) => !/(?:^|\/)(?:\.git|node_modules|audit)\//.test(file));
   let touched = 0;
   for (const rel of files) {
     const file = path.join(REPO, rel);
@@ -332,7 +332,7 @@ function release(args) {
   writeFileSync(path.join(REPO, 'docs', 'MANIFEST.md'), manifest(), 'utf8');
   row('released', plugin.version);
   report();
-  const bench = (...args) => spawnSync(process.execPath, [path.join(REPO, 'scripts', 'benchmark.mjs'), REPO, ...args], { stdio: 'inherit' });
+  const bench = (...args) => spawnSync(process.execPath, [path.join(REPO, 'tooling', 'benchmark', 'benchmark.mjs'), REPO, ...args], { stdio: 'inherit' });
   bench('--eval', '--compare', '--write');
   bench('--write');
 }

@@ -9,7 +9,7 @@ export function entry(payload, root) {
   const tool = String(payload.tool_name || '');
   if (!tool) return null;
   const input = payload.tool_input || {};
-  const target = String(input.file_path || input.path
+  const target = String(input.file_path || input.notebook_path || input.path
     || (typeof input.command === 'string' ? input.command.slice(0, 120) : '') || '');
 
   const external = tool.startsWith('mcp__') || tool === 'Bash' || tool === 'PowerShell';
@@ -45,7 +45,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   let payload = {};
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { payload = {}; }
   const root = process.env.HANDOFF_OS_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
-  const values = entry(payload, root);
+  const project = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
+  const values = entry(payload, project);
   if (values) append(root, values);
   process.exit(0);
 }

@@ -10,7 +10,7 @@ const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*Y
 const SELF = fileURLToPath(new URL('./verify.mjs', import.meta.url));
 const MARKER_MAX_AGE_MS = 30 * 60 * 1000;
 const MAX_BLOCKS = 2;
-const CITED = /[\w.-]+:\d+|https?:\/\/|\bUNVERIFIED\b/i;
+const CITED = /[\w-]+\.[A-Za-z]\w*:\d+|https?:\/\/|\bUNVERIFIED\b/i;
 const MIN_CLAIM_CHARS = 200;
 
 const FALLBACK_STEPS = ['content:check', 'typecheck', 'build'];

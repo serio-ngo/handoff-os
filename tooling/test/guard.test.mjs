@@ -5,12 +5,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SPAWN_TOOLS, WRITE_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
+import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/patterns.mjs';
 
 const BLOCKED = 2;
 const ALLOWED = 0;
 const SERVER = '00000000-0000-4000-a000-000000000000';
-const PLUGIN = fileURLToPath(new URL('../plugins/handoff-os/', import.meta.url));
+const PLUGIN = fileURLToPath(new URL('../../plugins/handoff-os/', import.meta.url));
 const script = (name) => path.join(PLUGIN, 'scripts', name);
 const hooks = JSON.parse(readFileSync(path.join(PLUGIN, 'hooks', 'hooks.json'), 'utf8')).hooks;
 
@@ -56,6 +56,9 @@ blocks('blocks shell commands that leave the machine', [
   'curl -X POST -d "a=1" https://api.example.com/items',
   'scp notes.md host:/tmp',
   'terraform apply',
+  'sudo npm publish --access public',
+  'bash -c "npm publish" 2>/dev/null',
+  'if [ -d dist ]; then npm publish; fi',
 ], bash);
 
 blocks('blocks shell commands that would meter API credits', [
@@ -74,6 +77,9 @@ blocks('blocks git merge, delete and history rewrite', [
   `${VCS} clean -fd`,
   `${VCS} reset --hard HEAD~1`,
   `${VCS} ${OUT} --force origin main`,
+  `sudo ${VCS} merge main`,
+  `echo 'x\\'; ${VCS} merge main`,
+  `echo "$(${VCS} merge main)"`,
 ], bash);
 
 blocks('blocks outward PowerShell and credential assignment', [
@@ -84,6 +90,7 @@ blocks('blocks outward PowerShell and credential assignment', [
 blocks('blocks connector actions that send or destroy', [
   'send_message', 'create_and_send_email', 'forward', 'publish-brand-template-v2',
   'trash_thread', 'delete_event', 'run_workflow', 'trigger_build', 'approve_expense',
+  'schedule_message',
 ], connector);
 
 blocks('blocks raw web-fetch connectors', [

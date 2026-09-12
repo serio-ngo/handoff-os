@@ -7,15 +7,19 @@
 
 ## Layout
 
+Two trees: `plugins/handoff-os/` ships, `tooling/` never does.
+
 | Path | Contents |
 |---|---|
-| `plugins/handoff-os/` | The plugin: 3 skills, 2 agents, 6 hooks, 6 scripts. |
-| `scripts/` | CLI (`handoff.mjs`), generators (`generate.mjs`, `figures.mjs`), benchmark report. |
-| `settings/policy.json` | Permission rules, one `deny` list. Rules cannot ship inside a plugin. |
-| `test/` | One file, `guard.test.mjs`. Node built-in runner. |
-| `eval/` | `guard-corpus.jsonl`, the labelled corpus. `baselines.mjs`, the four comparators. `scores.json`, generated, feeds the README badges. `flood-results.json`, the README demo, `npm run benchmark:flood`. Outside the suite, run by `npm run benchmark:eval`. |
+| `plugins/handoff-os/` | The plugin, the only shipped tree: 3 skills, 2 agents, 5 hooks, 7 scripts. |
+| `tooling/cli/` | `handoff.mjs`, the maintainer CLI. Generators `generate.mjs`, `figures.mjs`. |
+| `tooling/benchmark/` | `benchmark.mjs`, the harness. `baselines.mjs`, the four comparators. `fixture/`, the throwaway repo the A/B and flood runs copy. |
+| `tooling/corpus/` | `guard-corpus.jsonl`, the labelled corpus. `tasks.jsonl`, the A/B tasks. |
+| `tooling/results/` | Generated. `scores.json` feeds the README badges, `flood-results.json` the README figure, `ab-results*.json` the cost range. |
+| `tooling/test/` | One file, `guard.test.mjs`. Node built-in runner. |
+| `tooling/settings/` | `policy.json`, permission rules, one `deny` list. Rules cannot ship inside a plugin. |
 | `docs/` | Generated manifest and SVG figures, Claude Code reference, benchmark method. |
-| `audit/` | `YYYY-MM.jsonl`, one object per line, fields in `scripts/audit.mjs` as `FIELDS`. Gitignored, append-only. |
+| `audit/` | `YYYY-MM.jsonl`, one object per line, fields in `plugins/handoff-os/scripts/audit.mjs` as `FIELDS`. Gitignored, append-only. |
 
 ## Commands
 
@@ -25,7 +29,7 @@
 | `claude --plugin-dir plugins/handoff-os` | run this checkout as the plugin for one session |
 | `npm run upkeep` | regenerate `docs/MANIFEST.md`, README inventory |
 | `npm run upkeep:check` | upkeep, then fail when the tree differs — the CI gate, same command locally |
-| `npm run release` | upkeep plus benchmark rerun, README scores, `eval/scores.json` |
+| `npm run release` | upkeep plus benchmark rerun, README scores, `tooling/results/scores.json` |
 
 | Fact | Value |
 |---|---|
@@ -42,7 +46,7 @@
 5. Write in tables and short imperative sentences. Partial completion is acceptable; silent failure
    is not.
 6. No explanatory comments in code. No runtime dependencies.
-7. The suite is one file, `test/guard.test.mjs`. Do not add a test file. Do not add a test helper.
+7. The suite is one file, `tooling/test/guard.test.mjs`. Do not add a test file. Do not add a test helper.
    Assertions are blocking and failure cases only — no happy path, no CLI, no repo hygiene, no
    budget or hygiene assertions that prove nothing. A new guard rule adds one case to an existing
    list, not a new `describe`.

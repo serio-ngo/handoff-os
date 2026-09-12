@@ -19,18 +19,18 @@
   "scripts": {
     "test": "node --test",
     "verify": "node --test",
-    "setup": "node scripts/handoff.mjs setup",
-    "sync": "node scripts/handoff.mjs sync",
-    "install:plugin": "node scripts/handoff.mjs install",
-    "upkeep": "node scripts/handoff.mjs upkeep",
-    "upkeep:check": "node scripts/handoff.mjs upkeep --check",
-    "doctor": "node scripts/handoff.mjs doctor",
-    "release": "node scripts/handoff.mjs release",
-    "benchmark": "node scripts/benchmark.mjs",
-    "benchmark:eval": "node scripts/benchmark.mjs --eval",
-    "benchmark:compare": "node scripts/benchmark.mjs --eval --compare --write",
-    "benchmark:replay": "node scripts/benchmark.mjs --replay --write",
-    "benchmark:ab": "node scripts/benchmark.mjs ab",
-    "benchmark:flood": "node scripts/benchmark.mjs flood"
+    "setup": "node tooling/cli/handoff.mjs setup",
+    "sync": "node tooling/cli/handoff.mjs sync",
+    "install:plugin": "node tooling/cli/handoff.mjs install",
+    "upkeep": "node tooling/cli/handoff.mjs upkeep",
+    "upkeep:check": "node tooling/cli/handoff.mjs upkeep --check",
+    "doctor": "node tooling/cli/handoff.mjs doctor",
+    "release": "node tooling/cli/handoff.mjs release",
+    "benchmark": "node tooling/benchmark/benchmark.mjs",
+    "benchmark:eval": "node tooling/benchmark/benchmark.mjs --eval",
+    "benchmark:compare": "node tooling/benchmark/benchmark.mjs --eval --compare --write",
+    "benchmark:replay": "node tooling/benchmark/benchmark.mjs --replay --write",
+    "benchmark:ab": "node tooling/benchmark/benchmark.mjs ab",
+    "benchmark:flood": "node tooling/benchmark/benchmark.mjs flood"
   }
 }

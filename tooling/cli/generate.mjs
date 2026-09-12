@@ -1,9 +1,9 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { footprint, frontmatter } from '../plugins/handoff-os/scripts/card.mjs';
+import { footprint, frontmatter } from '../../plugins/handoff-os/scripts/card.mjs';
 
-export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const PLUGIN = path.join(REPO, 'plugins', 'handoff-os');
 
 export const read = (...parts) => readFileSync(path.join(REPO, ...parts), 'utf8');
@@ -23,7 +23,7 @@ const SCOPES = {
   project: ({ deny }) => ({ permissions: { deny } }),
 };
 
-export function policyFor(scope, without = [], policy = readJson('settings', 'policy.json'), lock = []) {
+export function policyFor(scope, without = [], policy = readJson('tooling', 'settings', 'policy.json'), lock = []) {
   const drop = (rules) => without.length
     ? rules.filter((rule) => !without.some((token) => rule.toLowerCase().includes(token)))
     : rules;
@@ -105,11 +105,9 @@ export function inventory(root = REPO) {
   const plugin = path.join(root, 'plugins', 'handoff-os');
   const scripts = readdirSync(path.join(plugin, 'scripts')).filter((f) => f.endsWith('.mjs'));
   let lines = 0;
-  let code = 0;
   for (const file of scripts) {
-    const text = readFileSync(path.join(plugin, 'scripts', file), 'utf8').split(/\r?\n/);
-    lines += text.length;
-    code += text.filter((line) => line.trim() && !line.trim().startsWith('//')).length;
+    const text = readFileSync(path.join(plugin, 'scripts', file), 'utf8').replace(/\r?\n$/, '');
+    lines += text === '' ? 0 : text.split(/\r?\n/).length;
   }
 
   const skills = readdirSync(path.join(plugin, 'skills'));
@@ -130,7 +128,6 @@ export function inventory(root = REPO) {
     hookHandlers: handlers,
     scripts: scripts.length,
     logicLines: lines,
-    codeLines: code,
     patterns,
     dependencies: Object.keys(pkg.dependencies || {}).length,
     cardChars,
@@ -144,7 +141,7 @@ export function inventory(root = REPO) {
 function inventoryBlock(inv = inventory()) {
   return [
     table(['What ships', 'Count'], [
-      `| Guard logic | **${inv.logicLines}** lines of Node across ${inv.scripts} scripts (${inv.codeLines} non-blank) |`,
+      `| Guard logic | **${inv.logicLines}** lines of Node across ${inv.scripts} scripts |`,
       `| Pattern rules | **${inv.patterns}** |`,
       `| Hooks | **${inv.hookHandlers}** handlers on ${inv.hookEvents} events |`,
       `| Skills | **${inv.skills}** |`,

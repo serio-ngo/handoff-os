@@ -8,7 +8,7 @@ import {
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
   DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_PREFIX,
   MODEL_BEARING, MODEL_OPTION, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
-  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
+  SHELL_KEYWORD, SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
   SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WRITE_TOOLS, WRITE_VERBS,
 } from './patterns.mjs';
@@ -26,6 +26,12 @@ const deny = (reason, label = 'EGRESS LOCK') => {
   throw new Blocked(`${label}: ${reason}\n`);
 };
 
+function escapedAt(text, at) {
+  let run = 0;
+  while (at - run - 1 >= 0 && text[at - run - 1] === '\\') run += 1;
+  return run % 2 === 1;
+}
+
 function split(command, breakers, subshell) {
   const out = [];
   let buffer = '';
@@ -33,7 +39,13 @@ function split(command, breakers, subshell) {
   for (let i = 0; i < command.length; i += 1) {
     const char = command[i];
     if (quote) {
-      if (char === quote && command[i - 1] !== '\\') quote = null;
+      if (subshell && quote === '"' && (char === '`' || (char === '$' && command[i + 1] === '('))) {
+        out.push(buffer);
+        buffer = '';
+        if (char === '$') i += 1;
+        continue;
+      }
+      if (char === quote && (quote === "'" || !escapedAt(command, i))) quote = null;
       buffer += char;
       continue;
     }
@@ -52,8 +64,9 @@ const pipelines = (command) => split(command, ';\n&', false);
 
 function unwrap(segment) {
   let out = String(segment).trim();
-  for (let i = 0; i < 3; i += 1) {
-    const next = out.replace(SHELL_PREFIX, '').trim().replace(SHELL_QUOTED, '$2').trim();
+  for (let i = 0; i < 4; i += 1) {
+    const next = out.replace(SHELL_KEYWORD, '').trim().replace(SHELL_PREFIX, '').trim()
+      .replace(SHELL_QUOTED, '$2').trim();
     if (next === out) break;
     out = next;
   }
@@ -367,9 +380,8 @@ function noteWrite(payload) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
   const state = load(root, session);
-  const scope = `${actorOf(payload)}|q:`;
   for (const key of Object.keys(state.reads)) {
-    if (key.startsWith(scope)) delete state.reads[key];
+    if (key.includes('|q:')) delete state.reads[key];
   }
   state.written = Date.now();
   save(root, session, state);
@@ -411,6 +423,7 @@ function claimSlot(dir, bucket, cap) {
   for (let n = 1; n <= cap + 1; n += 1) {
     try {
       closeSync(openSync(path.join(dir, `${bucket}-${n}`), 'wx'));
+      if (n > cap) rmSync(path.join(dir, `${bucket}-${n}`), { force: true });
       return n;
     } catch { }
   }
@@ -485,7 +498,7 @@ function costBudget(input, tool) {
   const text = spawnText(input);
   if (QUALITY.test(text)) return null;
   const think = (text.match(THINK_ESCALATION) || [])[0];
-  if (think) return `blocked "${think}" — drop it, or add QUALITY: writing|creative|legal|security`;
+  if (think) return { reason: `blocked "${think}" — drop it, or add QUALITY: writing|creative|legal|security` };
   if (tool !== 'Workflow' || declaredAgents(input)) return null;
   const fan = (code(input.script).match(UNBOUNDED_FANOUT) || [])[0];
   return fan
@@ -494,7 +507,7 @@ function costBudget(input, tool) {
 }
 
 const agentsRequested = (input, tool) => (tool === 'Workflow'
-  ? Math.max(1, declaredAgents(input) || (String(input.script ?? '').match(WORKFLOW_AGENT_CALL) || []).length)
+  ? Math.max(1, declaredAgents(input) || (code(input.script).match(WORKFLOW_AGENT_CALL) || []).length)
   : 1);
 
 function fanOutCap(payload, count = 1) {
@@ -512,7 +525,7 @@ function fanOutCap(payload, count = 1) {
     const state = load(root, session);
     state.saved.blocked += 1;
     state.saved.waves += 1;
-    state.saved.agentsCapped += count - claimed.length;
+    state.saved.agentsCapped += count;
     save(root, session, state);
     throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${MAX_PER_WAVE}. Dispatch the rest yourself once these return.\n`);
   }

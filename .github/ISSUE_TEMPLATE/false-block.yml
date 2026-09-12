@@ -5,7 +5,7 @@ labels: ["false-block"]
 body:
   - type: markdown
     attributes:
-      value: One safe call per issue. A filled form pastes straight into `eval/guard-corpus.jsonl`.
+      value: One safe call per issue. A filled form pastes straight into `tooling/corpus/guard-corpus.jsonl`.
   - type: textarea
     id: call
     attributes:

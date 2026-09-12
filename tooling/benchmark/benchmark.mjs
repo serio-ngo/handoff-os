@@ -4,16 +4,16 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { homedir } from 'node:os';
-import { MODES } from '../eval/baselines.mjs';
-import { BYTE_COUNTERS, COUNTERS, kept, keptPct } from '../plugins/handoff-os/scripts/ledger.mjs';
-import { SPAWN_TOOLS } from '../plugins/handoff-os/scripts/patterns.mjs';
-import { usage } from '../plugins/handoff-os/scripts/verify.mjs';
-import { started, writeFlood } from './figures.mjs';
-import { inventory, writeBlock } from './generate.mjs';
+import { MODES } from './baselines.mjs';
+import { BYTE_COUNTERS, COUNTERS, kept, keptPct } from '../../plugins/handoff-os/scripts/ledger.mjs';
+import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/patterns.mjs';
+import { usage } from '../../plugins/handoff-os/scripts/verify.mjs';
+import { started, writeFlood } from '../cli/figures.mjs';
+import { inventory, writeBlock } from '../cli/generate.mjs';
 
 const flags = { write: false, eval: false, compare: false, latency: false, replay: false, ab: false, flood: false };
 const AB = {
-  tasks: 'eval/tasks.jsonl', n: Infinity, model: 'claude-haiku-4-5-20251001', dryRun: false, out: 'eval/ab-results.json',
+  tasks: 'tooling/corpus/tasks.jsonl', n: Infinity, model: 'claude-haiku-4-5-20251001', dryRun: false, out: 'tooling/results/ab-results.json',
   task: null, micro: true, maxTurns: 12, timeoutMs: 15 * 60 * 1000, budgetTokens: 2000000, seed: 20260910, keep: false, render: false,
   claude: process.env.HANDOFF_AB_CLAUDE || 'claude', pluginDir: null,
 };
@@ -21,7 +21,7 @@ const AB_VALUE = { '--tasks': 'tasks', '--n': 'n', '--model': 'model', '--out': 
 let REPO = process.cwd();
 const REPOS = [];
 const argv = process.argv.slice(2);
-if (argv.includes('flood')) Object.assign(AB, { model: 'claude-sonnet-5', maxTurns: 25, out: 'eval/flood-results.json' });
+if (argv.includes('flood')) Object.assign(AB, { model: 'claude-sonnet-5', maxTurns: 25, out: 'tooling/results/flood-results.json' });
 for (let i = 0; i < argv.length; i += 1) {
   if (argv[i] === '--write') flags.write = true;
   else if (argv[i] === '--eval') flags.eval = true;
@@ -65,7 +65,7 @@ const rule = (name, fired, effect) => console.log(`  ${name.padEnd(22)}${num(fir
 const OWN = 'plugins/handoff-os/scripts/guard.mjs';
 const ORIGINS = ['spec', 'probe', 'regression'];
 
-const corpus = () => readFileSync(path.join(REPO, 'eval', 'guard-corpus.jsonl'), 'utf8')
+const corpus = () => readFileSync(path.join(REPO, 'tooling', 'corpus', 'guard-corpus.jsonl'), 'utf8')
   .split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
 
 const payloadFor = (c, probe) => JSON.stringify({
@@ -81,7 +81,7 @@ function score(cmd, cases) {
   const env = {
     ...process.env,
     HANDOFF_OS_DIR: probe,
-    POLICY_FILE: path.join(REPO, 'settings', 'policy.json'),
+    POLICY_FILE: path.join(REPO, 'tooling', 'settings', 'policy.json'),
   };
   const rows = cases.map((c) => {
     const run = spawnSync(cmd[0], cmd.slice(1), { input: payloadFor(c, probe), encoding: 'utf8', env });
@@ -117,14 +117,14 @@ const provenance = (origins) => `${origins.spec} of ${ORIGINS.reduce((sum, key) 
   + 'recall here is a regression check, not a detection rate.';
 
 function mergeScores(root, patch) {
-  const file = path.join(root, 'eval', 'scores.json');
+  const file = path.join(root, 'tooling', 'results', 'scores.json');
   let current = {};
   try { current = JSON.parse(readFileSync(file, 'utf8')); } catch { current = {}; }
   const next = { ...current, ...patch };
   delete next.latencyMedianMs;
   delete next.latencyP95Ms;
   writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
-  console.log('  wrote eval/scores.json');
+  console.log('  wrote tooling/results/scores.json');
 }
 
 const ownCmd = () => (process.env.HANDOFF_EVAL_GUARD
@@ -176,7 +176,7 @@ function compareBlock(own, baselines) {
     line('**handoff-os**', own),
     '',
     `${own.cases} cases, ${new Date().toISOString().slice(0, 10)}; the comparators are mechanism baselines in `
-    + '`eval/baselines.mjs`, not vendor code.',
+    + '`tooling/benchmark/baselines.mjs`, not vendor code.',
     '', provenance(own.origins),
   ];
 }
@@ -189,7 +189,7 @@ function run() {
   const baselines = {};
   if (flags.compare) {
     for (const mode of Object.keys(MODES)) {
-      baselines[mode] = score([process.execPath, path.join(REPO, 'eval', 'baselines.mjs'), mode], cases);
+      baselines[mode] = score([process.execPath, path.join(REPO, 'tooling', 'benchmark', 'baselines.mjs'), mode], cases);
     }
   }
   const lat = flags.latency || flags.compare ? latency() : null;
@@ -362,7 +362,7 @@ function sh(command, cwd, env = process.env) {
 
 function runArm(task, arm, opts) {
   const dir = mkdtempSync(path.join(tmpdir(), `handoff-ab-${task.id}-${arm}-`));
-  cpSync(path.join(REPO, 'eval', 'fixture'), dir, { recursive: true });
+  cpSync(path.join(REPO, 'tooling', 'benchmark', 'fixture'), dir, { recursive: true });
   for (const rel of task.prune || []) rmSync(path.join(dir, rel), { recursive: true, force: true });
   for (const [rel, text] of Object.entries(task.files || {})) {
     mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
@@ -572,7 +572,7 @@ function abDocBlock(r, extra = []) {
 }
 
 function extraRuns(outFile) {
-  const dir = path.join(REPO, 'eval');
+  const dir = path.join(REPO, 'tooling', 'results');
   return readdirSync(dir).filter((name) => /^ab-results-.*\.json$/.test(name)).sort()
     .map((name) => path.join(dir, name)).filter((file) => file !== outFile)
     .map((file) => ({ ...JSON.parse(readFileSync(file, 'utf8')), file }));

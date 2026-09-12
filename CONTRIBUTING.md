@@ -9,8 +9,8 @@ refusal, into a permanent check.
 |---|---|
 | 1. Fork and clone | `git clone <your fork>` |
 | 2. Prove the suite is green first | `npm test` |
-| 3. Add one case | a line in `eval/guard-corpus.jsonl`: `id`, `category`, `tool`, `input`, `want`, `origin`, `note` |
-| 4. Add the same call to the suite | the matching list in `test/guard.test.mjs`, one entry, never a new `describe` |
+| 3. Add one case | a line in `tooling/corpus/guard-corpus.jsonl`: `id`, `category`, `tool`, `input`, `want`, `origin`, `note` |
+| 4. Add the same call to the suite | the matching list in `tooling/test/guard.test.mjs`, one entry, never a new `describe` |
 | 5. Score it | `npm run benchmark:eval` — exits 1 on a miss |
 | 6. Open the PR | the checklist in `.github/PULL_REQUEST_TEMPLATE.md` |
 
@@ -57,7 +57,7 @@ refusal, into a permanent check.
 
 | Suite | Runner |
 |---|---|
-| One file, `test/guard.test.mjs` | `npm test`, Node built-in runner |
+| One file, `tooling/test/guard.test.mjs` | `npm test`, Node built-in runner |
 
 ## Releases
 

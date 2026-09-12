@@ -175,6 +175,14 @@ describe('dispatch budget', () => {
     for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
     assert.equal(spawn({ prompt: 'fourth', model: 'haiku' }), BLOCKED);
   });
+  it('caps the wave at HANDOFF_MAX_PER_WAVE, defaulting to 3 on garbage', () => {
+    const run = (session, extra = {}) => guard({ cwd: box, session_id: session, tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } },
+      { ...process.env, HANDOFF_OS_DIR: box, ...extra });
+    run('cap1', { HANDOFF_MAX_PER_WAVE: '1' });
+    assert.equal(run('cap1', { HANDOFF_MAX_PER_WAVE: '1' }), BLOCKED);
+    for (let n = 0; n < 3; n += 1) run('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' });
+    assert.equal(run('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' }), BLOCKED);
+  });
   it('counts a capped wave as blocked', () => {
     const run = () => at('wv', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
     run(); run(); run();

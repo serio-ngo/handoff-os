@@ -22,6 +22,8 @@
 
 </div>
 
+## Example
+
 Claude Code can launch 20 subagents in one turn. A 5-hour window goes in seconds.
 
 The hook caps each wave at 3 and queues the rest.
@@ -43,22 +45,19 @@ Restart Claude Code. Hooks load at session start.
 
 <img src="docs/tiles-stops.svg" width="720" alt="Stops: 3 subagents per wave; 24 KB whole-file read cap; destructive git and rm calls; Done with no verification run">
 
-| Guard | One line |
+| Guard | Notes |
 |---|---|
-| Fan-out cap | Three subagents start; the rest go in the next wave. |
-| Read budget | A file over 24 KB arrives trimmed instead of whole, and the same unchanged file never arrives twice. |
-| Dispatch budget | Every subagent names a tier, and a review goes to sonnet. |
-| Egress lock | Sends, payments, publishes, merges and deletes stop before they run — shell, PowerShell and connectors alike. Deletes stay blocked inside the repo too (build, temp and disposable paths exempt) to prevent unexpected loss. |
-| Verify gate | A "done" claim needs a real run behind it. |
-| Git writes | Branch, commit and push stop until `HANDOFF_GIT_WRITE=1`. Merge never runs; reads and `gh pr create` always do. |
-| Audit trail | One local line per action, appended as it happens. |
-| Session receipt | The Stop hook prints what the session kept out of context. |
+| Fan-out cap | `HANDOFF_MAX_PER_WAVE=3`, `HANDOFF_WAVE_MS=60000` — excess waits for the next wave. |
+| Read budget | Files over 24 KB arrive trimmed; an unchanged file is never re-sent. |
+| Dispatch budget | Every subagent names a tier; `HANDOFF_DENY_SUBAGENT_MODELS=opus,fable` never reviews. |
+| Egress lock | Shell, PowerShell and connectors alike; single actions reopen via `HANDOFF_MCP_ALLOW`. |
+| Verify gate | A "done" claim needs a real `verify` (else check, typecheck, build) run; stands down after two blocks. |
+| Git writes | `HANDOFF_GIT_WRITE=1` allows branch, commit and push; merge never runs. |
+| Session receipt | Printed at Stop; `HANDOFF_STATS=0` silences it. |
 
-<img src="docs/tiles-counts.svg" width="720" alt="Counts: subagents held back; read volume kept out; receipt printed at Stop">
+<img src="docs/tiles-wins.svg" width="720" alt="Wins: subagents held back; read volume kept out; billed on subagent fan-out">
 
 ## Proof
-
-<img src="docs/tiles-proof.svg" width="720" alt="Proof: share of the labelled corpus caught; share wrongly blocked; labelled cases gated in CI">
 
 Every case is labelled in `tooling/corpus/guard-corpus.jsonl` and re-scored on each run against four
 comparators. Cost, limits and full method: [docs/BENCHMARK.md](docs/BENCHMARK.md).

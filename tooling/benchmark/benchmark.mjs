@@ -485,24 +485,6 @@ const runLabel = (r, n) => `Run ${n} — plugin build ${shortCommit(r)} (${r.plu
 const guardCell = (row) => Object.entries(row.guard).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
 const ledgerCell = (row) => Object.entries(row.ledger).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
 
-function aggregateTable(r, n) {
-  const a = r.aggregate;
-  const guard = Object.entries(a.guardEventsA).sort((x, y) => y[1] - x[1]);
-  return [
-    `| ${runLabel(r, n)} — ${r.n} tasks × 2 arms, ${r.generated}, model \`${r.model}\` | Value |`,
-    '|---|---|',
-    `| Δ billed tokens, with − without, cache-read at 0.1× | **${fmtPct(a.billedWeighted.pct)}**${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
-    `| Δ billed tokens, raw sum of input + cache write + cache read | ${fmtPct(a.billedRaw.pct)}${fmtCi(a.billedRaw.pctCi95, fmtPct)} |`,
-    `| Δ output tokens | ${fmtPct(a.output.pct)}${fmtCi(a.output.pctCi95, fmtPct)} |`,
-    `| Δ billed tokens per task, cache-read at 0.1× | **${fmtTok(a.billedWeighted.mean)}**${fmtCi(a.billedWeighted.ci95, fmtTok)} |`,
-    `| Pass rate, with plugin | ${a.passA}/${r.n} |`,
-    `| Pass rate, without plugin | ${a.passB}/${r.n} |`,
-    `| Guard events, with plugin | ${guard.length ? guard.map(([rule, count]) => `${rule} ${count}`).join(' · ') : 'none'} |`,
-    `| Plugin footprint, always in context | ~${compact(r.plugin.footprintTokens)} tok |`,
-    `| Total billed tokens, both arms | ${num(a.spendTokens)} tok |`,
-  ];
-}
-
 function runTables(r) {
   const a = r.aggregate;
   const microCount = r.micro ? Object.keys(r.micro).length * 2 : 0;
@@ -510,7 +492,6 @@ function runTables(r) {
     '| Aggregate | Mean Δ (with − without) | 95% CI | Δ % |', '|---|---|---|---|',
     `| Billed tokens, cache-read at 0.1× | ${Math.round(a.billedWeighted.mean)} | ${a.billedWeighted.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
     `| Billed tokens, raw | ${Math.round(a.billedRaw.mean)} | ${a.billedRaw.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedRaw.pct)}${fmtCi(a.billedRaw.pctCi95, fmtPct)} |`,
-    `| Output tokens | ${Math.round(a.output.mean)} | ${a.output.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.output.pct)}${fmtCi(a.output.pctCi95, fmtPct)} |`,
     `| Pass rate | with ${a.passA}/${r.n} · without ${a.passB}/${r.n} | — | — |`,
     `| Guard events, with plugin | ${Object.entries(a.guardEventsA).map(([k, v]) => `${k} ${v}`).join(' · ') || 'none'} | — | — |`,
     `| Billed tokens, both arms | ${num(a.spendTokens)} | — | — |`,
@@ -535,61 +516,58 @@ function runTables(r) {
   return lines;
 }
 
-function buildsTable(runs) {
-  const head = runs.map((r, i) => `build ${i + 1} · ${shortCommit(r)}`);
-  const lines = [
-    `| Task | ${runs.map((_, i) => `without, run ${i + 1}`).join(' | ')} | ${head.join(' | ')} | Pass ${head.map((_, i) => `b${i + 1}`).join(' / ')} |`,
-    `|---|${runs.map(() => '---|').join('')}${runs.map(() => '---|').join('')}---|`,
+function abVerdict(r) {
+  const a = r.aggregate;
+  const pairs = [
+    ...r.tasks.map((t) => ({ id: t.id, A: t.A, B: t.B })),
+    ...Object.values(r.micro || {}).map((m) => ({ id: m.A.task, A: m.A, B: m.B })),
   ];
-  for (const t of runs[0].tasks) {
-    const rows = runs.map((r) => r.tasks.find((x) => x.id === t.id));
-    if (rows.some((x) => !x)) continue;
-    lines.push(`| \`${t.id}\` | ${rows.map((x) => num(x.B.billedWeighted)).join(' | ')} | ${rows.map((x) => num(x.A.billedWeighted)).join(' | ')} | ${rows.map((x) => (x.A.pass ? 'yes' : 'no')).join(' / ')} |`);
-  }
-  lines.push('');
-  return lines;
+  const wins = pairs
+    .map(({ id, A, B }) => ({ id, d: A.billedWeighted - B.billedWeighted, base: B.billedWeighted }))
+    .filter((x) => x.d < 0)
+    .sort((x, y) => x.d - y.d)
+    .slice(0, 3);
+  const paid = wins.length
+    ? wins.map((x) => `**\`${x.id}\` ${fmtTok(x.d).replace(' tok', '')} (${fmtPct((x.d / x.base) * 100)})**`).join(' · ')
+    + ` billed (0.1× read); guard fired ${num(Object.values(a.guardEventsA).reduce((s, n) => s + n, 0))}×, expected-hit ${a.expectedHit}/${a.expectedTotal}`
+    : 'none this run';
+  const misses = r.tasks.filter((t) => !t.A.pass);
+  const missGuards = [...new Set(misses.flatMap((t) => Object.keys(t.A.guard)))];
+  const missNote = misses.length
+    ? `; misses ${misses.map((t) => `\`${t.id}\``).join(', ')} — blocked by ${missGuards.join('+') || 'no guard event'} (intended: destructive prompts)`
+    : '';
+  const cost = `${fmtTok(a.billedWeighted.mean)}${fmtCi(a.billedWeighted.ci95, fmtTok)}, ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)}`
+    + ` — CI includes zero; pass with ${a.passA}/${r.n}, without ${a.passB}/${r.n}${missNote}`;
+  return [`| Paid off | ${paid} |`, `| Cost | ${cost} |`];
 }
 
-function abDocBlock(r, extra = []) {
+function abDocBlock(r) {
   const status = r.dryRun ? `Not run: dry-run on ${r.generated}` : `${runLabel(r, 1)} · ${r.generated} · model \`${r.model}\` · N = ${r.n}${r.stopped ? ` · stopped: ${r.stopped}` : ''}`;
   const lines = [
     `| Status | ${status} |`, '|---|---|',
     `| Footprint | ~${compact(r.plugin.footprintTokens)} tok |`,
     `| Tokens | billed = input + cache write + cache read from transcript usage; weighted = 1× + 1.25×/2× write + 0.1× read |`,
-    ...extra.map((x, i) => `| ${runLabel(x, i + 2)} | ${x.generated} · model \`${x.model}\` · N = ${x.n}${x.stopped ? ` · stopped: ${x.stopped}` : ''} · \`${path.basename(x.file)}\` |`),
+    '| History | overwritten each run — only the current run is kept, no history files |',
+    ...abVerdict(r),
     '',
   ];
-  if (!r.dryRun) {
-    lines.push(...runTables(r));
-    extra.forEach((x, i) => {
-      lines.push(`| ${runLabel(x, i + 2)} |`, '|---|', '');
-      lines.push(...runTables(x));
-    });
-    if (extra.length) lines.push(...buildsTable([r, ...extra]));
-  }
+  if (!r.dryRun) lines.push(...runTables(r));
   lines.push('```bash', `npm run benchmark:ab -- --model ${r.model}`, '```');
   return lines;
-}
-
-function extraRuns(outFile) {
-  const dir = path.join(REPO, 'tooling', 'results');
-  return readdirSync(dir).filter((name) => /^ab-results-.*\.json$/.test(name)).sort()
-    .map((name) => path.join(dir, name)).filter((file) => file !== outFile)
-    .map((file) => ({ ...JSON.parse(readFileSync(file, 'utf8')), file }));
 }
 
 const gitAt = (cwd, args) => (spawnSync('git', args, { cwd, encoding: 'utf8' }).stdout || '').trim() || null;
 
 const abPluginDir = (opts) => path.resolve(opts.pluginDir || path.join(REPO, 'plugins', 'handoff-os'));
 
-function writeAbBlocks(result, outFile) {
-  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result, extraRuns(outFile)))}`);
+function writeAbBlocks(result) {
+  console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result))}`);
 }
 
 function ab(opts) {
   if (opts.render) {
     const outFile = path.resolve(REPO, opts.out);
-    writeAbBlocks(JSON.parse(readFileSync(outFile, 'utf8')), outFile);
+    writeAbBlocks(JSON.parse(readFileSync(outFile, 'utf8')));
     return 0;
   }
   const tasksFile = path.resolve(REPO, opts.tasks);
@@ -676,7 +654,7 @@ function ab(opts) {
     console.log(`  Δ billed (0.1× read) ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} · Δ per task ${fmtTok(a.billedWeighted.mean)}${fmtCi(a.billedWeighted.ci95, fmtTok)} · pass with ${a.passA}/${rows.length}, without ${a.passB}/${rows.length}`);
     console.log(`  expected guard class hit on ${a.expectedHit}/${a.expectedTotal} provoking tasks · neutral tasks untouched ${a.neutralClean}/${a.neutralTotal} · billed ${num(spend)} tok${stopped ? ` · ${stopped}` : ''}`);
   }
-  if (!path.relative(REPO, outFile).startsWith('..')) writeAbBlocks(result, outFile);
+  if (!path.relative(REPO, outFile).startsWith('..')) writeAbBlocks(result);
   return stopped ? 1 : 0;
 }
 

@@ -1,5 +1,13 @@
 export const MAX_PER_WAVE = 3;
-export const WAVE_MS = 90 * 1000;
+export const WAVE_MS = 60 * 1000;
+export const waveCap = (raw = process.env.HANDOFF_MAX_PER_WAVE) => {
+  const n = Math.floor(Number(raw));
+  return Number.isInteger(n) && n > 0 ? n : MAX_PER_WAVE;
+};
+export const waveWindow = (raw = process.env.HANDOFF_WAVE_MS) => {
+  const n = Math.floor(Number(raw));
+  return Number.isInteger(n) && n > 0 ? n : WAVE_MS;
+};
 export const THINK_ESCALATION = /\b(?:ultrathink|megathink|think\s+(?:hard(?:er)?|deeply)|(?:reasoning[-_ ]?)?effort\s*[=:]\s*(?:high|xhigh|max))\b/i;
 export const WORKFLOW_AGENT_CALL = /(?<![.\w$])agent\s*\(/g;
 export const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)\s*\(/;

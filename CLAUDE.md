@@ -15,7 +15,7 @@ Two trees: `plugins/handoff-os/` ships, `tooling/` never does.
 | `tooling/cli/` | `handoff.mjs`, the maintainer CLI. Generators `generate.mjs`, `figures.mjs`. |
 | `tooling/benchmark/` | `benchmark.mjs`, the harness. `baselines.mjs`, the four comparators. `fixture/`, the throwaway repo the A/B and flood runs copy. |
 | `tooling/corpus/` | `guard-corpus.jsonl`, the labelled corpus. `tasks.jsonl`, the A/B tasks. |
-| `tooling/results/` | Generated. `scores.json` feeds the README badges, `flood-results.json` the README figure, `ab-results*.json` the cost range. |
+| `tooling/results/` | Generated. `scores.json` feeds the README badges, `flood-results.json` the README figure, `ab-results.json` the current cost — overwritten each run, no history. |
 | `tooling/test/` | One file, `guard.test.mjs`. Node built-in runner. |
 | `tooling/settings/` | `policy.json`, permission rules, one `deny` list. Rules cannot ship inside a plugin. |
 | `docs/` | Generated manifest and SVG figures, Claude Code reference, benchmark method. |

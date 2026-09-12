@@ -121,11 +121,21 @@ export function writeBlock(file, open, close, lines) {
   return `refreshed ${path.basename(file)}`;
 }
 
+export const FLOW = [
+  'guard.mjs',
+  'verify.mjs',
+  'lib/patterns.mjs',
+  'lib/shell.mjs',
+  'lib/writes.mjs',
+  'lib/mcp.mjs',
+  'lib/dispatch.mjs',
+  'lib/reads.mjs',
+];
+
 export function inventory(root = REPO) {
   const plugin = path.join(root, 'plugins', 'handoff-os');
-  const scripts = walk(path.join(plugin, 'scripts')).filter((f) => f.endsWith('.mjs'));
   let lines = 0;
-  for (const file of scripts) {
+  for (const file of FLOW) {
     const text = readFileSync(path.join(plugin, 'scripts', file), 'utf8').replace(/\r?\n$/, '');
     lines += text === '' ? 0 : text.split(/\r?\n/).length;
   }
@@ -146,7 +156,7 @@ export function inventory(root = REPO) {
     agents: agents.length,
     hookEvents: events.length,
     hookHandlers: handlers,
-    scripts: scripts.length,
+    scripts: FLOW.length,
     logicLines: lines,
     patterns,
     dependencies: Object.keys(pkg.dependencies || {}).length,
@@ -161,7 +171,8 @@ export function inventory(root = REPO) {
 function inventoryBlock(inv = inventory()) {
   return [
     table(['What ships', 'Count'], [
-      `| Guard logic | **${inv.logicLines}** lines of Node across ${inv.scripts} scripts |`,
+      `| Guard logic, agent-affecting only | **${inv.logicLines}** lines across ${inv.scripts} flow files |`,
+      '| Stats, receipts, adapters (`audit`, `card`, `bridge`, `ledger`, `transcript`) | excluded from the count |',
       `| Pattern rules | **${inv.patterns}** |`,
       `| Hooks | **${inv.hookHandlers}** handlers on ${inv.hookEvents} events |`,
       `| Skills | **${inv.skills}** |`,

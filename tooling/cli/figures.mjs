@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { COUNTERS, bank, load, save, sessionLine } from '../../plugins/handoff-os/scripts/lib/ledger.mjs';
@@ -102,11 +102,18 @@ export function writeFlood(r) {
 }
 
 function abRange() {
-  const dir = path.join(REPO, 'tooling', 'results');
-  const pcts = readdirSync(dir).filter((f) => /^ab-results.*\.json$/.test(f))
-    .map((f) => JSON.parse(readFileSync(path.join(dir, f), 'utf8')).aggregate?.billedWeighted?.pct)
-    .filter((x) => typeof x === 'number').map(Math.round);
-  return pcts.length ? `+${Math.min(...pcts)}–${Math.max(...pcts)}%` : 'n/a';
+  const file = path.join(REPO, 'tooling', 'results', 'ab-results.json');
+  let pct;
+  try { pct = JSON.parse(readFileSync(file, 'utf8')).aggregate?.billedWeighted?.pct; } catch { pct = null; }
+  return typeof pct === 'number' ? `${pct > 0 ? '+' : ''}${Math.round(pct)}%` : 'n/a';
+}
+
+function fanoutWin() {
+  try {
+    const m = readJson('tooling', 'results', 'ab-results.json').micro['micro-b'];
+    const pct = Math.round(((m.A.billedWeighted - m.B.billedWeighted) / m.B.billedWeighted) * 100);
+    return [`${pct}%`, 'billed on subagent fan-out'];
+  } catch { return ['n/a', 'billed on subagent fan-out']; }
 }
 
 function tiles(r, scores = readJson('tooling', 'results', 'scores.json')) {
@@ -117,15 +124,10 @@ function tiles(r, scores = readJson('tooling', 'results', 'scores.json')) {
       ['git · rm', 'destructive calls'],
       ['"Done"', 'no verification run'],
     ],
-    counts: [
+    wins: [
       [String(held(r)), 'subagents held back'],
       [`${scores.keptPct}%`, 'read volume kept out'],
-      ['Receipt', 'printed at Stop'],
-    ],
-    proof: [
-      [`${scores.recall}%`, 'of the corpus caught'],
-      [`${scores.fpRate}%`, 'wrongly blocked'],
-      [String(scores.cases), 'labelled cases, gated in CI'],
+      fanoutWin(),
     ],
     cost: [
       [abRange(), 'tokens on ordinary tasks'],

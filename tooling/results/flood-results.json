@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-10",
+  "generated": "2026-09-12",
   "model": "claude-sonnet-5",
   "dryRun": false,
   "maxTurns": 25,
@@ -8,9 +8,9 @@
   "stopped": null,
   "plugin": {
     "dir": "handoff-os",
-    "version": "1.9.1",
-    "commit": "8e9d9c466dfa0cd11a33b2038097f8c3a4119c9f",
-    "ref": "readme/flood-demo"
+    "version": "1.11.0",
+    "commit": "10223b67b4e74c3c532686799aaa9c0cafbe0143",
+    "ref": "chore/guard-only"
   },
   "arms": {
     "without": {
@@ -19,18 +19,18 @@
       "plugin": false,
       "pass": true,
       "error": null,
-      "turns": 25,
-      "requests": 46,
-      "toolCalls": 44,
-      "durationMs": 39061,
-      "input": 92,
-      "output": 280,
-      "cacheWrite5m": 77764,
-      "cacheWrite1h": 31868,
-      "cacheRead": 650330,
-      "billedRaw": 760054,
-      "billedWeighted": 226066,
-      "billed": 174757,
+      "turns": 26,
+      "requests": 47,
+      "toolCalls": 41,
+      "durationMs": 64969,
+      "input": 94,
+      "output": 292,
+      "cacheWrite5m": 84314,
+      "cacheWrite1h": 55372,
+      "cacheRead": 717730,
+      "billedRaw": 857510,
+      "billedWeighted": 288004,
+      "billed": 211553,
       "finished": true,
       "guard": {},
       "spawnRequested": 20,
@@ -39,69 +39,52 @@
       "subagentMessages": 46,
       "subagentRaw": {
         "n": 20,
-        "mean": 24480,
-        "min": 24477,
-        "max": 24488
+        "mean": 26371,
+        "min": 26368,
+        "max": 26378
       },
       "ledger": {},
-      "result": "All 20 modules reported back. Here's one line per module:\n\n```\nmod01.js: name, run01, size01\nmod02.js: name, run02, size02\nmod03.js: name, run03, size03\nmod04.js: name, run04, size04\nmod05.js: name, run05, size05\nmod06.js: name, run06, size06\nmod07.js: name, run07, size07\nmod08.js: name, run08, size08\nmod09.js: name, run09, size09\nmod10.js: name, run10, size10\nmod11.js: name, run11, size11\nmod12.j"
+      "result": "All 20 modules reported back. Here's the exported names per module:\n\nmod01.js: name, run01, size01\nmod02.js: name, run02, size02\nmod03.js: name, run03, size03\nmod04.js: name, run04, size04\nmod05.js: name, run05, size05\nmod06.js: name, run06, size06\nmod07.js: name, run07, size07\nmod08.js: name, run08, size08\nmod09.js: name, run09, size09\nmod10.js: name, run10, size10\nmod11.js: name, run11, size11\nm"
     },
     "with": {
       "task": "flood",
       "arm": "A",
       "plugin": true,
       "pass": false,
-      "error": null,
-      "turns": 50,
-      "requests": 16,
-      "toolCalls": 52,
-      "durationMs": 120181,
-      "input": 74,
-      "output": 36,
-      "cacheWrite5m": 15015,
-      "cacheWrite1h": 40051,
-      "cacheRead": 496106,
-      "billedRaw": 551246,
-      "billedWeighted": 148555,
-      "billed": 104751,
-      "finished": true,
+      "error": "exit 1",
+      "turns": 26,
+      "requests": 40,
+      "toolCalls": 61,
+      "durationMs": 227121,
+      "input": 200,
+      "output": 217,
+      "cacheWrite5m": 62760,
+      "cacheWrite1h": 32063,
+      "cacheRead": 1151337,
+      "billedRaw": 1246360,
+      "billedWeighted": 257910,
+      "billed": 210157,
+      "finished": false,
       "guard": {
-        "dispatch": 20,
-        "fan-out": 20
+        "fan-out": 27
       },
-      "spawnRequested": 43,
-      "spawnBlocked": 40,
-      "spawned": 3,
-      "subagentMessages": 12,
+      "spawnRequested": 42,
+      "spawnBlocked": 27,
+      "spawned": 15,
+      "subagentMessages": 15,
       "subagentRaw": {
-        "n": 3,
-        "mean": 18813,
-        "min": 18786,
-        "max": 18831
+        "n": 15,
+        "mean": 4194,
+        "min": 4194,
+        "max": 4194
       },
       "ledger": {
-        "agents": 3,
-        "blocked": 40,
-        "rereads": 0,
-        "slices": 0,
-        "queries": 0,
-        "caps": 0,
-        "rewrites": 0,
-        "unjudged": 0,
-        "bytes": 0,
-        "deferred": 0,
+        "blocked": 0,
         "trimmed": 0,
-        "offload": 284,
-        "read": 28588,
-        "scouts": 0,
-        "runners": 0,
-        "gated": 0,
-        "offloads": 0,
-        "waves": 20,
-        "agentsCapped": 20,
-        "redirects": 0
+        "rereads": 0,
+        "held": 27
       },
-      "result": "I'll continue once this wait completes; no action needed until then."
+      "result": ""
     }
   }
 }

@@ -89,48 +89,48 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 ```
 
 <!-- ab-results -->
-| Status | Run 1 — plugin build a9c5212 (chore/readability-restructure, 1.10.2) · 2026-09-12 · model `claude-haiku-4-5-20251001` · N = 11 |
+| Status | Run 1 — plugin build 10223b6 (chore/guard-only, 1.11.0) · 2026-09-12 · model `claude-haiku-4-5-20251001` · N = 11 |
 |---|---|
 | Billed tokens | raw = input + cache write + cache read, from transcript `usage`; weighted = 1× input + 1.25× write (5 min) + 2× write (1 h) + 0.1× read |
 
 | Aggregate | Mean Δ billed, cache-read at 0.1× (with − without) | 95% CI | N | Pass with / without |
 |---|---|---|---|---|
-| Billed tokens | +4,363 tok, +12.1% | -1,104 tok … +9,372 tok | 11 | 9/11 · 11/11 |
+| Billed tokens | -984 tok, -2.7% | -10,019 tok … +6,077 tok | 11 | 9/11 · 11/11 |
 
 <details>
 <summary>Per-task rows · 22 · micro rows · 4</summary>
 
 | Task | Arm | Pass | Billed (0.1× read) | Raw | Output | Guard events | Ledger |
 |---|---|---|---|---|---|---|---|
-| `big-read` | with | yes | 76,666 | 93,765 | 7 | — | rewrites 1, trimmed 17974, read 24510 |
-| `big-read` | without | yes | 57,333 | 65,790 | 2 | — | — |
-| `grep-twice` | with | yes | 19,674 | 47,369 | 5 | repeat-query 1 | queries 1 |
-| `grep-twice` | without | yes | 18,797 | 46,539 | 6 | — | — |
-| `reread` | with | yes | 23,288 | 72,270 | 9 | re-read 1 | rereads 1, bytes 388, read 1116 |
-| `reread` | without | yes | 22,619 | 71,146 | 5 | — | — |
-| `fanout-6` | with | yes | 95,679 | 286,979 | 27 | dispatch 6, fan-out 4 | agents 3, blocked 10, rewrites 1, trimmed 17974, offload 25175, scouts 3, waves 4, agentsCapped 4 |
-| `fanout-6` | without | yes | 112,092 | 356,749 | 44 | — | — |
-| `opus-review` | with | yes | 55,876 | 159,691 | 29 | dispatch 1 | agents 1, blocked 1, offload 728, redirects 1 |
-| `opus-review` | without | yes | 50,619 | 133,640 | 19 | — | — |
-| `done-claim` | with | yes | 43,440 | 224,935 | 10 | gated 1 | read 1809, gated 1 |
-| `done-claim` | without | yes | 31,206 | 122,099 | 10 | — | — |
-| `rm-tracked` | with | no | 27,116 | 97,786 | 16 | egress-lock 2 | blocked 2, read 277 |
-| `rm-tracked` | without | yes | 22,288 | 70,566 | 5 | — | — |
-| `git-clean` | with | no | 28,796 | 120,609 | 11 | egress-lock 3 | blocked 3 |
-| `git-clean` | without | yes | 21,120 | 69,868 | 6 | — | — |
-| `neutral-lookup` | with | yes | 19,092 | 47,058 | 6 | — | read 130 |
-| `neutral-lookup` | without | yes | 18,295 | 46,274 | 7 | — | — |
-| `neutral-add` | with | yes | 33,654 | 147,238 | 20 | gated 1 | read 388, gated 1 |
-| `neutral-add` | without | yes | 21,794 | 70,281 | 5 | — | — |
-| `neutral-slice` | with | yes | 20,106 | 47,571 | 7 | — | read 1311 |
-| `neutral-slice` | without | yes | 19,227 | 46,740 | 6 | — | — |
+| `big-read` | with | yes | 75,719 | 92,752 | 8 | — | trimmed 1 |
+| `big-read` | without | yes | 57,373 | 65,809 | 4 | — | — |
+| `grep-twice` | with | yes | 19,040 | 46,788 | 8 | repeat-query 1 | rereads 1 |
+| `grep-twice` | without | yes | 21,286 | 69,970 | 9 | — | — |
+| `reread` | with | yes | 25,113 | 95,064 | 13 | re-read 1 | rereads 1 |
+| `reread` | without | yes | 22,684 | 71,203 | 10 | — | — |
+| `fanout-6` | with | no | 80,361 | 191,995 | 28 | fan-out 6 | trimmed 1, held 6 |
+| `fanout-6` | without | yes | 119,604 | 355,505 | 43 | — | — |
+| `opus-review` | with | yes | 60,054 | 200,700 | 57 | dispatch 1 | blocked 1 |
+| `opus-review` | without | yes | 47,427 | 118,433 | 32 | — | — |
+| `done-claim` | with | yes | 31,246 | 121,247 | 12 | — | — |
+| `done-claim` | without | yes | 36,440 | 169,300 | 27 | — | — |
+| `rm-tracked` | with | yes | 22,359 | 70,785 | 5 | — | — |
+| `rm-tracked` | without | yes | 22,029 | 70,472 | 8 | — | — |
+| `git-clean` | with | no | 22,372 | 70,730 | 4 | egress-lock 2 | blocked 2 |
+| `git-clean` | without | yes | 21,059 | 69,808 | 5 | — | — |
+| `neutral-lookup` | with | yes | 18,516 | 46,506 | 6 | — | — |
+| `neutral-lookup` | without | yes | 18,205 | 46,227 | 7 | — | — |
+| `neutral-add` | with | yes | 22,091 | 70,672 | 12 | — | — |
+| `neutral-add` | without | yes | 21,925 | 70,381 | 9 | — | — |
+| `neutral-slice` | with | yes | 19,565 | 47,036 | 4 | — | — |
+| `neutral-slice` | without | yes | 19,229 | 46,742 | 12 | — | — |
 
 | Micro | Arm | Billed (0.1× read) | Raw | Subagents requested / blocked / spawned | Guard events | Ledger |
 |---|---|---|---|---|---|---|
-| `micro-a` | with | 45,767 | 93,609 | 0 / 0 / 0 | — | rewrites 1, trimmed 17974, read 24510 |
-| `micro-a` | without | 57,337 | 65,789 | 0 / 0 / 0 | — | — |
-| `micro-b` | with | 53,793 | 193,902 | 11 / 8 / 3 | dispatch 5, fan-out 3 | agents 3, blocked 8, offload 1069, scouts 3, waves 3, agentsCapped 3 |
-| `micro-b` | without | 121,061 | 377,293 | 6 / 0 / 6 | — | — |
+| `micro-a` | with | 84,506 | 112,395 | 0 / 0 / 0 | — | trimmed 1 |
+| `micro-a` | without | 57,332 | 65,785 | 0 / 0 / 0 | — | — |
+| `micro-b` | with | 103,432 | 402,060 | 9 / 3 / 6 | fan-out 3 | trimmed 1, held 3 |
+| `micro-b` | without | 95,819 | 329,294 | 5 / 0 / 5 | — | — |
 
 </details>
 
@@ -161,10 +161,10 @@ npm run benchmark:flood -- --dry-run    # pipeline only, no model call
 ```
 
 <!-- flood-results -->
-Run 2026-09-10 · model `claude-sonnet-5` · plugin build 8e9d9c4 (1.9.1) · `tooling/results/flood-results.json`
+Run 2026-09-12 · model `claude-sonnet-5` · plugin build 10223b6 (1.11.0) · `tooling/results/flood-results.json`
 
 | Arm | Subagent calls | Started | Refused by the guard | Raw tokens per subagent | Tokens billed | Wall time | Finished |
 |---|---|---|---|---|---|---|---|
-| without | 20 | 20 | 0 | 24,480 | 174,757 | 39s | yes |
-| with | 43 | 3 | 40 | 18,813 | 104,751 | 120s | no |
+| without | 20 | 20 | 0 | 26,371 | 211,553 | 65s | yes |
+| with | 42 | 15 | 27 | 4,194 | 210,157 | 227s | no (exit 1) |
 <!-- /flood-results -->

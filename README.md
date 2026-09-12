@@ -29,7 +29,7 @@ Claude Code can launch 20 subagents in one turn. A 5-hour window goes in seconds
 The hook caps each wave at 3 and queues the rest.
 
 <!-- handoff-flood -->
-<img src="docs/flood.svg" width="720" alt="20 subagents requested. Without the guard 20 start at once; with it 3 start and the rest wait for the next wave.">
+<img src="docs/flood.svg" width="720" alt="20 subagents requested. Without the guard 20 start at once; with it 15 start and the rest wait for the next wave.">
 <!-- /handoff-flood -->
 
 ## Install

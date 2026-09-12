@@ -6,9 +6,7 @@
 
 | Skill | Description chars, always in context | Body lines, on use |
 |---|---|---|
-| `plan-session` | 85 | 87 |
-| `research-budget` | 101 | 70 |
-| `task-loop` | 75 | 44 |
+| `research-budget` | 97 | 19 |
 
 ## Agents
 
@@ -33,7 +31,7 @@
 | Stats, receipts, adapters (`audit`, `card`, `bridge`, `ledger`, `transcript`) | excluded from the count |
 | Pattern rules | **36** |
 | Hooks | **3** handlers on 3 events |
-| Skills | **3** |
+| Skills | **1** |
 | Subagents | **2** |
 | Third-party packages | **0** |
 | Network calls, API keys, model calls | **0** |

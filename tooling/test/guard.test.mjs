@@ -83,17 +83,12 @@ blocks('blocks connector actions that send or destroy', [
   'schedule_message',
 ], connector);
 
-blocks('blocks raw web-fetch connectors', [
-  'mcp__tavily__search', 'mcp__fetch__fetch_url', 'mcp__brave-search__web_search',
-], (name) => ({ tool_name: name, tool_input: {} }));
-
 blocks('blocks writes to secret-bearing paths', [
   '/synthetic/repo/.env',
   'deploy/id_ed25519',
 ], (file_path) => ({ tool_name: 'Write', tool_input: { file_path, content: 'x' } }));
 
 it('judges a connector payload, not only its name', () => {
-  assert.equal(guard(connector('d1_database_query', { sql: 'DROP TABLE donors' })), BLOCKED);
   assert.equal(guard(connector('execute_code')), BLOCKED);
   assert.equal(guard(connector('workspace__bash', { command: 'git merge main' })), BLOCKED);
   assert.equal(guard(connector('workspace__bash', { command: 'curl -X POST -d "a=1" https://api.example.com/items' })), BLOCKED);

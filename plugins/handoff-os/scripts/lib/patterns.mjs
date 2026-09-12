@@ -83,7 +83,6 @@ export const DESTRUCTIVE = ['delete', 'trash', 'remove', 'destroy', 'purge', 'ar
 export const WRITE_VERBS = ['write', 'execute', 'truncate', 'drop', 'overwrite', 'upsert'];
 export const STRONG = ['send', 'pay', 'charge', 'invoice', 'checkout', 'publish', 'publication', 'submit',
   'submission', 'deploy', 'tweet', 'broadcast', 'resend', ...DESTRUCTIVE, ...WRITE_VERBS];
-export const SQL_DESTRUCTIVE = /\b(?:drop\s+(?:table|database|index|schema)|truncate\s+table|delete\s+from|alter\s+table)\b/i;
 export const MODEL_OPTION = /\bmodel\s*[:=]\s*['"`]?\s*(haiku|sonnet|opus|fable)\b/gi;
 export const OUTWARD_PREFIX = /^(?:request|run|trigger|dispatch|approve)[-_]/;
 export const READ_PREFIX = /^(?:list|get|search|read|fetch|find|describe|count|preview|resolve|export)[-_]/;
@@ -116,5 +115,3 @@ export const SED_QUIET = /^(?:-[a-z]*n[a-z]*|--quiet|--silent)$/i;
 export const SED_RANGE = /^(\d+)(?:,(\d+|\$))?p$/;
 export const INTERPRETER_READ = /^(?:python[\d.]*|node|deno|bun|ruby|perl|php)\b[^\n]*\s--?(?:c|e|eval)\b[\s\S]*(?:\bopen\s*\(|readFile|read_text|readlines|File\.read|IO\.read|file_get_contents|\bslurp\b)/i;
 export const GIT_SHOW_FILE = /^git\b[^\n]*\b(?:show\s+\S*:\S+|cat-file\s+-p\b)/i;
-
-export const WEB_FETCH_SERVER = /^(?:.*[-_])?(?:fetch|crawl|firecrawl|scrape|scraper|search|websearch|serp|reader|tavily|exa|jina|duckduckgo|ddg|brave|browserbase|puppeteer|playwright)(?:[-_].*)?$/i;

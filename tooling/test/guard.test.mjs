@@ -202,7 +202,7 @@ describe('session receipt', () => {
     const receipt = () => spawnSync(process.execPath, [RECEIPT], {
       input: JSON.stringify({ cwd: root, session_id: 'rc', hook_event_name: 'Stop' }), encoding: 'utf8', env,
     }).stdout;
-    assert.match(receipt(), /"systemMessage":"HANDOFF OS · 1 blocked"/);
+    assert.match(receipt(), /"systemMessage":"handoff-os · 1 blocked"/);
     assert.equal(receipt(), '');
   });
 });

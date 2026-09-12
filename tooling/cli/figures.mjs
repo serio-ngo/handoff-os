@@ -2,17 +2,14 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { COUNTERS, bank, load, save, sessionLine } from '../../plugins/handoff-os/scripts/lib/ledger.mjs';
 import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
 import { num, secs } from './format.mjs';
 import { PLUGIN, REPO, readJson, writeBlock } from './generate.mjs';
 
 const INK = '#7d8590';
 const HUE = { without: '#d95926', with: '#2a78d6' };
-const DEMO_AGENTS = 100;
 const DEMO_FILE_BYTES = 35 * 1024;
 const DEMO_LINE_BYTES = 64;
-const DEMO_HISTORY = 8;
 
 const DEMO_OPEN = '<!-- handoff-demo -->';
 const DEMO_CLOSE = '<!-- /handoff-demo -->';
@@ -173,38 +170,31 @@ function probe() {
   mkdirSync(path.dirname(big), { recursive: true });
   writeFileSync(big, `${'x'.repeat(DEMO_LINE_BYTES - 1)}\n`.repeat(DEMO_FILE_BYTES / DEMO_LINE_BYTES), 'utf8');
 
-  const fire = (tool_name, tool_input, { session = 'demo', agent_type } = {}) => {
-    const run = spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', 'guard.mjs')], {
-      input: JSON.stringify({ hook_event_name: 'PreToolUse', session_id: session, cwd: root, tool_name, tool_input, agent_type }),
-      encoding: 'utf8',
-      env: { ...process.env, HANDOFF_OS_DIR: root },
-    });
+  const hook = (script, payload) => spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', script)], {
+    input: JSON.stringify({ session_id: 'demo', cwd: root, ...payload }), encoding: 'utf8', env: { ...process.env, HANDOFF_OS_DIR: root },
+  });
+  const fire = (tool_name, tool_input) => {
+    const run = hook('guard.mjs', { hook_event_name: 'PreToolUse', tool_name, tool_input });
     if (run.status === 2) return { blocked: true, verdict: run.stderr.trim() };
     if (run.status !== 0) throw new Error(`guard exited ${run.status}: ${run.stderr}`);
     return { blocked: false, verdict: run.stdout ? JSON.parse(run.stdout).hookSpecificOutput.permissionDecisionReason : '' };
   };
 
-  // all-time is earlier sessions of this root, banked the way the Stop hook banks them
-  for (let i = 0; i < DEMO_HISTORY; i += 1) {
-    const session = `turn${i}`;
-    fire('Bash', { command: `cat -n ${big}` }, { session });
-    fire('Read', { file_path: big }, { session, agent_type: 'handoff-os:scout' });
-    fire('Agent', { model: 'opus', prompt: 'review the diff' }, { session });
-    const state = load(root, session);
-    bank(state);
-    for (const key of COUNTERS) state.saved[key] = 0;
-    save(root, session, state);
-  }
-
   const steps = [
     ['Read src/big.js · 35 KB', 'Read', { file_path: big }],
-    [`Workflow · ${DEMO_AGENTS} agents`, 'Workflow', { script: `// AGENTS: ${DEMO_AGENTS}\nawait parallel(mods.map((m) => () => agent(m)))` }],
     ['Agent model:opus · "review the diff"', 'Agent', { model: 'opus', prompt: 'review the diff' }],
-    ['gmail send_message', 'mcp__gmail__send_message', { to: 'board@example.org' }],
     ['Agent model:sonnet · "review src/parse.js"', 'Agent', { model: 'sonnet', prompt: 'review src/parse.js' }],
-  ].map(([label, tool, input]) => ({ label, ...fire(tool, input) }));
+    [`Agent ×${MAX_PER_WAVE - 1} model:haiku · "summarize one module each"`, 'Agent', { model: 'haiku', prompt: 'summarize one module' }, MAX_PER_WAVE - 1],
+    [`Agent model:haiku · number ${MAX_PER_WAVE + 1} in the same wave`, 'Agent', { model: 'haiku', prompt: 'summarize one more' }],
+    ['gmail send_message', 'mcp__gmail__send_message', { to: 'board@example.org' }],
+  ].map(([label, tool, input, times = 1]) => {
+    let last;
+    for (let i = 0; i < times; i += 1) last = fire(tool, input);
+    return { label, ...last };
+  });
 
-  const receipt = sessionLine(load(root, 'demo'), root, 'demo');
+  const stop = hook('receipt.mjs', { hook_event_name: 'Stop' });
+  const receipt = stop.stdout ? JSON.parse(stop.stdout).systemMessage : '';
   rmSync(root, { recursive: true, force: true });
   return { steps, receipt };
 }

@@ -8,7 +8,7 @@ export class Blocked extends Error {}
 export function deniedModel(input, denied = deniedSubagentRx(process.env.HANDOFF_DENY_SUBAGENT_MODELS ?? DENY_SUBAGENT_DEFAULT)) {
   const selected = [...String(input.script ?? '').matchAll(MODEL_OPTION)].map((hit) => hit[1]);
   const hit = (String(input.model || '').match(denied) || [])[0] || selected.find((tier) => denied.test(tier));
-  return hit ? `blocked a ${hit.toLowerCase()} subagent` : null;
+  return hit ? `model ${hit.toLowerCase()} is denied for subagents (HANDOFF_DENY_SUBAGENT_MODELS)` : null;
 }
 
 function claimSlot(dir, bucket, cap) {
@@ -27,6 +27,6 @@ export function fanOutCap(payload) {
   const dir = path.join(rootOf(payload), '.claude', `.wave-${sessionOf(payload)}`);
   const slot = claimSlot(dir, Math.floor(Date.now() / waveWindow()), cap);
   if (slot <= cap) return;
-  bump(payload, 'agentsCapped');
-  throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${cap}\n`);
+  bump(payload, 'held');
+  throw new Blocked(`FAN-OUT CAP: subagent ${slot}, wave capped at ${cap} (HANDOFF_MAX_PER_WAVE)\n`);
 }

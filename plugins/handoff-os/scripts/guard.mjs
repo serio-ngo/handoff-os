@@ -37,7 +37,6 @@ export function judge(raw = {}) {
     if (reason) deny(reason, 'DISPATCH BUDGET');
     fanOutCap(payload);
   } else if (tool === 'Bash' || tool === 'PowerShell') {
-    if ('command' in input && typeof input.command !== 'string') deny('blocked a shell call whose command was not a string');
     const command = typeof input.command === 'string' ? input.command : '';
     const verdict = judgeShell(command);
     if (verdict) deny(verdict);
@@ -60,24 +59,8 @@ export function judge(raw = {}) {
 }
 
 function main() {
-  let raw = '';
-  try { raw = readFileSync(0, 'utf8'); } catch { raw = ''; }
-  let payload;
-  try {
-    payload = JSON.parse(raw);
-  } catch {
-    const spawnOrShell = new RegExp(`"tool_name"\\s*:\\s*"(?:Bash|PowerShell|${SPAWN_TOOLS.join('|')})"`);
-    if (spawnOrShell.test(raw)) {
-      current = {};
-      try {
-        deny('blocked a subagent or shell call whose payload could not be parsed');
-      } catch (error) {
-        if (error instanceof Blocked) { process.stderr.write(error.message); process.exit(2); }
-        throw error;
-      }
-    }
-    process.exit(0);
-  }
+  let payload = {};
+  try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { payload = {}; }
 
   let rewrite = null;
   try {

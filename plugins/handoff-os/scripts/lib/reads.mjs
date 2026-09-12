@@ -58,7 +58,7 @@ export function readBudget(payload, input, rewritable = false) {
   if (rewritable && stats.size > BIG_FILE_BYTES) {
     const avg = lineLength(file, stats.size);
     trim = { name, size: stats.size, lines: Math.max(1, Math.floor(BIG_FILE_BYTES / (avg || stats.size))) };
-    state.saved.rewrites += 1;
+    state.saved.trimmed += 1;
   }
   save(root, session, state);
   return trim;
@@ -96,7 +96,7 @@ export function queryBudget(payload, input, tool) {
   const state = load(root, session);
   const key = `${actorOf(payload)}|q:${tool}:${JSON.stringify(input)}`;
   if (state.reads[key]) {
-    state.saved.queries += 1;
+    state.saved.rereads += 1;
     save(root, session, state);
     throw new Blocked(`READ BUDGET: this exact ${tool} already ran and nothing has been written since\n`);
   }

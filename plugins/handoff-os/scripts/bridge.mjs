@@ -1,5 +1,5 @@
 import { Blocked, judge } from './guard.mjs';
-import { report } from './receipt.mjs';
+import { receipt } from './receipt.mjs';
 
 const TOOLS = { read: 'Read', edit: 'Edit', write: 'Write', bash: 'Bash', grep: 'Grep', glob: 'Glob', task: 'TaskCreate' };
 const ALIAS = { filePath: 'file_path', oldString: 'old_string', newString: 'new_string' };
@@ -40,5 +40,5 @@ export function verdictFor(tool, args, sessionID, cwd) {
 }
 
 export function flush(sessionID, cwd = process.cwd()) {
-  report({ hook_event_name: 'Stop', session_id: String(sessionID || 'unknown'), cwd });
+  receipt({ hook_event_name: 'Stop', session_id: String(sessionID || 'unknown'), cwd });
 }

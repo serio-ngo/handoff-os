@@ -15,7 +15,7 @@
 [![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.dependencies&label=dependencies&color=2da44e)](package.json)
 
 <!-- handoff-demo -->
-<img src="docs/demo.svg" width="1036" alt="handoff-os session: Read src/big.js · 35 KB → HANDOFF OS: big.js is 35KB; trimmed to its first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 subagents requested, wave capped at 3 · Agent model:opus · &quot;review the diff&quot; → DISPATCH BUDGET: blocked an opus review · gmail send_message → EGRESS LOCK: blocked mcp__gmail__send_message — &quot;send&quot; leaves the org or destroys a record · Agent model:sonnet · &quot;review src/parse.js&quot;, allowed · HANDOFF OS · 1 trimmed · 100 held · 1 redirected · 1 blocked · 1 used · ~2,816 tok kept out (31%) · all-time ~146.2k tok">
+<img src="docs/demo.svg" width="807" alt="handoff-os session: Read src/big.js · 35 KB → HANDOFF OS: big.js is 35KB; trimmed to its first 384 lines · Agent model:opus · &quot;review the diff&quot; → DISPATCH BUDGET: model opus is denied for subagents (HANDOFF_DENY_SUBAGENT_MODELS) · Agent model:sonnet · &quot;review src/parse.js&quot;, allowed · Agent ×2 model:haiku · &quot;summarize one module each&quot;, allowed · Agent model:haiku · number 4 in the same wave → FAN-OUT CAP: subagent 4, wave capped at 3 (HANDOFF_MAX_PER_WAVE) · gmail send_message → EGRESS LOCK: blocked mcp__gmail__send_message — &quot;send&quot; sends outward or destroys a record · handoff-os · 2 blocked · 1 trimmed · 1 held">
 <!-- /handoff-demo -->
 
 <sub>[Install](#install) · [What it does](#what-it-does) · [Proof](#proof) · [Method](docs/BENCHMARK.md) · [Contributing](CONTRIBUTING.md)</sub>

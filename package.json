@@ -18,7 +18,6 @@
   },
   "scripts": {
     "test": "node --test",
-    "verify": "node --test",
     "setup": "node tooling/cli/handoff.mjs setup",
     "sync": "node tooling/cli/handoff.mjs sync",
     "install:plugin": "node tooling/cli/handoff.mjs install",
@@ -26,10 +25,8 @@
     "upkeep:check": "node tooling/cli/handoff.mjs upkeep --check",
     "doctor": "node tooling/cli/handoff.mjs doctor",
     "release": "node tooling/cli/handoff.mjs release",
-    "benchmark": "node tooling/benchmark/benchmark.mjs",
     "benchmark:eval": "node tooling/benchmark/benchmark.mjs --eval",
     "benchmark:compare": "node tooling/benchmark/benchmark.mjs --eval --compare --write",
-    "benchmark:replay": "node tooling/benchmark/benchmark.mjs --replay --write",
     "benchmark:ab": "node tooling/benchmark/benchmark.mjs ab",
     "benchmark:flood": "node tooling/benchmark/benchmark.mjs flood"
   }

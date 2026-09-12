@@ -123,7 +123,6 @@ export function writeBlock(file, open, close, lines) {
 
 export const FLOW = [
   'guard.mjs',
-  'verify.mjs',
   'lib/patterns.mjs',
   'lib/shell.mjs',
   'lib/writes.mjs',

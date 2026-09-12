@@ -1,5 +1,5 @@
 import { Blocked, judge } from './guard.mjs';
-import { report } from './verify.mjs';
+import { report } from './receipt.mjs';
 
 const TOOLS = { read: 'Read', edit: 'Edit', write: 'Write', bash: 'Bash', grep: 'Grep', glob: 'Glob', task: 'TaskCreate' };
 const ALIAS = { filePath: 'file_path', oldString: 'old_string', newString: 'new_string' };

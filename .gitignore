@@ -1,5 +1,3 @@
-.claude/.verified-*
-.claude/.verify-gate-count-*
 .claude/.session-*
 .claude/.wave-*
 plugins/handoff-os/memory.md

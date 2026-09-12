@@ -336,59 +336,13 @@ describe('read and query budgets', () => {
   });
 });
 
-describe('verify gate', () => {
-  const GATE = script('verify.mjs');
-  const repoWith = (scripts) => {
-    const root = sandbox('verify-');
-    writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'probe', scripts }), 'utf8');
-    return root;
-  };
-  const transcript = (root, text) => {
-    const file = path.join(root, 'transcript.jsonl');
-    writeFileSync(file, `${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } })}\n`, 'utf8');
-    return file;
-  };
-  const boxed = (root) => ({ ...process.env, HANDOFF_OS_DIR: root, CLAUDE_PROJECT_DIR: root });
-  const stop = (root, payload) => fire(GATE, { cwd: root, ...payload }, boxed(root));
-  const wrote = (root, session_id) => guard({ cwd: root, session_id, tool_name: 'Edit', tool_input: { file_path: path.join(root, 'x.md'), old_string: 'a', new_string: 'b' } }, boxed(root));
-  const proved = (root, session) => spawnSync(process.execPath, [GATE, session, root], { env: boxed(root), encoding: 'utf8' }).status;
-
-  it('blocks a done-claim no run supports, from the transcript, the payload, or beside a handoff card, and never a sentence that claims nothing', () => {
-    const root = repoWith({ verify: 'node --version' });
-    const card = 'The refactor is finished.\n\nDONE post drafted\nFILE x.md\nYOU post -> Show HN -> today';
-    for (const session of ['unproven', 'direct', 'carded', 'nonclaim']) wrote(root, session);
-    assert.equal(stop(root, { session_id: 'unproven', transcript_path: transcript(root, 'All done, it works now.') }), BLOCKED);
-    assert.equal(stop(root, { session_id: 'direct', last_assistant_message: 'Shipped.' }), BLOCKED);
-    assert.equal(JSON.parse(readFileSync(path.join(root, '.claude', '.session-direct.json'), 'utf8')).saved.gated, 1);
-    assert.equal(stop(root, { session_id: 'carded', transcript_path: transcript(root, card) }), BLOCKED);
-    for (const text of ['I am ready to start', 'not fixed yet', 'step is complete; next…', 'nothing was done']) {
-      assert.equal(stop(root, { session_id: 'nonclaim', last_assistant_message: text }), ALLOWED, text);
-    }
-    assert.equal(stop(root, { session_id: 'lookup-only', last_assistant_message: 'Done.' }), ALLOWED);
-  });
-
-  it('gates a done-claim again once a write follows the proving run', () => {
-    const root = repoWith({ verify: 'node --version' });
-    wrote(root, 'rearm');
-    assert.equal(proved(root, 'rearm'), ALLOWED);
-    wrote(root, 'rearm');
-    assert.equal(stop(root, { session_id: 'rearm', last_assistant_message: 'Done.' }), BLOCKED);
-  });
-
-  it('stands down after two blocks so a session cannot be trapped', () => {
-    const root = repoWith({ verify: 'node --version' });
-    wrote(root, 'stubborn');
-    const claim = { session_id: 'stubborn', transcript_path: transcript(root, 'Done.') };
-    assert.equal(stop(root, claim), BLOCKED);
-    assert.equal(stop(root, claim), BLOCKED);
-    assert.equal(stop(root, claim), ALLOWED);
-  });
-
+describe('session receipt', () => {
+  const RECEIPT = script('receipt.mjs');
   it('prints the session receipt once per change, never twice unchanged', () => {
     const root = sandbox('receipt-');
-    const env = boxed(root);
+    const env = { ...process.env, HANDOFF_OS_DIR: root };
     assert.equal(guard({ cwd: root, session_id: 'rc', tool_name: 'Bash', tool_input: { command: `${VCS} merge main` } }, env), BLOCKED);
-    const receipt = () => spawnSync(process.execPath, [GATE], {
+    const receipt = () => spawnSync(process.execPath, [RECEIPT], {
       input: JSON.stringify({ cwd: root, session_id: 'rc', hook_event_name: 'Stop' }), encoding: 'utf8', env,
     }).stdout;
     assert.match(receipt(), /"systemMessage":"HANDOFF OS · 1 blocked"/);

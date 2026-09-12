@@ -19,7 +19,7 @@ export const sessionOf = (payload = {}) => String(payload.session_id || 'unknown
 const ledgerPath = (root, session) => path.join(root, '.claude', `.session-${session}.json`);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const STALE = [[/^\.wave-/, DAY_MS], [/^\.verif(?:ied|y-gate-count)-/, DAY_MS], [/^\.session-/, 30 * DAY_MS]];
+const STALE = [[/^\.wave-/, DAY_MS], [/^\.session-/, 30 * DAY_MS]];
 
 export function sweep(root) {
   const dir = path.join(root, '.claude');

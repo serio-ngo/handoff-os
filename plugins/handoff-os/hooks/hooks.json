@@ -14,7 +14,7 @@
     ],
     "Stop": [
       {
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs\"", "timeout": 15, "statusMessage": "Verify gate" }]
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/receipt.mjs\"", "timeout": 10, "statusMessage": "Session receipt" }]
       }
     ]
   }

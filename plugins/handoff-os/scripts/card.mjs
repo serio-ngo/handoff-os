@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { load, rootOf, save, sessionOf, sweep } from './lib/ledger.mjs';
 
 const FREEING = new Set(['compact', 'clear']);
-const VERIFY = fileURLToPath(new URL('./verify.mjs', import.meta.url));
 function forgetReads(payload) {
   if (!FREEING.has(String(payload.source || ''))) return false;
   const root = rootOf(payload);
@@ -43,8 +42,7 @@ TIERS  GREEN inward, reversible → act · YELLOW outside the repo → act, audi
 HANDOFF three lines, nothing else: DONE <prepared> · FILE <path> · YOU <verb> -> <where> -> <when>
 NEVER  send · pay · submit · publish · every state-changing git · set ANTHROPIC_API_KEY /
        ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN / apiKeyHelper · put org data in git
-MEMORY ${status}
-PROOF  a "done" claim needs a real run: node "${VERIFY}" <session_id>`;
+MEMORY ${status}`;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

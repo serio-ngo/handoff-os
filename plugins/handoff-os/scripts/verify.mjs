@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { COUNTERS, bank, bump, lifetimeLine, load, rootOf, save, savings, sessionLine, sessionOf } from './ledger.mjs';
+import { COUNTERS, bank, bump, lifetimeLine, load, rootOf, save, savings, sessionLine, sessionOf } from './lib/ledger.mjs';
 
 const DONE_CLAIM = /(?:^|\n)[ \t>*`-]*(?:done|shipped|all set|fixed)\b|\b(?:is|are|now|all|task|work|change)s? (?:done|completed|finished|fixed|ready|shipped)\b/i;
 const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*YOU\b.*$/gm;

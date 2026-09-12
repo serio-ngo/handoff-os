@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { load, rootOf, save, sessionOf } from './ledger.mjs';
+import { load, rootOf, save, sessionOf } from './lib/ledger.mjs';
 
 const FREEING = new Set(['compact', 'clear']);
 const VERIFY = fileURLToPath(new URL('./verify.mjs', import.meta.url));

@@ -1,4 +1,4 @@
-import { ACCOUNT_NUMBER, FIXTURES, ORG_NAMES, ORG_PATHS, SECRET_NAMES, SECRET_PATHS } from '../patterns.mjs';
+import { ACCOUNT_NUMBER, FIXTURES, ORG_NAMES, ORG_PATHS, SECRET_NAMES, SECRET_PATHS } from './patterns.mjs';
 
 export function judgeWrite(file, content, how = 'a write') {
   const base = file.split(/[/\\]/).pop() || '';

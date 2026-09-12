@@ -1,7 +1,7 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { BASH_OUTPUT_CAP, BIG_FILE_BYTES, GREP_HEAD_LIMIT } from '../patterns.mjs';
-import { load, rootOf, save, sessionOf } from '../ledger.mjs';
+import { BASH_OUTPUT_CAP, BIG_FILE_BYTES, GREP_HEAD_LIMIT } from './patterns.mjs';
+import { load, rootOf, save, sessionOf } from './ledger.mjs';
 import { Blocked } from './dispatch.mjs';
 
 export const actorOf = (payload = {}) => String(payload.agent_type || 'main').replace(/[:|]/g, '');

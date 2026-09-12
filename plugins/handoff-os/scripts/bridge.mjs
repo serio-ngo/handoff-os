@@ -1,6 +1,6 @@
 import { append, entry } from './audit.mjs';
 import { Blocked, judge } from './guard.mjs';
-import { rootOf } from './ledger.mjs';
+import { rootOf } from './lib/ledger.mjs';
 import { report } from './verify.mjs';
 
 const TOOLS = { read: 'Read', edit: 'Edit', write: 'Write', bash: 'Bash', grep: 'Grep', glob: 'Glob', task: 'TaskCreate' };

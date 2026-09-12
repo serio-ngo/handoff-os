@@ -136,7 +136,7 @@ export function inventory(root = REPO) {
   const handlers = events.reduce((sum, [, group]) => sum
     + group.reduce((n, entry) => n + entry.hooks.length, 0), 0);
 
-  const patterns = (readFileSync(path.join(plugin, 'scripts', 'patterns.mjs'), 'utf8').match(/^export const/gm) || []).length;
+  const patterns = (readFileSync(path.join(plugin, 'scripts', 'lib', 'patterns.mjs'), 'utf8').match(/^export const/gm) || []).length;
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
   const { cardChars, skillChars, agentChars, contextChars } = footprint('');
 

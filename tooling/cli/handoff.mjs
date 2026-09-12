@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
-import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/patterns.mjs';
+import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
 import { writeFigures } from './figures.mjs';
 import { PLUGIN, REPO, inventory, manifest, markdown, policyFor, readJson, walk } from './generate.mjs';
 

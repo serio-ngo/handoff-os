@@ -3,7 +3,7 @@
 | Review before install | Command |
 |---|---|
 | Hooks | `cat plugins/handoff-os/hooks/hooks.json` |
-| Scripts | `cat plugins/handoff-os/scripts/*.mjs` |
+| Scripts | `cat plugins/handoff-os/scripts/*.mjs plugins/handoff-os/scripts/lib/*.mjs` |
 | Suite | `npm test` |
 
 | Report | Rule |

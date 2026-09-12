@@ -4,9 +4,9 @@ import {
   DENY_SUBAGENT_DEFAULT, FANOUT_BUDGET, MAX_PER_WAVE, MODEL_BEARING, MODEL_OPTION, MODEL_TIERS,
   QUALITY, REVIEW, SPAWN_TEXT, THINK_ESCALATION, UNBOUNDED_FANOUT, WAVE_MS, WORKFLOW_AGENT_CALL,
   deniedSubagentRx,
-} from '../patterns.mjs';
+} from './patterns.mjs';
 import { append } from '../audit.mjs';
-import { load, rootOf, save, sessionOf } from '../ledger.mjs';
+import { load, rootOf, save, sessionOf } from './ledger.mjs';
 
 export class Blocked extends Error {}
 

@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/patterns.mjs';
+import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
 
 const BLOCKED = 2;
 const ALLOWED = 0;

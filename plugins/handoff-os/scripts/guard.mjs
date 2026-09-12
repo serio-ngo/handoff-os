@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import {
   BIG_FILE_BYTES, CONNECTOR_ALLOW, DESTRUCTIVE, OUTWARD, OUTWARD_PREFIX, READ_PREFIX,
   RESTORATIVE, SPAWN_TOOLS, SQL_DESTRUCTIVE, STRONG, WEB_FETCH_SERVER, WRITE_TOOLS, WRITE_VERBS,
-} from './patterns.mjs';
-import { bump, load, rootOf, sessionOf } from './ledger.mjs';
+} from './lib/patterns.mjs';
+import { bump, load, rootOf, sessionOf } from './lib/ledger.mjs';
 import { Blocked } from './lib/dispatch.mjs';
 import { judgeShell, shellQuote, shellReads, shellWriteTargets } from './lib/shell.mjs';
 import { bookSlice, kb, noteWrite, queryBudget, readBudget, unbook } from './lib/reads.mjs';

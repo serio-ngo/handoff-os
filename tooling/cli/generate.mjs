@@ -123,7 +123,7 @@ export function writeBlock(file, open, close, lines) {
 
 export function inventory(root = REPO) {
   const plugin = path.join(root, 'plugins', 'handoff-os');
-  const scripts = readdirSync(path.join(plugin, 'scripts')).filter((f) => f.endsWith('.mjs'));
+  const scripts = walk(path.join(plugin, 'scripts')).filter((f) => f.endsWith('.mjs'));
   let lines = 0;
   for (const file of scripts) {
     const text = readFileSync(path.join(plugin, 'scripts', file), 'utf8').replace(/\r?\n$/, '');

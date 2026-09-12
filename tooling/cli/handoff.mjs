@@ -207,7 +207,7 @@ function install() {
 function normalise() {
   const files = walk(REPO)
     .filter((file) => TEXT.test(file))
-    .filter((file) => !/(?:^|\/)(?:\.git|node_modules|audit)\//.test(file));
+    .filter((file) => !/(?:^|\/)(?:\.git|\.claude|node_modules|audit)\//.test(file));
   let touched = 0;
   for (const rel of files) {
     const file = path.join(REPO, rel);

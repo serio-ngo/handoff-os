@@ -138,7 +138,7 @@ Guard actions: 47. Token counts are file bytes / 4 from this repo's own local le
 
 | Item | Value |
 |---|---|
-| Corpus | `tooling/corpus/guard-corpus.jsonl`, 93 labelled cases — 89 scored, 4 documented evasions apart |
+| Corpus | `tooling/corpus/guard-corpus.jsonl`, labelled; case counts in the `<!-- eval-results -->` block below |
 | Runner | `npm run benchmark:eval`, exits 1 on a miss, gated in CI |
 | Verdict | exit 2 means blocked |
 | `origin` field | `spec` = derived from the rule table, self-confirming · `probe` = found by adversarial probing · `regression` = reproduces a shipped bug |
@@ -225,7 +225,7 @@ Confusion: TP 50 · FN 0 · FP 0 · TN 37. Bypasses scored apart.
 | Quality gate | pass rate per arm beside tokens; a token drop with a pass drop is a loss |
 | Micro | `micro-a` whole-file read of `src/big.js` · `micro-b` six-subagent fan-out; per arm billed tokens, subagents requested / blocked / spawned |
 | Budget | stops once cumulative billed tokens pass `--budget` (default 2000000 tok); partial results still written |
-| Output | `tooling/results/ab-results.json` · README `<!-- handoff-ab -->` · this file's `<!-- ab-results -->` |
+| Output | `tooling/results/ab-results.json` · this file's `<!-- ab-results -->` |
 | Ban | bytes / 4 never reported as billing |
 
 ```bash

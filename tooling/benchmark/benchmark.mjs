@@ -7,7 +7,7 @@ import { homedir } from 'node:os';
 import { MODES } from './baselines.mjs';
 import { BYTE_COUNTERS, COUNTERS, kept, keptPct } from '../../plugins/handoff-os/scripts/lib/ledger.mjs';
 import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
-import { usage } from '../../plugins/handoff-os/scripts/verify.mjs';
+import { usage } from '../../plugins/handoff-os/scripts/lib/transcript.mjs';
 import { started, writeFlood } from '../cli/figures.mjs';
 import { inventory, writeBlock } from '../cli/generate.mjs';
 

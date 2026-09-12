@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
 import { COUNTERS, bank, bump, lifetimeLine, load, rootOf, save, savings, sessionLine, sessionOf } from './lib/ledger.mjs';
+import { lastAssistantText, usage } from './lib/transcript.mjs';
 
 const DONE_CLAIM = /(?:^|\n)[ \t>*`-]*(?:done|shipped|all set|fixed)\b|\b(?:is|are|now|all|task|work|change)s? (?:done|completed|finished|fixed|ready|shipped)\b/i;
 const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*YOU\b.*$/gm;
@@ -20,44 +21,6 @@ const stepsToCommand = (steps) => steps.map((step) => `npm run ${step}`).join(' 
 const scriptsAt = (root) => {
   try { return JSON.parse(readFileSync(`${root}/package.json`, 'utf8')).scripts || {}; } catch { return null; }
 };
-
-function lastAssistantText(file) {
-  if (!file || !existsSync(file)) return '';
-  let lines;
-  try { lines = readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean); } catch { return ''; }
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    let entry;
-    try { entry = JSON.parse(lines[i]); } catch { continue; }
-    const message = entry.message || entry;
-    if ((entry.type || message.role) !== 'assistant' && message.role !== 'assistant') continue;
-    const { content } = message;
-    if (typeof content === 'string') return content;
-    if (Array.isArray(content)) {
-      const text = content.filter((part) => part?.type === 'text').map((part) => part.text).join('\n');
-      if (text.trim()) return text;
-    }
-  }
-  return '';
-}
-
-export function usage(file) {
-  const empty = { fresh: 0, cacheRead: 0, turns: 0 };
-  if (!file || !existsSync(file)) return empty;
-  let lines;
-  try { lines = readFileSync(file, 'utf8').split(/\r?\n/); } catch { return empty; }
-  const out = { ...empty };
-  for (const line of lines) {
-    if (!line) continue;
-    let entry;
-    try { entry = JSON.parse(line); } catch { continue; }
-    const u = entry.message?.usage;
-    if (!u) continue;
-    out.turns += 1;
-    out.fresh += (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_creation_input_tokens || 0);
-    out.cacheRead += u.cache_read_input_tokens || 0;
-  }
-  return out;
-}
 
 function uncited(message) {
   const text = String(message || '').trim();
@@ -132,11 +95,11 @@ function gate() {
   if (!command) announce(stats);
 
   const session = sessionOf(payload);
-  const state = rootOf(payload);
-  const marker = `${state}/.claude/.verified-${session}`;
-  const counter = `${state}/.claude/.verify-gate-count-${session}`;
+  const stateRoot = rootOf(payload);
+  const marker = `${stateRoot}/.claude/.verified-${session}`;
+  const counter = `${stateRoot}/.claude/.verify-gate-count-${session}`;
 
-  const written = Number(load(state, session).written || 0);
+  const written = Number(load(stateRoot, session).written || 0);
   if (!written) announce(stats);
   const proved = provedAt(marker);
   if (proved && Date.now() - proved < MARKER_MAX_AGE_MS && proved >= written) announce(stats);
@@ -149,11 +112,11 @@ function gate() {
   }
 
   try {
-    mkdirSync(`${state}/.claude`, { recursive: true });
+    mkdirSync(`${stateRoot}/.claude`, { recursive: true });
     writeFileSync(counter, String(blocks + 1), 'utf8');
   } catch { }
 
-  const shown = process.env.HANDOFF_STATS === '0' ? '' : lifetimeLine(bump(payload, 'gated'), state, session);
+  const shown = process.env.HANDOFF_STATS === '0' ? '' : lifetimeLine(bump(payload, 'gated'), stateRoot, session);
   process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: done claimed, nothing run.\n  node "${SELF}" ${session} "${root}"\n`);
   process.exit(2);
 }
@@ -177,10 +140,10 @@ function runner(session, root) {
       process.exit(result.status || 1);
     }
   }
-  const state = process.env.HANDOFF_OS_DIR || root;
-  mkdirSync(`${state}/.claude`, { recursive: true });
-  writeFileSync(`${state}/.claude/.verified-${session}`, `${new Date().toISOString()} ${steps.join(' && ')}\n`, 'utf8');
-  rmSync(`${state}/.claude/.verify-gate-count-${session}`, { force: true });
+  const stateRoot = process.env.HANDOFF_OS_DIR || root;
+  mkdirSync(`${stateRoot}/.claude`, { recursive: true });
+  writeFileSync(`${stateRoot}/.claude/.verified-${session}`, `${new Date().toISOString()} ${steps.join(' && ')}\n`, 'utf8');
+  rmSync(`${stateRoot}/.claude/.verify-gate-count-${session}`, { force: true });
   console.log(`verify: PASSED ${stepsToCommand(steps)} — marker written.`);
 }
 

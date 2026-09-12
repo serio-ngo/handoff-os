@@ -1,7 +1,6 @@
 import {
-  ANYWHERE, AT_HEAD, DISPOSABLE, GH_MUTATION, GIT_DESTRUCTIVE, GIT_SHOW_FILE, INTERPRETER_READ,
-  NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE,
-  SHELL_DESTRUCTIVE, SHELL_WRITE_TARGET, SLICE_CMD, WHOLE_FILE_CMD,
+  ANYWHERE, AT_HEAD, DISPOSABLE, FD_DUP, GH_MUTATION, GIT_DESTRUCTIVE, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED,
+  REDIRECT_AMP, REWRITABLE_READ, SHELL_DESTRUCTIVE, SHELL_WRITE_TARGET, TO_FILE, WHOLE_FILE_CMD,
 } from './patterns.mjs';
 
 export function split(command, breakers, subshell) {
@@ -101,63 +100,14 @@ export function tokens(segment) {
 
 const strip = (token) => token.replace(/^['"]|['"]$/g, '');
 
-export function headTail(words) {
-  const spec = { lines: 10 };
-  const files = [];
-  const count = (value, key) => {
-    if (value === undefined || !/^\+?\d+$/.test(value)) return;
-    delete spec.lines;
-    delete spec.bytes;
-    delete spec.from;
-    if (value.startsWith('+')) spec.from = Math.max(0, Number(value.slice(1)) - 1);
-    else spec[key] = Number(value);
-  };
-  for (let i = 1; i < words.length; i += 1) {
-    const word = words[i];
-    let hit = /^(?:-n|--lines=?)(\+?\d+)?$/.exec(word);
-    if (hit) { count(hit[1] ?? words[++i], 'lines'); continue; }
-    hit = /^(?:-c|--bytes=?)(\d+)?$/.exec(word);
-    if (hit) { count(hit[1] ?? words[++i], 'bytes'); continue; }
-    hit = /^-(\d+)$/.exec(word);
-    if (hit) { count(hit[1], 'lines'); continue; }
-    if (word.startsWith('-')) continue;
-    files.push(strip(word));
-  }
-  return files.map((file) => ({ file, ...spec }));
-}
-
-export function sedSlice(words) {
-  if (!words.some((word, i) => i > 0 && SED_QUIET.test(word))) return [];
-  let range = null;
-  const files = [];
-  for (let i = 1; i < words.length; i += 1) {
-    const word = words[i];
-    if (/^(?:-e|--expression)$/.test(word)) { range = range || SED_RANGE.exec(strip(words[++i] || '')); continue; }
-    if (word.startsWith('-')) continue;
-    const hit = range ? null : SED_RANGE.exec(strip(word));
-    if (hit) range = hit;
-    else files.push(strip(word));
-  }
-  if (!range || files.length !== 1) return [];
-  const from = Number(range[1]) - 1;
-  const lines = range[2] === undefined ? 1 : range[2] === '$' ? undefined : Math.max(0, Number(range[2]) - from);
-  return [{ file: files[0], from, lines }];
-}
-
 export function shellRead(segment) {
-  if (INTERPRETER_READ.test(segment) || GIT_SHOW_FILE.test(segment)) return [{ unjudged: true }];
   const words = tokens(segment);
   const cmd = (words[0] || '').toLowerCase();
-  if (WHOLE_FILE_CMD.test(cmd)) {
-    const rest = words.slice(1);
-    const files = rest.filter((word) => !word.startsWith('-'));
-    const only = files.length === 1 && files.length === rest.length
-      && !/[<>]/.test(segment) && REWRITABLE_READ.test(cmd);
-    return files.map((raw) => ({ file: strip(raw), whole: true, only }));
-  }
-  if (SLICE_CMD.test(cmd)) return headTail(words);
-  if (cmd === 'sed') return sedSlice(words);
-  return [];
+  if (!WHOLE_FILE_CMD.test(cmd)) return [];
+  const rest = words.slice(1);
+  const files = rest.filter((word) => !word.startsWith('-'));
+  const only = files.length === 1 && files.length === rest.length && !/[<>]/.test(segment) && REWRITABLE_READ.test(cmd);
+  return files.map((raw) => ({ file: strip(raw), only }));
 }
 
 export function shellReads(command) {
@@ -166,10 +116,9 @@ export function shellReads(command) {
   for (const chunk of pipelines(command)) {
     const at = command.indexOf(chunk, cursor);
     if (at >= 0) cursor = at + chunk.length;
-    if (chunk.includes('`') || chunk.includes('$(')) continue;
-    const piped = PIPE.test(chunk);
-    const first = chunk.split('|')[0].trim();
-    for (const read of shellRead(first)) out.push({ ...read, piped, at, span: first.length, rewritable: !piped && at >= 0 && Boolean(read.only) });
+    if (chunk.includes('`') || chunk.includes('$(') || PIPE.test(chunk)) continue;
+    const first = chunk.split('||')[0].trim();
+    for (const read of shellRead(first)) out.push({ ...read, at, span: first.length, rewritable: at >= 0 && read.only });
   }
   return out;
 }

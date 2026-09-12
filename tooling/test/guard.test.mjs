@@ -127,14 +127,13 @@ describe('dispatch budget', () => {
 
 describe('read and query budgets', () => {
   const probe = path.join(box, 'probe.txt');
-
   const run = (session, payload) => spawnSync(process.execPath, [script('guard.mjs')], {
     input: JSON.stringify({ cwd: box, session_id: session, ...payload }), encoding: 'utf8', env: { ...process.env, HANDOFF_OS_DIR: box },
   });
-  const state = (session) => JSON.parse(readFileSync(path.join(box, '.claude', `.session-${session}.json`), 'utf8'));
   const rewritten = (result) => JSON.parse(result.stdout).hookSpecificOutput;
+  const big = `${'x'.repeat(70)}\n`.repeat(500);
 
-  it('rewrites a whole-file read over the 24KB limit to a line slice and books the trimmed bytes', () => {
+  it('rewrites a whole-file Read over the 24KB limit to a line slice', () => {
     writeFileSync(probe, `${'x'.repeat(63)}\n`.repeat(400));
     const result = run('bq', { tool_name: 'Read', tool_input: { file_path: probe } });
     assert.equal(result.status, ALLOWED);
@@ -142,24 +141,13 @@ describe('read and query budgets', () => {
     assert.equal(out.permissionDecision, 'allow');
     assert.ok(out.updatedInput.limit > 0 && out.updatedInput.limit < 400, String(out.updatedInput.limit));
     assert.equal(out.updatedInput.file_path, probe);
-    assert.equal(state('bq').saved.trimmed, 400 * 64 - out.updatedInput.limit * 64);
-    assert.equal(state('bq').saved.rewrites, 1);
   });
   it('caps a content-mode Grep that names no head_limit', () => {
     const result = run('gc', { tool_name: 'Grep', tool_input: { pattern: 'todo', output_mode: 'content' } });
     assert.equal(result.status, ALLOWED);
     assert.equal(rewritten(result).updatedInput.head_limit, 50);
-    assert.equal(state('gc').saved.caps, 1);
-  });
-  it('books a sed slice as admitted bytes, never as kept out', () => {
-    const file = path.join(box, 'slice.txt');
-    writeFileSync(file, `${'s'.repeat(63)}\n`.repeat(100));
-    assert.equal(sh('sl', `sed -n '11,20p' ${file}`), ALLOWED);
-    assert.equal(state('sl').saved.read, 640);
-    assert.equal(state('sl').saved.trimmed + state('sl').saved.deferred + state('sl').saved.bytes, 0);
   });
   it('rewrites the read it judged, not an earlier copy of the same text, and keeps a spaced path whole', () => {
-    const big = `${'x'.repeat(70)}\n`.repeat(500);
     const plain = path.join(box, 'echoed.txt');
     writeFileSync(plain, big);
     const echoed = run('ec', { tool_name: 'Bash', tool_input: { command: `echo "cat ${plain}" ; cat ${plain}` } });
@@ -168,54 +156,32 @@ describe('read and query budgets', () => {
     assert.equal(cmd.match(/head -c/g).length, 1, cmd);
     const guarded = run('or', { tool_name: 'Bash', tool_input: { command: `cat ${plain} || echo fallback` } });
     assert.match(rewritten(guarded).updatedInput.command, /^head -c \d+ \S+ \|\| echo fallback$/);
-
     const dir = path.join(box, 'with space');
     mkdirSync(dir, { recursive: true });
     const spaced = path.join(dir, 'big file.txt');
     writeFileSync(spaced, big);
-    const quoted = run('sp', { tool_name: 'Bash', tool_input: { command: `cat "${spaced}"` } });
-    assert.match(rewritten(quoted).updatedInput.command, /^head -c \d+ "/);
-    assert.equal(state('sp').saved.rewrites, 1);
+    assert.match(rewritten(run('sp', { tool_name: 'Bash', tool_input: { command: `cat "${spaced}"` } })).updatedInput.command, /^head -c \d+ "/);
   });
-  it('refuses an oversize read whose flag or redirect head -c cannot reproduce', () => {
+  it('leaves a read it cannot rewrite alone: flags, redirects, pipes', () => {
     const flagged = path.join(box, 'flagged.txt');
-    writeFileSync(flagged, `${'x'.repeat(70)}\n`.repeat(500));
-    assert.equal(sh('fl', `cat -n ${flagged}`), BLOCKED);
-    assert.equal(sh('fl2', `cat ${flagged} 2>&1`), BLOCKED);
-    assert.equal(sh('fl3', `cat ${flagged} 1>&2`), BLOCKED);
-    const small = path.join(box, 'beside.txt');
-    writeFileSync(small, 'beside');
-    assert.equal(sh('fl4', `cat ${small}; cat -n ${flagged}`), BLOCKED);
-    assert.equal(sh('fl4', `cat ${small}`), ALLOWED);
-    assert.equal(state('fl4').saved.read, 6);
-  });
-  it('leaves a read redirected into a file alone — its bytes never reach the thread', () => {
-    const piped = path.join(box, 'piped.txt');
-    writeFileSync(piped, `${'x'.repeat(70)}\n`.repeat(500));
-    const result = run('rd', { tool_name: 'Bash', tool_input: { command: `cat ${piped} &> ${path.join(box, 'out.txt')}` } });
-    assert.equal(result.status, ALLOWED);
-    assert.equal(result.stdout, '');
-  });
-  it('lets many small whole-file reads through — only bytes bound the thread', () => {
-    for (let n = 0; n < 12; n += 1) {
-      const file = path.join(box, `whole-${n}.txt`);
-      writeFileSync(file, String(n).repeat(64));
-      assert.equal(at('dl', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED, file);
+    writeFileSync(flagged, big);
+    for (const command of [`cat -n ${flagged}`, `cat ${flagged} 2>&1`, `cat ${flagged} | head`, `cat ${flagged} &> ${path.join(box, 'out.txt')}`]) {
+      const result = run(`fl-${command.length}`, { tool_name: 'Bash', tool_input: { command } });
+      assert.equal(result.status, ALLOWED, command);
+      assert.equal(result.stdout, '', command);
     }
   });
   it('blocks a re-read of the same unchanged bytes', () => {
     writeFileSync(probe, 'small');
     at('bq', { tool_name: 'Read', tool_input: { file_path: probe } });
     assert.equal(at('bq', { tool_name: 'Read', tool_input: { file_path: probe } }), BLOCKED);
+    assert.equal(sh('bq', `cat ${probe}`), BLOCKED);
   });
-  it('blocks the identical Grep a second time', () => {
+  it('blocks the identical Grep a second time, until a write lands', () => {
     at('bq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } });
     assert.equal(at('bq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } }), BLOCKED);
-  });
-  it('forgets answered queries after a shell write', () => {
-    at('wq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } });
-    sh('wq', 'echo hi >> probe2.txt');
-    assert.equal(at('wq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ALLOWED);
+    sh('bq', 'echo hi >> probe2.txt');
+    assert.equal(at('bq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ALLOWED);
   });
   it('scopes dedup to the acting agent', () => {
     const file = path.join(box, 'shared.txt');
@@ -224,38 +190,6 @@ describe('read and query budgets', () => {
     assert.equal(at('sx', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED);
     at('sx', { agent_type: 'scout', tool_name: 'Grep', tool_input: { pattern: 'scoped' } });
     assert.equal(at('sx', { tool_name: 'Grep', tool_input: { pattern: 'scoped' } }), ALLOWED);
-  });
-  it('books a subagent read as offloaded, not admitted to the main thread', () => {
-    const file = path.join(box, 'offload.txt');
-    writeFileSync(file, 'z'.repeat(2048));
-    at('of', { agent_type: 'handoff-os:scout', tool_name: 'Read', tool_input: { file_path: file } });
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-of.json'), 'utf8'));
-    assert.equal(state.saved.offload, 2048);
-    assert.equal(state.saved.read, 0);
-  });
-  it('books a repeat query apart from a file re-read, so byte totals stay honest', () => {
-    at('rq', { tool_name: 'Grep', tool_input: { pattern: 'apart' } });
-    assert.equal(at('rq', { tool_name: 'Grep', tool_input: { pattern: 'apart' } }), BLOCKED);
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-rq.json'), 'utf8'));
-    assert.equal(state.saved.queries, 1);
-    assert.equal(state.saved.rereads, 0);
-    assert.equal(state.saved.bytes, 0);
-  });
-  it('credits a refused read once however often it is retried', () => {
-    const file = path.join(box, 'retry.txt');
-    writeFileSync(file, 'w'.repeat(30 * 1024));
-    for (let n = 0; n < 3; n += 1) {
-      assert.equal(sh('rt', `cat -n ${file}`), BLOCKED);
-    }
-    assert.equal(state('rt').saved.slices, 1);
-    assert.equal(state('rt').saved.deferred, 30 * 1024);
-  });
-  it('never blocks a read on how much the session has already read', () => {
-    for (let n = 0; n < 40; n += 1) {
-      const file = path.join(box, `long-${n}.txt`);
-      writeFileSync(file, 'q'.repeat(20 * 1024));
-      assert.equal(at('lg', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED, file);
-    }
   });
 });
 

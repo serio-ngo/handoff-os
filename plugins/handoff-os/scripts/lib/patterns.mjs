@@ -10,7 +10,6 @@ export const waveWindow = (raw = process.env.HANDOFF_WAVE_MS) => {
 };
 export const BIG_FILE_BYTES = 24 * 1024;
 export const GREP_HEAD_LIMIT = 50;
-export const BASH_OUTPUT_CAP = 30000;
 export const DENY_SUBAGENT_DEFAULT = 'opus,fable';
 export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
   const names = String(raw ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -110,8 +109,3 @@ export const REDIRECTED = /^&?\d*[<>]{1,2}/;
 export const TO_FILE = /^(?:&|1?)>{1,2}(?![&])/;
 export const FD_DUP = /[<>]&/;
 export const REDIRECT_AMP = (prev, next) => /[<>]/.test(prev || '') || next === '>';
-export const SLICE_CMD = /^(?:head|tail)$/i;
-export const SED_QUIET = /^(?:-[a-z]*n[a-z]*|--quiet|--silent)$/i;
-export const SED_RANGE = /^(\d+)(?:,(\d+|\$))?p$/;
-export const INTERPRETER_READ = /^(?:python[\d.]*|node|deno|bun|ruby|perl|php)\b[^\n]*\s--?(?:c|e|eval)\b[\s\S]*(?:\bopen\s*\(|readFile|read_text|readlines|File\.read|IO\.read|file_get_contents|\bslurp\b)/i;
-export const GIT_SHOW_FILE = /^git\b[^\n]*\b(?:show\s+\S*:\S+|cat-file\s+-p\b)/i;

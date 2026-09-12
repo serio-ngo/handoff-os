@@ -25,7 +25,7 @@ export function judge(raw = {}) {
   current = payload;
 
   if (tool === 'Read') {
-    const trim = readBudget(payload, input, 'read');
+    const trim = readBudget(payload, input, true);
     return trim ? {
       updatedInput: { ...input, offset: 0, limit: trim.lines },
       reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to its first ${trim.lines} lines`,

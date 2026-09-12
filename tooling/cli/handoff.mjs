@@ -207,7 +207,7 @@ function install() {
 function normalise() {
   const files = walk(REPO)
     .filter((file) => TEXT.test(file))
-    .filter((file) => !/(?:^|\/)(?:\.git|\.claude|node_modules|audit)\//.test(file));
+    .filter((file) => !/(?:^|\/)(?:\.git|\.claude|node_modules)\//.test(file));
   let touched = 0;
   for (const rel of files) {
     const file = path.join(REPO, rel);
@@ -300,9 +300,6 @@ function doctor() {
   check('the installed guard lets a teammate spawn through, which cannot name a model',
     fire(pre('TaskCreate', { description: 'analyse the config', subject: 'config' })) === 0);
   check('the installed card prints', spawnSync(process.execPath, [path.join(cache, 'scripts', 'card.mjs')], { encoding: 'utf8' }).stdout.trim().length > 0);
-  const month = new Date().toISOString().slice(0, 7);
-  check('every probe receipt landed in the throwaway root, not the repo ledger',
-    existsSync(path.join(probe, 'audit', `${month}.jsonl`)), probe);
   check(`the plugin costs ~${Math.round(inventory().contextChars / 4)} tok of context`, true,
     'card plus skill and agent descriptions, always in context');
 

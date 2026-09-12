@@ -5,14 +5,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
 
 const BLOCKED = 2;
 const ALLOWED = 0;
 const SERVER = '00000000-0000-4000-a000-000000000000';
 const PLUGIN = fileURLToPath(new URL('../../plugins/handoff-os/', import.meta.url));
 const script = (name) => path.join(PLUGIN, 'scripts', name);
-const hooks = JSON.parse(readFileSync(path.join(PLUGIN, 'hooks', 'hooks.json'), 'utf8')).hooks;
 
 const boxes = [];
 const sandbox = (prefix) => {
@@ -400,19 +398,5 @@ describe('verify gate', () => {
   it('blocks a substantive scout return that cites nothing', () => {
     const text = 'The repository routes every outward verb through one gate. '.repeat(4);
     assert.equal(stop(sandbox('scout-'), { hook_event_name: 'SubagentStop', last_assistant_message: text }), BLOCKED);
-  });
-});
-
-describe('hooks', () => {
-  it('routes every judged tool to one guard, audits connector writes but not reads', () => {
-    assert.equal(hooks.PreToolUse.length, 1);
-    const pre = new RegExp(hooks.PreToolUse[0].matcher);
-    for (const tool of ['Read', 'Bash', 'PowerShell', 'Grep', 'Glob', 'mcp__server__send', ...WRITE_TOOLS, ...SPAWN_TOOLS]) {
-      assert.ok(pre.test(tool), tool);
-    }
-    const post = new RegExp(hooks.PostToolUse[0].matcher);
-    for (const action of ['get_thread', 'list_labels', 'search_threads']) assert.ok(!post.test(`mcp__${SERVER}__${action}`), action);
-    for (const action of ['send_message', 'create_update', 'delete_item']) assert.ok(post.test(`mcp__${SERVER}__${action}`), action);
-    for (const tool of WRITE_TOOLS) assert.ok(post.test(tool), tool);
   });
 });

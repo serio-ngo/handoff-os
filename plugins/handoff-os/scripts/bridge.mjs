@@ -1,6 +1,4 @@
-import { append, entry } from './audit.mjs';
 import { Blocked, judge } from './guard.mjs';
-import { rootOf } from './lib/ledger.mjs';
 import { report } from './verify.mjs';
 
 const TOOLS = { read: 'Read', edit: 'Edit', write: 'Write', bash: 'Bash', grep: 'Grep', glob: 'Glob', task: 'TaskCreate' };
@@ -37,22 +35,8 @@ export function verdictFor(tool, args, sessionID, cwd) {
     return null;
   } catch (error) {
     if (!(error instanceof Blocked)) throw error;
-    const reason = error.message.trim();
-    append(rootOf(payload), {
-      actor: 'main',
-      tier: 'YELLOW',
-      action: payload.tool_name,
-      target: String(payload.tool_input.command ?? payload.tool_input.file_path ?? payload.tool_input.pattern ?? '').slice(0, 120),
-      result: `blocked: ${reason}`,
-    });
-    return reason;
+    return error.message.trim();
   }
-}
-
-export function receiptFor(tool, args, sessionID, cwd) {
-  const payload = toPayload(tool, args, sessionID, cwd);
-  const values = entry(payload, rootOf(payload));
-  if (values) append(rootOf(payload), values);
 }
 
 export function flush(sessionID, cwd = process.cwd()) {

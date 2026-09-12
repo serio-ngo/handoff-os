@@ -5,7 +5,6 @@ import {
   QUALITY, REVIEW, SPAWN_TEXT, THINK_ESCALATION, UNBOUNDED_FANOUT, WORKFLOW_AGENT_CALL,
   deniedSubagentRx, waveCap, waveWindow,
 } from './patterns.mjs';
-import { append } from '../audit.mjs';
 import { load, rootOf, save, sessionOf } from './ledger.mjs';
 
 export class Blocked extends Error {}
@@ -115,13 +114,4 @@ export function fanOutCap(payload, count = 1) {
       ? `FAN-OUT CAP: ${count} subagents requested, wave capped at ${cap}\n`
       : `FAN-OUT CAP: subagent ${slot}, wave capped at ${cap}\n`);
   }
-}
-
-export function receipt(payload, input, tool) {
-  const model = String(input.model || '').trim().toLowerCase() || 'inherit';
-  const kind = String(input.subagent_type || input.description || input.subject || input.name || '').slice(0, 80);
-  append(rootOf(payload), {
-    actor: payload.agent_type || 'main', tier: 'GREEN', action: tool,
-    target: `${model}:${kind}`, result: 'ok',
-  });
 }

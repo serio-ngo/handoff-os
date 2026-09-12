@@ -11,7 +11,7 @@ Two trees: `plugins/handoff-os/` ships, `tooling/` never does.
 
 | Path | Contents |
 |---|---|
-| `plugins/handoff-os/` | The plugin, the only shipped tree: 3 skills, 2 agents, 5 hooks, 5 scripts, 8 `scripts/lib/` helpers. |
+| `plugins/handoff-os/` | The plugin, the only shipped tree: 3 skills, 2 agents, 4 hooks, 4 scripts, 8 `scripts/lib/` helpers. |
 | `tooling/cli/` | `handoff.mjs`, the maintainer CLI. Generators `generate.mjs`, `figures.mjs`. |
 | `tooling/benchmark/` | `benchmark.mjs`, the harness. `baselines.mjs`, the four comparators. `fixture/`, the throwaway repo the A/B and flood runs copy. |
 | `tooling/corpus/` | `guard-corpus.jsonl`, the labelled corpus. `tasks.jsonl`, the A/B tasks. |
@@ -19,7 +19,6 @@ Two trees: `plugins/handoff-os/` ships, `tooling/` never does.
 | `tooling/test/` | One file, `guard.test.mjs`. Node built-in runner. |
 | `tooling/settings/` | `policy.json`, permission rules, one `deny` list. Rules cannot ship inside a plugin. |
 | `docs/` | Generated manifest and SVG figures, Claude Code reference, benchmark method. |
-| `audit/` | `YYYY-MM.jsonl`, one object per line, fields in `plugins/handoff-os/scripts/audit.mjs` as `FIELDS`. Gitignored, append-only. |
 
 ## Commands
 

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { SPAWN_TOOLS, WRITE_TOOLS } from './lib/patterns.mjs';
 import { bump } from './lib/ledger.mjs';
-import { Blocked, agentsRequested, bookRedirect, costBudget, dispatchBudget, fanOutCap, receipt } from './lib/dispatch.mjs';
+import { Blocked, agentsRequested, bookRedirect, costBudget, dispatchBudget, fanOutCap } from './lib/dispatch.mjs';
 import { judgeShell, shellWriteTargets } from './lib/shell.mjs';
 import { kb, noteWrite, queryBudget, readBudget, shellReadBudget } from './lib/reads.mjs';
 import { judgeWrite } from './lib/writes.mjs';
@@ -44,7 +44,6 @@ export function judge(raw = {}) {
     const kind = String(input.subagent_type || '');
     if (/scout/i.test(kind)) bump(payload, 'scouts', count);
     else if (/runner/i.test(kind)) bump(payload, 'runners', count);
-    receipt(payload, input, tool);
   }
   else if (tool === 'Bash' || tool === 'PowerShell') {
     if ('command' in input && typeof input.command !== 'string') deny('blocked a shell call whose command was not a string');

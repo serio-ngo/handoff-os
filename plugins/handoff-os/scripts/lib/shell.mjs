@@ -1,5 +1,5 @@
 import {
-  ANYWHERE, AT_HEAD, DISPOSABLE, GH_MUTATION, GIT_DESTRUCTIVE, GIT_SHOW_FILE, GIT_WRITE, INTERPRETER_READ,
+  ANYWHERE, AT_HEAD, DISPOSABLE, GH_MUTATION, GIT_DESTRUCTIVE, GIT_SHOW_FILE, INTERPRETER_READ,
   NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE,
   SHELL_DESTRUCTIVE, SHELL_WRITE_TARGET, SLICE_CMD, WHOLE_FILE_CMD,
 } from './patterns.mjs';
@@ -37,7 +37,6 @@ export function onlyDisposable(segment) {
 }
 
 export function judgeShell(command) {
-  const gitWrite = process.env.HANDOFF_GIT_WRITE === '1';
   for (const rx of ANYWHERE) if (rx.test(command)) return 'blocked a metered-credential assignment';
   for (const segment of segments(command)) {
     if (NO_OP_FLAG.test(segment.replace(/'[^']*'|"[^"]*"/g, ' '))) continue;
@@ -48,11 +47,6 @@ export function judgeShell(command) {
     for (const rx of SHELL_DESTRUCTIVE) {
       if (rx.test(segment) && !onlyDisposable(segment)) {
         return `${quoted} — delete outside build and temp paths`;
-      }
-    }
-    if (!gitWrite) {
-      for (const rx of GIT_WRITE) {
-        if (rx.test(segment)) return `${quoted} — a git write`;
       }
     }
     for (const rx of AT_HEAD) {

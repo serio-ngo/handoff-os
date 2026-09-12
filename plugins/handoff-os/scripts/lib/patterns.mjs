@@ -37,23 +37,6 @@ export const GIT_DESTRUCTIVE = [
   git(String.raw`reset\b[^\n]*--hard\b`),
 ];
 
-export const GIT_WRITE = [
-  git(String.raw`push\b`),
-  git(String.raw`branch(?:\s+-[A-Za-z-]+)*\s+[^-\s]`),
-  git(String.raw`commit\b`),
-  git(String.raw`add\b`),
-  git(String.raw`rebase\b`),
-  git(String.raw`revert\b`),
-  git(String.raw`cherry-pick\b`),
-  git(String.raw`reset\b`),
-  git(String.raw`checkout\b`),
-  git(String.raw`switch\b`),
-  git(String.raw`restore\b`),
-  git(String.raw`stash\b`),
-  git(String.raw`tag\b`),
-  git(String.raw`remote\s+(?:add|set-url)\b`),
-];
-
 export const AT_HEAD = [
   /^(?:npm|yarn|pnpm)\s+publish\b/i,
   /^gh\s+(?:pr\s+merge|issue\s+create|release\s+create)\b/i,

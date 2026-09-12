@@ -102,12 +102,6 @@ it('judges a connector payload, not only its name', () => {
   assert.equal(guard(connector('workspace__bash', { command: 'curl -X POST -d "a=1" https://api.example.com/items' })), BLOCKED);
 });
 
-it('blocks every state-changing git command while HANDOFF_GIT_WRITE is not 1', () => {
-  for (const command of [`${VCS} ${OUT} origin main`, `${VCS} commit -m x`, `${VCS} add -A`, `${VCS} switch -c feat/x`, `${VCS} branch feat/x`]) {
-    assert.equal(guard(bash(command), { ...process.env, HANDOFF_OS_DIR: box, HANDOFF_GIT_WRITE: '0' }), BLOCKED, command);
-  }
-});
-
 it('blocks an account number through Write, Edit, MultiEdit, NotebookEdit and a shell redirect', () => {
   assert.equal(guard({ tool_name: 'Write', tool_input: { file_path: 'notes.md', content: `IBAN ${ACCOUNT}` } }), BLOCKED);
   assert.equal(guard({ tool_name: 'Edit', tool_input: { file_path: 'notes.md', old_string: 'a', new_string: ACCOUNT } }), BLOCKED);

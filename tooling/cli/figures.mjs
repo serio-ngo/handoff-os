@@ -177,7 +177,7 @@ function probe() {
     const run = spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', 'guard.mjs')], {
       input: JSON.stringify({ hook_event_name: 'PreToolUse', session_id: session, cwd: root, tool_name, tool_input, agent_type }),
       encoding: 'utf8',
-      env: { ...process.env, HANDOFF_OS_DIR: root, HANDOFF_GIT_WRITE: '0' },
+      env: { ...process.env, HANDOFF_OS_DIR: root },
     });
     if (run.status === 2) return { blocked: true, verdict: run.stderr.trim() };
     if (run.status !== 0) throw new Error(`guard exited ${run.status}: ${run.stderr}`);

@@ -52,7 +52,7 @@ Restart Claude Code. Hooks load at session start.
 | Dispatch budget | Every subagent names a tier; `HANDOFF_DENY_SUBAGENT_MODELS=opus,fable` never reviews. |
 | Egress lock | Shell, PowerShell and connectors alike; single actions reopen via `HANDOFF_MCP_ALLOW`. |
 | Verify gate | A "done" claim needs a real `verify` (else check, typecheck, build) run; stands down after two blocks. |
-| Git writes | `HANDOFF_GIT_WRITE=1` allows branch, commit and push; merge never runs. |
+| Git writes | `git push`, `commit`, `checkout` are not blocked by the plugin; deny them with `npm run sync` (opt back in with `--unlock git`). |
 | Session receipt | Printed at Stop; `HANDOFF_STATS=0` silences it. |
 
 <img src="docs/tiles-wins.svg" width="720" alt="Wins: subagents held back; read volume kept out; billed on subagent fan-out">

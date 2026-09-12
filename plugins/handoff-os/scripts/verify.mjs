@@ -10,8 +10,6 @@ const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*Y
 const SELF = fileURLToPath(new URL('./verify.mjs', import.meta.url));
 const MARKER_MAX_AGE_MS = 30 * 60 * 1000;
 const MAX_BLOCKS = 2;
-const CITED = /[\w-]+\.[A-Za-z]\w*:\d+|https?:\/\/|\bUNVERIFIED\b/i;
-const MIN_CLAIM_CHARS = 200;
 
 const FALLBACK_STEPS = ['content:check', 'typecheck', 'build'];
 const resolveSteps = (scripts) => (scripts?.verify ? ['verify'] : FALLBACK_STEPS.filter((step) => scripts?.[step]));
@@ -20,18 +18,6 @@ const stepsToCommand = (steps) => steps.map((step) => `npm run ${step}`).join(' 
 const scriptsAt = (root) => {
   try { return JSON.parse(readFileSync(`${root}/package.json`, 'utf8')).scripts || {}; } catch { return null; }
 };
-
-function uncited(message) {
-  const text = String(message || '').trim();
-  return text.length >= MIN_CLAIM_CHARS && !CITED.test(text);
-}
-
-function citationGate(payload, message) {
-  if (!uncited(message)) process.exit(0);
-  bump(payload, 'gated');
-  process.stderr.write('SCOUT CONTRACT: no file:line, URL or UNVERIFIED tag. Cite each fact, or mark it UNVERIFIED.\n');
-  process.exit(2);
-}
 
 export function report(payload) {
   const root = rootOf(payload);
@@ -74,7 +60,6 @@ function gate() {
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
 
   const message = String(payload.last_assistant_message || '') || lastAssistantText(payload.transcript_path);
-  if (payload.hook_event_name === 'SubagentStop') citationGate(payload, message);
 
   const stats = report(payload);
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();

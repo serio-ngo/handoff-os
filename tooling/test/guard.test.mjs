@@ -394,9 +394,4 @@ describe('verify gate', () => {
     assert.match(receipt(), /"systemMessage":"HANDOFF OS · 1 blocked"/);
     assert.equal(receipt(), '');
   });
-
-  it('blocks a substantive scout return that cites nothing', () => {
-    const text = 'The repository routes every outward verb through one gate. '.repeat(4);
-    assert.equal(stop(sandbox('scout-'), { hook_event_name: 'SubagentStop', last_assistant_message: text }), BLOCKED);
-  });
 });

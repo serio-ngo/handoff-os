@@ -14,4 +14,3 @@ model: haiku
 | One brief | answer exactly what the prompt asks, nothing adjacent |
 | Shape | tables only, no preamble, no narration, no follow-up questions |
 | Length | stay under the line count in the prompt; default 20 lines |
-| Honest | quote file:line or URL + date for every fact; write UNVERIFIED when you could not confirm it |

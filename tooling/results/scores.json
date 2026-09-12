@@ -14,8 +14,8 @@
   },
   "bypassesOpen": 4,
   "bypassesTotal": 4,
-  "contextTokens": 277,
-  "logicLines": 1375,
+  "contextTokens": 275,
+  "logicLines": 1389,
   "dependencies": 0,
   "baselines": {
     "none": {
@@ -46,7 +46,7 @@
   "resendRatio": 45.4,
   "ledgerTurns": 16,
   "resendsRemoved": 15272720,
-  "taxTokens": 277,
+  "taxTokens": 275,
   "repos": 1,
   "origins": {
     "spec": 61,

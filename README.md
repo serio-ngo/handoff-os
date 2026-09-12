@@ -15,7 +15,7 @@
 [![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.dependencies&label=dependencies&color=2da44e)](package.json)
 
 <!-- handoff-demo -->
-<img src="docs/demo.svg" width="1028" alt="handoff-os session: Read src/big.js · 35 KB → HANDOFF OS: big.js is 35KB; trimmed to its first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 subagents requested, wave capped at 3 · Agent model:opus · &quot;review the diff&quot; → DISPATCH BUDGET: blocked an opus review · gmail send_message → EGRESS LOCK: blocked mcp__gmail__send_message — &quot;send&quot; leaves the org or destroys a record · Agent model:sonnet · &quot;review src/parse.js&quot;, allowed · HANDOFF OS · 1 trimmed · 97 held · 1 redirected · 1 blocked · 1 used · ~2,816 tok kept out (31%) · all-time ~146.2k tok">
+<img src="docs/demo.svg" width="1036" alt="handoff-os session: Read src/big.js · 35 KB → HANDOFF OS: big.js is 35KB; trimmed to its first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 subagents requested, wave capped at 3 · Agent model:opus · &quot;review the diff&quot; → DISPATCH BUDGET: blocked an opus review · gmail send_message → EGRESS LOCK: blocked mcp__gmail__send_message — &quot;send&quot; leaves the org or destroys a record · Agent model:sonnet · &quot;review src/parse.js&quot;, allowed · HANDOFF OS · 1 trimmed · 100 held · 1 redirected · 1 blocked · 1 used · ~2,816 tok kept out (31%) · all-time ~146.2k tok">
 <!-- /handoff-demo -->
 
 <sub>[Install](#install) · [What it does](#what-it-does) · [Proof](#proof) · [Method](docs/BENCHMARK.md) · [Contributing](CONTRIBUTING.md)</sub>
@@ -60,10 +60,8 @@ Restart Claude Code. Hooks load at session start.
 
 <img src="docs/tiles-proof.svg" width="720" alt="Proof: share of the labelled corpus caught; share wrongly blocked; labelled cases gated in CI">
 
-Every case is labelled in `eval/guard-corpus.jsonl` and re-scored on each run against four
+Every case is labelled in `tooling/corpus/guard-corpus.jsonl` and re-scored on each run against four
 comparators. Cost, limits and full method: [docs/BENCHMARK.md](docs/BENCHMARK.md).
-
-<img src="docs/tiles-never.svg" width="720" alt="Does not: 0 model calls, 0 network calls, 0 dependencies">
 
 <div align="center">
 <sub>

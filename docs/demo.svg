@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1028 378" width="1028" height="378" role="img" aria-label="handoff-os session: Read src/big.js · 35 KB → HANDOFF OS: big.js is 35KB; trimmed to its first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 subagents requested, wave capped at 3 · Agent model:opus · &quot;review the diff&quot; → DISPATCH BUDGET: blocked an opus review · gmail send_message → EGRESS LOCK: blocked mcp__gmail__send_message — &quot;send&quot; leaves the org or destroys a record · Agent model:sonnet · &quot;review src/parse.js&quot;, allowed · HANDOFF OS · 1 trimmed · 97 held · 1 redirected · 1 blocked · 1 used · ~2,816 tok kept out (31%) · all-time ~146.2k tok" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1036 378" width="1036" height="378" role="img" aria-label="handoff-os session: Read src/big.js · 35 KB → HANDOFF OS: big.js is 35KB; trimmed to its first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 subagents requested, wave capped at 3 · Agent model:opus · &quot;review the diff&quot; → DISPATCH BUDGET: blocked an opus review · gmail send_message → EGRESS LOCK: blocked mcp__gmail__send_message — &quot;send&quot; leaves the org or destroys a record · Agent model:sonnet · &quot;review src/parse.js&quot;, allowed · HANDOFF OS · 1 trimmed · 100 held · 1 redirected · 1 blocked · 1 used · ~2,816 tok kept out (31%) · all-time ~146.2k tok" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace">
 <style>
 text{font-size:13.5px;white-space:pre}
 .row{opacity:0;animation:in 16s infinite both}
@@ -9,26 +9,26 @@ text{font-size:13.5px;white-space:pre}
 .cursor{animation:blink 1s steps(1) infinite}
 .d0{animation-delay:0.2s}.d1{animation-delay:0.7s}.d2{animation-delay:2.5s}.d3{animation-delay:3s}.d4{animation-delay:3.4s}.d5{animation-delay:3.9s}.d6{animation-delay:4.2s}.d7{animation-delay:4.7s}.d8{animation-delay:5.1s}.d9{animation-delay:5.6s}.d10{animation-delay:5.9s}.d11{animation-delay:6.4s}
 </style>
-<rect x="0.5" y="0.5" width="1027" height="377" rx="10" fill="#7d8590" fill-opacity=".07" stroke="#7d8590" stroke-opacity=".35"/>
-<path d="M0 34 H1028" stroke="#7d8590" stroke-opacity=".35"/>
+<rect x="0.5" y="0.5" width="1035" height="377" rx="10" fill="#7d8590" fill-opacity=".07" stroke="#7d8590" stroke-opacity=".35"/>
+<path d="M0 34 H1036" stroke="#7d8590" stroke-opacity=".35"/>
 <text x="22" y="22" fill="#7d8590" font-size="11.5">— handoff-os session</text>
 <text x="22" y="60" fill="#7d8590" font-size="12" class="row d0">$ claude</text>
 <clipPath id="t"><rect class="typed" x="22" y="70" height="18"/></clipPath>
 <g class="row d1" clip-path="url(#t)"><text x="22" y="84" fill="#7d8590" font-size="12" font-weight="600">&gt; review whole app and send results to me.</text></g>
 <text x="22" y="108" fill="#2a78d6" font-size="12" font-weight="600" class="row d2">⏺  Read src/big.js · 35 KB</text>
-<rect class="row d3" x="14" y="116" width="1000" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
+<rect class="row d3" x="14" y="116" width="1008" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
 <text x="22" y="132" fill="#2a78d6" font-size="12" class="row d3">↻  HANDOFF OS: big.js is 35KB; trimmed to its first 384 lines</text>
 <text x="22" y="156" fill="#7d8590" font-size="12" font-weight="600" class="row d4">⏺  Workflow · 100 agents</text>
-<rect class="row d5" x="14" y="164" width="1000" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
+<rect class="row d5" x="14" y="164" width="1008" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
 <text x="22" y="180" fill="#d95926" font-size="12" class="row d5">⨯  FAN-OUT CAP: 100 subagents requested, wave capped at 3</text>
 <text x="22" y="204" fill="#7d8590" font-size="12" font-weight="600" class="row d6">⏺  Agent model:opus · &quot;review the diff&quot;</text>
-<rect class="row d7" x="14" y="212" width="1000" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
+<rect class="row d7" x="14" y="212" width="1008" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
 <text x="22" y="228" fill="#d95926" font-size="12" class="row d7">⨯  DISPATCH BUDGET: blocked an opus review</text>
 <text x="22" y="252" fill="#7d8590" font-size="12" font-weight="600" class="row d8">⏺  gmail send_message</text>
-<rect class="row d9" x="14" y="260" width="1000" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
+<rect class="row d9" x="14" y="260" width="1008" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
 <text x="22" y="276" fill="#d95926" font-size="12" class="row d9">⨯  EGRESS LOCK: blocked mcp__gmail__send_message — &quot;send&quot; leaves the org or destroys a record</text>
 <text x="22" y="300" fill="#2a78d6" font-size="12" font-weight="600" class="row d10">⏺  Agent model:sonnet · &quot;review src/parse.js&quot;</text>
-<rect class="row d11" x="14" y="307" width="1000" height="30" rx="4" fill="#7d8590" fill-opacity=".08" stroke="#7d8590" stroke-opacity=".35"/>
-<text x="22" y="324" fill="#7d8590" font-size="12" font-weight="600" class="row d11">HANDOFF OS · 1 trimmed · 97 held · 1 redirected · 1 blocked · 1 used · ~2,816 tok kept out (31%) · all-time ~146.2k tok</text>
-<g class="row d11"><rect class="cursor" x="1004" y="313" width="7" height="13" fill="#2a78d6"/></g>
+<rect class="row d11" x="14" y="307" width="1008" height="30" rx="4" fill="#7d8590" fill-opacity=".08" stroke="#7d8590" stroke-opacity=".35"/>
+<text x="22" y="324" fill="#7d8590" font-size="12" font-weight="600" class="row d11">HANDOFF OS · 1 trimmed · 100 held · 1 redirected · 1 blocked · 1 used · ~2,816 tok kept out (31%) · all-time ~146.2k tok</text>
+<g class="row d11"><rect class="cursor" x="1012" y="313" width="7" height="13" fill="#2a78d6"/></g>
 </svg>

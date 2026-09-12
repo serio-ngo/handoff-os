@@ -18,7 +18,6 @@ refusal, into a permanent check.
 |---|---|
 | `want` | `block` or `allow` — what the guard must do |
 | `origin` | `spec` derived from a rule · `probe` found by probing · `regression` reproduces a shipped bug |
-| `known_gap` | `true` only for a documented evasion; those score apart |
 
 ## Labels
 

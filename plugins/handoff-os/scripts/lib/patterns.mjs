@@ -20,13 +20,7 @@ export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
 }
 export const SPAWN_TOOLS = ['Agent', 'Task', 'TaskCreate', 'Workflow'];
 export const WRITE_TOOLS = ['Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
-export const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
-export const SHELL_INNER = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+(['"])([\s\S]*)\1\s*$/i;
-export const SHELL_INNER_BARE = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+()(?!['"])([\s\S]+)$/i;
-export const ENCODED_CMD = /(?:^|\s)-e(?:c|nc(?:odedcommand)?)?\s+([A-Za-z0-9+/=]{16,})(?:\s|$)/i;
 export const NO_OP_FLAG = /(?:^|\s)(?:--help|--version|--dry-run|--dryrun|-WhatIf)(?:[=\s]|$)/i;
-export const SHELL_PREFIX = /^(?:eval|command|exec|builtin|nohup|time|nice|stdbuf|xargs)\b(?:\s+-\S+)*\s+/i;
-export const SHELL_QUOTED = /^(['"])([\s\S]*)\1$/;
 
 const GIT = String.raw`^git\b(?:\s+(?:-[Cc]\s+\S+|--\S+(?:[=\s]\S+)?))*\s+`;
 const git = (tail) => new RegExp(GIT + tail, 'i');
@@ -78,21 +72,13 @@ export const AT_HEAD = [
 ];
 
 export const SHELL_DESTRUCTIVE = [
-  /^rm\b/i,
-  /^rmdir\b/i,
-  /^shred\b/i,
-  /^truncate\b/i,
-  /^(?:del|erase)\b/i,
-  /^Remove-Item\b/i,
-  /^(?:ri|rd)\b/i,
+  /^(?:rm|rmdir|rd|ri|del|erase|shred|truncate|Remove-Item)\b/i,
   /^find\b[^\n]*\s-delete\b/,
 ];
 
 export const DISPOSABLE = /(?:^|[/\\])(?:node_modules|dist|build|out|coverage|target|vendor|tmp|temp|scratchpad|\.next|\.nuxt|\.turbo|\.cache|\.venv|\.pytest_cache|__pycache__)(?:[/\\]|$)|\.(?:log|tmp|pyc|o|class|tsbuildinfo)$/i;
 
 export const GH_MUTATION = /^gh\s+api\b[^\n]*(?:\s-[fF]\b|--field|--raw-field|\bgraphql\b[^\n]*mutation)/i;
-
-export const INTERPRETER_EGRESS = /^(?:python[\d.]*|node|deno|bun|ruby|perl|php)\b[^\n]*\s--?(?:c|e|eval)\b[\s\S]*(?:requests\.(?:post|put|patch|delete)|urllib\.request|http\.client|fetch\s*\(|axios|smtplib|Net::HTTP|curl_exec)/i;
 
 export const SHELL_WRITE_TARGET = [
   /(?:^|\s)(?:\d?>>?|&>)\s*['"]?([^'"\s]+)/,

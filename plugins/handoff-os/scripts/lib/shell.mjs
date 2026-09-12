@@ -1,8 +1,7 @@
 import {
-  ANYWHERE, AT_HEAD, DISPOSABLE, ENCODED_CMD, GH_MUTATION, GIT_DESTRUCTIVE, GIT_SHOW_FILE, GIT_WRITE,
-  INTERPRETER_EGRESS, INTERPRETER_READ, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP,
-  REWRITABLE_READ, SED_QUIET, SED_RANGE, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_INNER_BARE, SHELL_PREFIX,
-  SHELL_QUOTED, SHELL_WRITE_TARGET, SHELLS, SLICE_CMD, WHOLE_FILE_CMD,
+  ANYWHERE, AT_HEAD, DISPOSABLE, GH_MUTATION, GIT_DESTRUCTIVE, GIT_SHOW_FILE, GIT_WRITE, INTERPRETER_READ,
+  NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE,
+  SHELL_DESTRUCTIVE, SHELL_WRITE_TARGET, SLICE_CMD, WHOLE_FILE_CMD,
 } from './patterns.mjs';
 
 export function split(command, breakers, subshell) {
@@ -29,16 +28,6 @@ export function split(command, breakers, subshell) {
 export const segments = (command) => split(command, ';\n&|`', true);
 export const pipelines = (command) => split(command, ';\n&', false);
 
-export function unwrap(segment) {
-  let out = String(segment).trim();
-  for (let i = 0; i < 3; i += 1) {
-    const next = out.replace(SHELL_PREFIX, '').trim().replace(SHELL_QUOTED, '$2').trim();
-    if (next === out) break;
-    out = next;
-  }
-  return out;
-}
-
 export function onlyDisposable(segment) {
   const operands = segment.split(/\s+/).slice(1)
     .filter((token) => !/^-|^\/[A-Za-z]$|^\d+$/.test(token))
@@ -47,10 +36,10 @@ export function onlyDisposable(segment) {
   return operands.length > 0 && operands.every((token) => DISPOSABLE.test(token));
 }
 
-export function judgeShell(command, depth = 0) {
+export function judgeShell(command) {
   const gitWrite = process.env.HANDOFF_GIT_WRITE === '1';
   for (const rx of ANYWHERE) if (rx.test(command)) return 'blocked a metered-credential assignment';
-  for (const segment of segments(command).map(unwrap)) {
+  for (const segment of segments(command)) {
     if (NO_OP_FLAG.test(segment.replace(/'[^']*'|"[^"]*"/g, ' '))) continue;
     const quoted = `blocked "${segment.slice(0, 80)}"`;
     for (const rx of GIT_DESTRUCTIVE) {
@@ -70,17 +59,6 @@ export function judgeShell(command, depth = 0) {
       if (rx.test(segment)) return `${quoted} — outward action`;
     }
     if (GH_MUTATION.test(segment)) return `${quoted} — a gh api write`;
-    if (INTERPRETER_EGRESS.test(segment)) return `${quoted} — posts over the network`;
-    if (depth < 2 && SHELLS.test(segment)) {
-      const encoded = (ENCODED_CMD.exec(segment) || [])[1];
-      const inner = encoded
-        ? Buffer.from(encoded, 'base64').toString('utf16le')
-        : (SHELL_INNER.exec(segment) || SHELL_INNER_BARE.exec(segment) || [])[2];
-      if (inner) {
-        const verdict = judgeShell(inner, depth + 1);
-        if (verdict) return verdict;
-      }
-    }
   }
   return null;
 }
@@ -197,9 +175,7 @@ export function shellReads(command) {
     if (chunk.includes('`') || chunk.includes('$(')) continue;
     const piped = PIPE.test(chunk);
     const first = chunk.split('|')[0].trim();
-    const segment = unwrap(first);
-    const bare = !piped && segment === first && at >= 0;
-    for (const read of shellRead(segment)) out.push({ ...read, piped, at, span: first.length, rewritable: bare && Boolean(read.only) });
+    for (const read of shellRead(first)) out.push({ ...read, piped, at, span: first.length, rewritable: !piped && at >= 0 && Boolean(read.only) });
   }
   return out;
 }

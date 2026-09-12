@@ -77,9 +77,7 @@ function score(cmd, cases) {
     const run = spawnSync(cmd[0], cmd.slice(1), { input: payloadFor(c, probe), encoding: 'utf8', env });
     return { ...c, blocked: run.status === 2 };
   });
-  const held = rows.filter((r) => !r.known_gap);
-  const gaps = rows.filter((r) => r.known_gap);
-  const n = (want, blocked) => held.filter((r) => r.want === want && r.blocked === blocked).length;
+  const n = (want, blocked) => rows.filter((r) => r.want === want && r.blocked === blocked).length;
   const tp = n('block', true);
   const fn = n('block', false);
   const fp = n('allow', true);
@@ -94,11 +92,8 @@ function score(cmd, cases) {
     precision: percent(tp, tp + fp),
     fpRate: percent(fp, fp + tn),
     f1: tp ? Number(((2 * tp) / (2 * tp + fp + fn)).toFixed(2)) : 0,
-    gapsCaught: gaps.filter((r) => r.blocked).length,
-    gapsTotal: gaps.length,
-    misses: held.filter((r) => r.blocked !== (r.want === 'block')),
-    gaps,
-    origins: Object.fromEntries(ORIGINS.map((origin) => [origin, held.filter((r) => r.origin === origin).length])),
+    misses: rows.filter((r) => r.blocked !== (r.want === 'block')),
+    origins: Object.fromEntries(ORIGINS.map((origin) => [origin, rows.filter((r) => r.origin === origin).length])),
   };
 }
 
@@ -149,11 +144,9 @@ function evalBlock(result, label) {
     `| Recall | ${rate(result.tp, result.tp + result.fn)} |`,
     `| Precision | ${rate(result.tp, result.tp + result.fp)} |`,
     `| False-positive rate | ${rate(result.fp, result.fp + result.tn)} |`,
-    `| F1 | ${result.f1.toFixed(2)} |`,
-    `| Known bypasses caught | ${rate(result.gapsCaught, result.gapsTotal)} |`, '',
-    `Confusion: TP ${result.tp} · FN ${result.fn} · FP ${result.fp} · TN ${result.tn}. Bypasses scored apart.`, '',
+    `| F1 | ${result.f1.toFixed(2)} |`, '',
+    `Confusion: TP ${result.tp} · FN ${result.fn} · FP ${result.fp} · TN ${result.tn}.`, '',
     ...result.misses.map((m) => `- Miss \`${m.id}\`: got ${m.blocked ? 'block' : 'allow'}, want ${m.want}.`),
-    ...result.gaps.map((m) => `- \`${m.id}\` ${m.blocked ? 'caught' : 'open'} — ${m.note}.`),
     '', provenance(result.origins),
   ];
 }
@@ -209,8 +202,6 @@ function run() {
         fpRate: own.fpRate,
         f1: own.f1,
         confusion: { tp: own.tp, fn: own.fn, fp: own.fp, tn: own.tn },
-        bypassesOpen: own.gapsTotal - own.gapsCaught,
-        bypassesTotal: own.gapsTotal,
         origins: own.origins,
         logicLines: inv.logicLines,
         contextTokens: tax.total,

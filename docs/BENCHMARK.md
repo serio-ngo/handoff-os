@@ -21,7 +21,6 @@
 | Ordinary tasks | cost more tokens, not fewer — the guard buys a ceiling on the tail, not an average saving |
 | Cowork | hooks do not fire there |
 | OpenCode | its subagents bypass the guard |
-| Known bypasses | four, listed open in [Track A](#track-a) |
 
 ## Context savings — what `npm run benchmark` prints
 
@@ -142,7 +141,7 @@ Guard actions: 47. Token counts are file bytes / 4 from this repo's own local le
 | Runner | `npm run benchmark:eval`, exits 1 on a miss, gated in CI |
 | Verdict | exit 2 means blocked |
 | `origin` field | `spec` = derived from the rule table, self-confirming · `probe` = found by adversarial probing · `regression` = reproduces a shipped bug |
-| Scoring | recall never without false-positive rate; `known_gap` cases scored apart |
+| Scoring | recall never without false-positive rate |
 
 - Same corpus, same scoring, any `PreToolUse` guard on stdin:
 

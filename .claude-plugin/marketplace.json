@@ -10,9 +10,9 @@
     {
       "name": "handoff-os",
       "source": "./plugins/handoff-os",
-      "description": "An egress lock, a verification gate, an audit trail and budget caps for Claude Code. Sends, payments, publishes, merges, deletes and credential writes stop before they run. No model call, no API key, no telemetry, no dependencies.",
+      "description": "Egress lock and budget caps for Claude Code: fan-out cap, denied subagent models, no outward or destructive shell, 24 KB read trim. Hooks and Node scripts only: no model call, no API key, no telemetry, no dependencies.",
       "category": "workflow",
-      "keywords": ["governance", "guardrails", "human-in-the-loop", "audit", "solo-founder", "nonprofit"]
+      "keywords": ["guardrails", "egress-lock", "budget-cap"]
     }
   ]
 }

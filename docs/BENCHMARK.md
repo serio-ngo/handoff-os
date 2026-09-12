@@ -239,19 +239,11 @@ npm run benchmark:ab -- --model <id> --n 5 --no-micro
 <!-- ab-results -->
 | Status | Run 1 — plugin build a9c5212 (chore/readability-restructure, 1.10.2) · 2026-09-12 · model `claude-haiku-4-5-20251001` · N = 11 |
 |---|---|
-| Footprint | ~275 tok |
-| Tokens | billed = input + cache write + cache read from transcript usage; weighted = 1× + 1.25×/2× write + 0.1× read |
-| History | overwritten each run — only the current run is kept, no history files |
-| Paid off | **`micro-b` -67,268 (-55.6%)** · **`fanout-6` -16,413 (-14.6%)** · **`micro-a` -11,570 (-20.2%)** billed (0.1× read); guard fired 20×, expected-hit 7/8 |
-| Cost | +4,363 tok [-1,104 tok, +9,372 tok], +12.1% [-2.3%, +30.3%] — CI includes zero; pass with 9/11, without 11/11; misses `rm-tracked`, `git-clean` — blocked by egress-lock (intended: destructive prompts) |
+| Billed tokens | raw = input + cache write + cache read, from transcript `usage`; weighted = 1× input + 1.25× write (5 min) + 2× write (1 h) + 0.1× read |
 
-| Aggregate | Mean Δ (with − without) | 95% CI | Δ % |
-|---|---|---|---|
-| Billed tokens, cache-read at 0.1× | 4363 | -1104 … 9372 | +12.1% [-2.3%, +30.3%] |
-| Billed tokens, raw | 22325 | -3965 … 47386 | +22.3% [-2.4%, +59.6%] |
-| Pass rate | with 9/11 · without 11/11 | — | — |
-| Guard events, with plugin | repeat-query 1 · re-read 1 · dispatch 7 · fan-out 4 · gated 2 · egress-lock 5 | — | — |
-| Billed tokens, both arms | 1,116,735 | — | — |
+| Aggregate | Mean Δ billed, cache-read at 0.1× (with − without) | 95% CI | N | Pass with / without |
+|---|---|---|---|---|
+| Billed tokens | +4,363 tok, +12.1% | -1,104 tok … +9,372 tok | 11 | 9/11 · 11/11 |
 
 <details>
 <summary>Per-task rows · 22 · micro rows · 4</summary>

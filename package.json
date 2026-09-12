@@ -1,7 +1,7 @@
 {
   "name": "handoff-os",
   "version": "1.10.2",
-  "description": "An egress lock, a verification gate, an audit trail and budget caps for Claude Code. Sends, payments, publishes, merges, deletes and credential writes stop before they run. No model call, no API key, no telemetry, no dependencies.",
+  "description": "Egress lock and budget caps for Claude Code: fan-out cap, denied subagent models, no outward or destructive shell, 24 KB read trim. Hooks and Node scripts only: no model call, no API key, no telemetry, no dependencies.",
   "license": "Apache-2.0",
   "private": true,
   "homepage": "https://github.com/serio-ngo/handoff-os#readme",

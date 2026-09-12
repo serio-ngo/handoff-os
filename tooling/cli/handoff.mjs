@@ -325,7 +325,6 @@ function release(args) {
   report();
   const bench = (...args) => spawnSync(process.execPath, [path.join(REPO, 'tooling', 'benchmark', 'benchmark.mjs'), REPO, ...args], { stdio: 'inherit' });
   bench('--eval', '--compare', '--write');
-  bench('--write');
 }
 
 function setup(args) {

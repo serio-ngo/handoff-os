@@ -93,14 +93,8 @@ const provenance = (origins) => `${origins.spec} of ${ORIGINS.reduce((sum, key) 
   + `cases are \`spec\` (rule-derived), ${origins.probe} \`probe\`, ${origins.regression} \`regression\`; `
   + 'recall here is a regression check, not a detection rate.';
 
-function mergeScores(root, patch) {
-  const file = path.join(root, 'tooling', 'results', 'scores.json');
-  let current = {};
-  try { current = JSON.parse(readFileSync(file, 'utf8')); } catch { current = {}; }
-  const next = { ...current, ...patch };
-  delete next.latencyMedianMs;
-  delete next.latencyP95Ms;
-  writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
+function writeScores(root, scores) {
+  writeFileSync(path.join(root, 'tooling', 'results', 'scores.json'), `${JSON.stringify(scores, null, 2)}\n`, 'utf8');
   console.log('  wrote tooling/results/scores.json');
 }
 
@@ -178,7 +172,7 @@ function run() {
     if (flags.compare) {
       console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), '<!-- guard-scores -->', '<!-- /guard-scores -->', compareBlock(own, baselines))}`);
       const inv = inventory(REPO);
-      mergeScores(REPO, {
+      writeScores(REPO, {
         generated: new Date().toISOString().slice(0, 10),
         version: JSON.parse(readFileSync(path.join(REPO, 'package.json'), 'utf8')).version,
         cases: own.cases,
@@ -216,19 +210,14 @@ const CACHE_WRITE_5M = 1.25;
 const CACHE_WRITE_1H = 2;
 const CACHE_READ = 0.1;
 const AB_RULES = [
-  [/whole-file limit/, 'whole-file'],
-  [/over the \d+KB ceiling/, 'ceiling'],
   [/is unchanged and already in context/, 're-read'],
   [/already ran and nothing has been written/, 'repeat-query'],
-  [/set head_limit/, 'runaway-query'],
   [/FAN-OUT CAP/, 'fan-out'],
   [/DISPATCH BUDGET/, 'dispatch'],
   [/EGRESS LOCK/, 'egress-lock'],
-  [/Verify gate/, 'gated'],
-  [/SCOUT CONTRACT/, 'citation'],
 ];
 const AB_MICRO = [
-  { id: 'micro-a', prompt: 'Read src/big.js in full and report its line count.', check: 'true', expect_guard: ['whole-file'] },
+  { id: 'micro-a', prompt: 'Read src/big.js in full and report its line count.', check: 'true', expect_guard: [] },
   { id: 'micro-b', prompt: 'Dispatch 6 parallel subagents, one per file under src/, to summarize each file in one line.', check: 'true', expect_guard: ['fan-out', 'dispatch'] },
 ];
 
@@ -280,18 +269,12 @@ function parseStream(stdout) {
       }
     } else if (event.type === 'user') {
       for (const part of event.message?.content || []) {
-        if (part?.type === 'text' && /Verify gate/.test(part.text || '')) out.guard.gated = (out.guard.gated || 0) + 1;
         if (part?.type !== 'tool_result') continue;
         const text = textOf(part.content);
         if (!/hook error/i.test(text)) continue;
         const rule = (AB_RULES.find(([rx]) => rx.test(text)) || [null, 'other'])[1];
         out.guard[rule] = (out.guard[rule] || 0) + 1;
         if (spawnIds.has(part.tool_use_id)) out.spawnBlocked += 1;
-      }
-    } else if (event.type === 'system') {
-      const text = JSON.stringify(event);
-      for (const [rx, rule] of AB_RULES) {
-        if (rule === 'gated' && rx.test(text)) out.guard.gated = (out.guard.gated || 0) + 1;
       }
     } else if (event.type === 'result') {
       out.turns += Number(event.num_turns || 0);
@@ -317,10 +300,8 @@ function ledgerOf(dir) {
   for (const name of readdirSync(stateDir).filter((f) => /^\.session-.*\.json$/.test(f))) {
     let state;
     try { state = JSON.parse(readFileSync(path.join(stateDir, name), 'utf8')); } catch { continue; }
-    for (const bucket of [state.saved, state.lifetime]) {
-      for (const [key, value] of Object.entries(bucket || {})) {
-        if (typeof value === 'number') out[key] = (out[key] || 0) + value;
-      }
+    for (const [key, value] of Object.entries(state.saved || {})) {
+      if (typeof value === 'number') out[key] = (out[key] || 0) + value;
     }
   }
   return out;
@@ -459,12 +440,8 @@ function runTables(r) {
   const a = r.aggregate;
   const microCount = r.micro ? Object.keys(r.micro).length * 2 : 0;
   const lines = [
-    '| Aggregate | Mean Δ (with − without) | 95% CI | Δ % |', '|---|---|---|---|',
-    `| Billed tokens, cache-read at 0.1× | ${Math.round(a.billedWeighted.mean)} | ${a.billedWeighted.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)} |`,
-    `| Billed tokens, raw | ${Math.round(a.billedRaw.mean)} | ${a.billedRaw.ci95.map(Math.round).join(' … ')} | ${fmtPct(a.billedRaw.pct)}${fmtCi(a.billedRaw.pctCi95, fmtPct)} |`,
-    `| Pass rate | with ${a.passA}/${r.n} · without ${a.passB}/${r.n} | — | — |`,
-    `| Guard events, with plugin | ${Object.entries(a.guardEventsA).map(([k, v]) => `${k} ${v}`).join(' · ') || 'none'} | — | — |`,
-    `| Billed tokens, both arms | ${num(a.spendTokens)} | — | — |`,
+    '| Aggregate | Mean Δ billed, cache-read at 0.1× (with − without) | 95% CI | N | Pass with / without |', '|---|---|---|---|---|',
+    `| Billed tokens | ${fmtTok(a.billedWeighted.mean)}, ${fmtPct(a.billedWeighted.pct)} | ${fmtTok(a.billedWeighted.ci95[0])} … ${fmtTok(a.billedWeighted.ci95[1])} | ${r.n} | ${a.passA}/${r.n} · ${a.passB}/${r.n} |`,
     '',
     '<details>',
     `<summary>Per-task rows · ${r.tasks.length * 2}${microCount ? ` · micro rows · ${microCount}` : ''}</summary>`,
@@ -486,38 +463,11 @@ function runTables(r) {
   return lines;
 }
 
-function abVerdict(r) {
-  const a = r.aggregate;
-  const pairs = [
-    ...r.tasks.map((t) => ({ id: t.id, A: t.A, B: t.B })),
-    ...Object.values(r.micro || {}).map((m) => ({ id: m.A.task, A: m.A, B: m.B })),
-  ];
-  const wins = pairs
-    .map(({ id, A, B }) => ({ id, d: A.billedWeighted - B.billedWeighted, base: B.billedWeighted }))
-    .filter((x) => x.d < 0)
-    .sort((x, y) => x.d - y.d)
-    .slice(0, 3);
-  const paid = wins.length
-    ? wins.map((x) => `**\`${x.id}\` ${fmtTok(x.d).replace(' tok', '')} (${fmtPct((x.d / x.base) * 100)})**`).join(' · ')
-    + ` billed (0.1× read); guard fired ${num(Object.values(a.guardEventsA).reduce((s, n) => s + n, 0))}×, expected-hit ${a.expectedHit}/${a.expectedTotal}`
-    : 'none this run';
-  const misses = r.tasks.filter((t) => !t.A.pass);
-  const missGuards = [...new Set(misses.flatMap((t) => Object.keys(t.A.guard)))];
-  const missNote = misses.length
-    ? `; misses ${misses.map((t) => `\`${t.id}\``).join(', ')} — blocked by ${missGuards.join('+') || 'no guard event'} (intended: destructive prompts)`
-    : '';
-  const cost = `${fmtTok(a.billedWeighted.mean)}${fmtCi(a.billedWeighted.ci95, fmtTok)}, ${fmtPct(a.billedWeighted.pct)}${fmtCi(a.billedWeighted.pctCi95, fmtPct)}`
-    + ` — CI includes zero; pass with ${a.passA}/${r.n}, without ${a.passB}/${r.n}${missNote}`;
-  return [`| Paid off | ${paid} |`, `| Cost | ${cost} |`];
-}
-
 function abDocBlock(r) {
   const status = r.dryRun ? `Not run: dry-run on ${r.generated}` : `${runLabel(r, 1)} · ${r.generated} · model \`${r.model}\` · N = ${r.n}${r.stopped ? ` · stopped: ${r.stopped}` : ''}`;
   const lines = [
     `| Status | ${status} |`, '|---|---|',
-    `| Tokens | billed = input + cache write + cache read from transcript usage; weighted = 1× + 1.25×/2× write + 0.1× read |`,
-    '| History | overwritten each run — only the current run is kept, no history files |',
-    ...abVerdict(r),
+    '| Billed tokens | raw = input + cache write + cache read, from transcript `usage`; weighted = 1× input + 1.25× write (5 min) + 2× write (1 h) + 0.1× read |',
     '',
   ];
   if (!r.dryRun) lines.push(...runTables(r));

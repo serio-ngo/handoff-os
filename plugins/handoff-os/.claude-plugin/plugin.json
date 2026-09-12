@@ -3,7 +3,7 @@
   "name": "handoff-os",
   "displayName": "Handoff OS",
   "version": "1.10.2",
-  "description": "A deterministic gate on Claude Code tool calls. Sends, payments, publishes, merges, deletes and credential writes are blocked before they run, a done-claim needs a real verification run, and read and subagent budgets cap waste. Pattern matching in Node: no model call, no API key, no telemetry.",
+  "description": "Egress lock and budget caps for Claude Code: fan-out cap, denied subagent models, no outward or destructive shell, 24 KB read trim. Hooks and Node scripts only: no model call, no API key, no telemetry, no dependencies.",
   "author": {
     "name": "Serio NGO",
     "url": "https://serio.org.pl"
@@ -12,12 +12,8 @@
   "repository": "https://github.com/serio-ngo/handoff-os",
   "license": "Apache-2.0",
   "keywords": [
-    "governance",
     "guardrails",
-    "human-in-the-loop",
-    "audit",
     "egress-lock",
-    "solo-founder",
-    "nonprofit"
+    "budget-cap"
   ]
 }

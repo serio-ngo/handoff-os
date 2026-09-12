@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 92" width="720" height="92" role="img" aria-label="3 subagents per wave; 24 KB whole-file read cap; git · rm destructive calls; &quot;Done&quot; no verification run" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 92" width="720" height="92" role="img" aria-label="3 subagents per wave; 24 KB whole-file read cap; git · rm destructive calls; send · publish outward calls" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
 <rect x="0.5" y="0.5" width="167" height="91" rx="8" fill="none" stroke="#7d8590" stroke-opacity=".35"/>
 <rect x="16" y="22" width="3" height="48" rx="1.5" fill="#2a78d6"/>
 <text x="30" y="50" fill="#7d8590" font-size="26" font-weight="700">3</text>
@@ -13,6 +13,6 @@
 <text x="398" y="71" fill="#7d8590" font-size="12">destructive calls</text>
 <rect x="552.5" y="0.5" width="167" height="91" rx="8" fill="none" stroke="#7d8590" stroke-opacity=".35"/>
 <rect x="568" y="22" width="3" height="48" rx="1.5" fill="#2a78d6"/>
-<text x="582" y="50" fill="#7d8590" font-size="26" font-weight="700">&quot;Done&quot;</text>
-<text x="582" y="71" fill="#7d8590" font-size="12">no verification run</text>
+<text x="582" y="50" fill="#7d8590" font-size="26" font-weight="700">send · publish</text>
+<text x="582" y="71" fill="#7d8590" font-size="12">outward calls</text>
 </svg>

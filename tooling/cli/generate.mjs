@@ -107,20 +107,11 @@ export function writeBlock(file, open, close, lines) {
   return `refreshed ${path.basename(file)}`;
 }
 
-export const FLOW = [
-  'guard.mjs',
-  'lib/patterns.mjs',
-  'lib/shell.mjs',
-  'lib/writes.mjs',
-  'lib/mcp.mjs',
-  'lib/dispatch.mjs',
-  'lib/reads.mjs',
-];
-
 export function inventory(root = REPO) {
   const plugin = path.join(root, 'plugins', 'handoff-os');
+  const scripts = walk(path.join(plugin, 'scripts')).filter((file) => file.endsWith('.mjs'));
   let lines = 0;
-  for (const file of FLOW) {
+  for (const file of scripts) {
     const text = readFileSync(path.join(plugin, 'scripts', file), 'utf8').replace(/\r?\n$/, '');
     lines += text === '' ? 0 : text.split(/\r?\n/).length;
   }
@@ -132,7 +123,6 @@ export function inventory(root = REPO) {
   const handlers = events.reduce((sum, [, group]) => sum
     + group.reduce((n, entry) => n + entry.hooks.length, 0), 0);
 
-  const patterns = (readFileSync(path.join(plugin, 'scripts', 'lib', 'patterns.mjs'), 'utf8').match(/^export const/gm) || []).length;
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 
   return {
@@ -140,9 +130,8 @@ export function inventory(root = REPO) {
     agents: agents.length,
     hookEvents: events.length,
     hookHandlers: handlers,
-    scripts: FLOW.length,
+    scripts: scripts.length,
     logicLines: lines,
-    patterns,
     dependencies: Object.keys(pkg.dependencies || {}).length,
   };
 }
@@ -150,9 +139,7 @@ export function inventory(root = REPO) {
 function inventoryBlock(inv = inventory()) {
   return [
     table(['What ships', 'Count'], [
-      `| Guard logic, agent-affecting only | **${inv.logicLines}** lines across ${inv.scripts} flow files |`,
-      '| Stats, receipts, adapters (`audit`, `card`, `bridge`, `ledger`, `transcript`) | excluded from the count |',
-      `| Pattern rules | **${inv.patterns}** |`,
+      `| Script lines | **${inv.logicLines}** across ${inv.scripts} files |`,
       `| Hooks | **${inv.hookHandlers}** handlers on ${inv.hookEvents} events |`,
       `| Skills | **${inv.skills}** |`,
       `| Subagents | **${inv.agents}** |`,

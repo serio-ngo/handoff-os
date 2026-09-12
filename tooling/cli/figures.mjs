@@ -113,23 +113,22 @@ function fanoutWin() {
   } catch { return ['n/a', 'billed on subagent fan-out']; }
 }
 
-function tiles(r, scores = readJson('tooling', 'results', 'scores.json')) {
+function tiles(r) {
   return {
     stops: [
       [String(MAX_PER_WAVE), 'subagents per wave'],
       [`${Math.round(BIG_FILE_BYTES / 1024)} KB`, 'whole-file read cap'],
       ['git · rm', 'destructive calls'],
-      ['"Done"', 'no verification run'],
+      ['send · publish', 'outward calls'],
     ],
     wins: [
       [String(held(r)), 'subagents held back'],
-      [`${scores.keptPct}%`, 'read volume kept out'],
       fanoutWin(),
     ],
     cost: [
       [abRange(), 'tokens on ordinary tasks'],
       ['Cowork', 'hooks do not fire'],
-      ['OpenCode', 'subagents bypass the guard'],
+      ['OpenCode', 'subagents run unguarded'],
     ],
   };
 }

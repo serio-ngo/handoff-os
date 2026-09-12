@@ -11,7 +11,7 @@ Two trees: `plugins/handoff-os/` ships, `tooling/` never does.
 
 | Path | Contents |
 |---|---|
-| `plugins/handoff-os/` | The plugin, the only shipped tree: 3 skills, 2 agents, 5 hooks, 7 scripts. |
+| `plugins/handoff-os/` | The plugin, the only shipped tree: 3 skills, 2 agents, 5 hooks, 7 scripts, `scripts/lib/` helpers. |
 | `tooling/cli/` | `handoff.mjs`, the maintainer CLI. Generators `generate.mjs`, `figures.mjs`. |
 | `tooling/benchmark/` | `benchmark.mjs`, the harness. `baselines.mjs`, the four comparators. `fixture/`, the throwaway repo the A/B and flood runs copy. |
 | `tooling/corpus/` | `guard-corpus.jsonl`, the labelled corpus. `tasks.jsonl`, the A/B tasks. |
@@ -46,13 +46,15 @@ Two trees: `plugins/handoff-os/` ships, `tooling/` never does.
 5. Write in tables and short imperative sentences. Partial completion is acceptable; silent failure
    is not.
 6. No explanatory comments in code. No runtime dependencies.
-7. The suite is one file, `tooling/test/guard.test.mjs`. Do not add a test file. Do not add a test helper.
+7. Max 300 lines per file in `plugins/`. Runtime helpers that must ship live in
+   `plugins/handoff-os/scripts/lib/`. Analysis-only code lives in `tooling/`.
+8. The suite is one file, `tooling/test/guard.test.mjs`. Do not add a test file. Do not add a test helper.
    Assertions are blocking and failure cases only — no happy path, no CLI, no repo hygiene, no
    budget or hygiene assertions that prove nothing. A new guard rule adds one case to an existing
    list, not a new `describe`.
-8. Before working with Claude Code identifiers (hooks, permissions, plugin layout), read
+9. Before working with Claude Code identifiers (hooks, permissions, plugin layout), read
    [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md).
-9. Docs carry data, not prose. `README.md` is the only exception.
+10. Docs carry data, not prose. `README.md` is the only exception.
 
 > Every other `*.md`: tables, lists, commands, data-comment lines only.
 > No paragraphs. No history. No decision narratives. No elaboration.

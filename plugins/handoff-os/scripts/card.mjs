@@ -52,25 +52,6 @@ function memory() {
   return '';
 }
 
-export const frontmatter = (text, key) => {
-  const hit = new RegExp(`^${key}:\\s*([\\s\\S]*?)(?=^[a-z_]+:|^---)`, 'm').exec(text);
-  return (hit ? hit[1] : '').trim().replace(/^["']|["']$/g, '');
-};
-
-function descriptionChars(dir, pick) {
-  try {
-    return readdirSync(dir).flatMap(pick).reduce((sum, file) => sum + frontmatter(readFileSync(file, 'utf8'), 'description').length, 0);
-  } catch { return 0; }
-}
-
-export function footprint(text = memory()) {
-  const plugin = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const cardChars = card(text).length;
-  const skillChars = descriptionChars(path.join(plugin, 'skills'), (name) => [path.join(plugin, 'skills', name, 'SKILL.md')]);
-  const agentChars = descriptionChars(path.join(plugin, 'agents'), (name) => (name.endsWith('.md') ? [path.join(plugin, 'agents', name)] : []));
-  return { cardChars, skillChars, agentChars, contextChars: cardChars + skillChars + agentChars };
-}
-
 export function card(text = memory()) {
   const lines = text.trim() === '' ? 0 : text.trim().split('\n').length;
   const status = lines

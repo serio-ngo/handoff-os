@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { COUNTERS, bank, load, save, sessionLine } from '../../plugins/handoff-os/scripts/ledger.mjs';
 import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/handoff-os/scripts/patterns.mjs';
-import { PLUGIN, REPO, inventory, readJson, writeBlock } from './generate.mjs';
+import { PLUGIN, REPO, readJson, writeBlock } from './generate.mjs';
 
 const INK = '#7d8590';
 const HUE = { without: '#d95926', with: '#2a78d6' };
@@ -127,11 +127,6 @@ function tiles(r, scores = readJson('tooling', 'results', 'scores.json')) {
       [`${scores.recall}%`, 'of the corpus caught'],
       [`${scores.fpRate}%`, 'wrongly blocked'],
       [String(scores.cases), 'labelled cases, gated in CI'],
-    ],
-    never: [
-      ['0', 'model calls'],
-      ['0', 'network calls'],
-      [String(inventory().dependencies), 'dependencies'],
     ],
     cost: [
       [abRange(), 'tokens on ordinary tasks'],

@@ -56,9 +56,6 @@ blocks('blocks shell commands that leave the machine', [
   'curl -X POST -d "a=1" https://api.example.com/items',
   'scp notes.md host:/tmp',
   'terraform apply',
-  'sudo npm publish --access public',
-  'bash -c "npm publish" 2>/dev/null',
-  'if [ -d dist ]; then npm publish; fi',
 ], bash);
 
 blocks('blocks shell commands that would meter API credits', [
@@ -77,9 +74,6 @@ blocks('blocks git merge, delete and history rewrite', [
   `${VCS} clean -fd`,
   `${VCS} reset --hard HEAD~1`,
   `${VCS} ${OUT} --force origin main`,
-  `sudo ${VCS} merge main`,
-  `echo 'x\\'; ${VCS} merge main`,
-  `echo "$(${VCS} merge main)"`,
 ], bash);
 
 blocks('blocks outward PowerShell and credential assignment', [

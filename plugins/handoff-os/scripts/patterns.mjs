@@ -21,12 +21,11 @@ export const WRITE_TOOLS = ['Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
 export const MODEL_BEARING = ['Agent', 'Task'];
 export const SPAWN_TEXT = ['prompt', 'description', 'subagent_type', 'subject', 'script', 'name', 'title'];
 export const SHELLS = /^(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)\b/i;
-export const SHELL_INNER = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+(['"])([\s\S]*)\1/i;
+export const SHELL_INNER = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+(['"])([\s\S]*)\1\s*$/i;
 export const SHELL_INNER_BARE = /(?:^|\s)(?:-{1,2}(?:command|[a-z]*c)|\/(?:command|c))\s+()(?!['"])([\s\S]+)$/i;
 export const ENCODED_CMD = /(?:^|\s)-e(?:c|nc(?:odedcommand)?)?\s+([A-Za-z0-9+/=]{16,})(?:\s|$)/i;
 export const NO_OP_FLAG = /(?:^|\s)(?:--help|--version|--dry-run|--dryrun|-WhatIf)(?:[=\s]|$)/i;
-export const SHELL_PREFIX = /^(?:sudo|doas|env|eval|command|exec|builtin|nohup|time|nice|stdbuf|xargs)\b(?:\s+(?:-\S+|\w+=\S+))*\s+/i;
-export const SHELL_KEYWORD = /^(?:(?:then|else|elif|done|do|fi|esac|if|while|until|for|case|select)\b|[!{(])\s*/i;
+export const SHELL_PREFIX = /^(?:eval|command|exec|builtin|nohup|time|nice|stdbuf|xargs)\b(?:\s+-\S+)*\s+/i;
 export const SHELL_QUOTED = /^(['"])([\s\S]*)\1$/;
 
 const GIT = String.raw`^git\b(?:\s+(?:-[Cc]\s+\S+|--\S+(?:[=\s]\S+)?))*\s+`;

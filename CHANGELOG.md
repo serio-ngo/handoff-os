@@ -4,6 +4,7 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.10.1 | 2026-09-12 | remove shell tricks parser |
 | 1.10.0 | 2026-09-11 | Guard messages report what happened and stop. HANDOFF_GIT_WRITE gates branch, commit and push, 0 by default; a pull request and every read stay open. Stop receipt is one line in tokens, and all-time folds every session in the root. demo.svg is captured from a live guard run. A benchmark run that produced no turn no longer overwrites committed results. |
 | 1.9.2 | 2026-09-11 | No rule bounds a long session: whole-file count rule and session read ceiling removed. Every guard message is one line. No dollar value anywhere. Stop receipt reports tokens kept out of context, session and all-time. Figures carry the headline only, demo shows a wave of 100 |
 | 1.9.1 | 2026-09-10 | read bookings rolled back on a refused shell command, capped workflow frees its wave, verify gate scoped to sessions that wrote since the last proving run, runner root named, stand-down counter reset, compact resets query dedup, notebook and multi edits audited |

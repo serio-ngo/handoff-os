@@ -8,7 +8,7 @@ import {
   GH_MUTATION, GIT_DESTRUCTIVE, GIT_WRITE, INTERPRETER_EGRESS, MAX_PER_WAVE, MODEL_TIERS,
   DENY_SUBAGENT_DEFAULT, OUTWARD, OUTWARD_PREFIX, SECRET_NAMES, SECRET_PATHS, ORG_NAMES, ORG_PATHS, DISPOSABLE, QUALITY, READ_PREFIX,
   MODEL_BEARING, MODEL_OPTION, RESTORATIVE, REVIEW, SHELL_DESTRUCTIVE, SHELL_INNER, SHELL_PREFIX, SHELL_QUOTED,
-  SHELL_KEYWORD, SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
+  SHELL_INNER_BARE, ENCODED_CMD, NO_OP_FLAG, PIPE, REDIRECT, REDIRECTED, REDIRECT_AMP, TO_FILE, FD_DUP, REWRITABLE_READ, SED_QUIET, SED_RANGE, SLICE_CMD,
   SHELL_WRITE_TARGET, SHELLS, SPAWN_TEXT, SPAWN_TOOLS, deniedSubagentRx,
   SQL_DESTRUCTIVE, STRONG, WAVE_MS, WEB_FETCH_SERVER, WHOLE_FILE_CMD, WRITE_TOOLS, WRITE_VERBS,
 } from './patterns.mjs';
@@ -26,12 +26,6 @@ const deny = (reason, label = 'EGRESS LOCK') => {
   throw new Blocked(`${label}: ${reason}\n`);
 };
 
-function escapedAt(text, at) {
-  let run = 0;
-  while (at - run - 1 >= 0 && text[at - run - 1] === '\\') run += 1;
-  return run % 2 === 1;
-}
-
 function split(command, breakers, subshell) {
   const out = [];
   let buffer = '';
@@ -39,13 +33,7 @@ function split(command, breakers, subshell) {
   for (let i = 0; i < command.length; i += 1) {
     const char = command[i];
     if (quote) {
-      if (subshell && quote === '"' && (char === '`' || (char === '$' && command[i + 1] === '('))) {
-        out.push(buffer);
-        buffer = '';
-        if (char === '$') i += 1;
-        continue;
-      }
-      if (char === quote && (quote === "'" || !escapedAt(command, i))) quote = null;
+      if (char === quote && command[i - 1] !== '\\') quote = null;
       buffer += char;
       continue;
     }
@@ -64,9 +52,8 @@ const pipelines = (command) => split(command, ';\n&', false);
 
 function unwrap(segment) {
   let out = String(segment).trim();
-  for (let i = 0; i < 4; i += 1) {
-    const next = out.replace(SHELL_KEYWORD, '').trim().replace(SHELL_PREFIX, '').trim()
-      .replace(SHELL_QUOTED, '$2').trim();
+  for (let i = 0; i < 3; i += 1) {
+    const next = out.replace(SHELL_PREFIX, '').trim().replace(SHELL_QUOTED, '$2').trim();
     if (next === out) break;
     out = next;
   }

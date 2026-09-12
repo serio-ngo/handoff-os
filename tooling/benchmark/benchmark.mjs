@@ -233,6 +233,11 @@ function run() {
   return own.misses.length ? 1 : 0;
 }
 
+const produced = (arms, opts) => !opts.dryRun
+  && Object.values(arms).some((arm) => arm && !arm.error && Number(arm.turns) > 0);
+const refuse = (arms, outFile) => console.log(`\n  no arm produced a turn — ${path.relative(REPO, outFile)} left untouched`
+  + `${Object.values(arms).map((a) => a?.error).filter(Boolean)[0] ? `: ${Object.values(arms).map((a) => a?.error).filter(Boolean)[0]}` : ''}`);
+
 const AB_DOC_OPEN = '<!-- ab-results -->';
 const AB_DOC_CLOSE = '<!-- /ab-results -->';
 const AB_TOOLS = 'Read,Grep,Glob,Bash,Edit,Write,Agent,Task';
@@ -665,6 +670,10 @@ function ab(opts) {
     micro: Object.keys(micro).length ? micro : null,
   };
   const outFile = path.resolve(REPO, opts.out);
+  if (!produced(Object.fromEntries(rows.flatMap((r, i) => [[`A${i}`, r.A], [`B${i}`, r.B]])), opts)) {
+    refuse({ a: rows[0]?.A, b: rows[0]?.B }, outFile);
+    return 1;
+  }
   writeFileSync(outFile, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
   console.log(`\n  wrote ${path.relative(REPO, outFile)}`);
   const a = result.aggregate;
@@ -730,6 +739,10 @@ function flood(opts) {
     },
     arms,
   };
+  if (!produced(arms, opts)) {
+    refuse(arms, outFile);
+    return 1;
+  }
   writeFileSync(outFile, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
   console.log(`\n  wrote ${path.relative(REPO, outFile)}${stopped ? `  ${stopped}` : ''}`);
   if (arms.with && arms.without && !opts.dryRun && !path.relative(REPO, outFile).startsWith('..')) for (const line of writeFlood(result)) console.log(`  ${line}`);

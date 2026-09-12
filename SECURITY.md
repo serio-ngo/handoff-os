@@ -12,16 +12,9 @@
 | Ban | no public issue; no live credentials |
 | First response | within 7 days |
 
-## Scope
-
-| Boundary | Rule |
+| Scope | Rule |
 |---|---|
-| Surface | Runs only where Claude Code executes plugin hooks (Claude Code CLI `SessionStart`, `PreToolUse`, `PostToolUse`, `SubagentStop`, `Stop`). No effect in chat or any surface that skips this hook path. |
-| Shape | A policy gate on the agent's tool calls. It is not a sandbox. It does not confine code that was already written, processes the agent spawned, or network calls made by a connector itself. |
-| Strength | Shell matching is pattern-based and does not hold against a determined adversary. Use it together with operating system permissions and Claude Code `permissions.deny` rules, not instead of them. |
-
-| Check | Command |
-|---|---|
-| Reproduce | `npm run benchmark:eval` |
-| Method, last run | [docs/BENCHMARK.md](docs/BENCHMARK.md) |
-| After every Claude Code update | `npm test` — fires every hook against a representative payload; fails on changed event or field |
+| Surface | Claude Code plugin hooks only: `SessionStart`, `PreToolUse`, `Stop`; no effect in chat or on a surface that skips hooks |
+| Shape | a pattern gate on tool calls, not a sandbox: code already written, processes already spawned and a connector's own network calls run unguarded |
+| Strength | pattern matching, no defence against a deliberate route around it; pair it with OS permissions and Claude Code `permissions.deny` rules |
+| Reproduce | `npm run benchmark:eval`; method in [docs/BENCHMARK.md](docs/BENCHMARK.md) |

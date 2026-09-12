@@ -1,189 +1,31 @@
 # Benchmark
 
-<sub><b>Answers</b> · what the guard refused, would refuse, blocks, and bills — ledger · replay · track A · track B · flood · <a href="../README.md">README</a></sub>
+<sub><b>Answers</b> · does the guard block what it claims, and what does it cost · track A · track B · flood · <a href="../README.md">README</a></sub>
 
-<!-- ledger · replay · track A · track B · flood -->
-
-| Track | Question | Status |
+| Track | Question | Command |
 |---|---|---|
-| Ledger | what the guard refused in live sessions | runs on every Stop hook |
-| Replay | what the guard would refuse on recorded real traffic | `npm run benchmark:replay` |
-| Track A | does the guard block what it claims to | `npm run benchmark:eval`, gated in CI |
-| Track B | does the bill actually fall | `npm run benchmark:ab` |
+| Track A | does the guard block what it claims to | `npm run benchmark:eval`, gated in CI; `npm run benchmark:compare` adds the four comparators |
+| Track B | does the bill fall, task by task | `npm run benchmark:ab` |
 | Flood | what one 20-subagent prompt costs, with and without | `npm run benchmark:flood` |
 
-## Cost and limits
-
-<img src="tiles-cost.svg" width="720" alt="Cost and limits: more tokens on ordinary tasks; Cowork hooks do not fire; OpenCode subagents bypass the guard">
+<img src="tiles-cost.svg" width="720" alt="Cost and limits: more tokens on ordinary tasks; Cowork hooks do not fire; OpenCode subagents run unguarded">
 
 | Limit | Detail |
 |---|---|
 | Ordinary tasks | cost more tokens, not fewer — the guard buys a ceiling on the tail, not an average saving |
 | Cowork | hooks do not fire there |
-| OpenCode | its subagents bypass the guard |
-
-## Context savings — what `npm run benchmark` prints
-
-| Figure | Definition |
-|---|---|
-| `read volume` | every byte the session asked to put in the main thread |
-| `kept out` | the part refused before entry |
-| Share | `kept / read volume` |
-
-| Line | Counter | Credited |
-|---|---|---|
-| re-read dedup | `bytes` | full file size — already in context, byte-identical |
-| whole-file cap | `deferred` | full file size at refusal |
-| moved to a subagent | `offload` | bytes read under a non-`main` actor |
-| admitted | `read` | bytes let into the main thread |
-| repeat query, runaway cap | `queries`, `caps` | counted only; output size unknown at `PreToolUse` |
-| dispatched scout / runner | `scouts`, `runners` | counted only; their reads credit `offload` |
-| plugin footprint | — | session card + skill and agent descriptions, chars / 4, always in context |
-
-| Share rule | Why |
-|---|---|
-| `queries` and `caps` earn no tokens | guard cannot know the `Grep` result size |
-| `net` is kept-out tokens minus footprint | the window cost in tokens; negative when the window did no whole-file reads |
-| a retried refusal credits once | first refusal stamps `actor + path + mtime:size + rule`; repeats skip the byte credit |
-| the follow-up read lands in the denominator | slice or scout read after a cap counts as `admitted` or `offload` |
-
-- Only the current ledger format parses; older lines skip, never guessed.
-- Bytes / 4 estimates tokens; never billing.
-
-| Denominator | Scope |
-|---|---|
-| Counts | unsliced main-thread `Read` calls; shell-spotted whole-file reads |
-| Misses | slices, `Grep` output, `Bash` output, subagent returns |
-| Read as | share of whole-file read volume, not of the window |
-
-## Billing — measured, not estimated
-
-| Field | Source |
-|---|---|
-| `fresh` | `input_tokens` + `output_tokens` + `cache_creation_input_tokens`, from transcript `usage` |
-| `cache-read` | `cache_read_input_tokens`, from transcript `usage` |
-| Fallback | every transcript under `~/.claude/projects/<slug>/` when no ledger line carries billing |
-| `context re-send ratio` | `cache-read / fresh`; the mechanism exploited, not the plugin |
-
-| `re-sends removed` | Rule |
-|---|---|---|
-| Credit | `kept bytes × turns that followed`, per stamped line, per session |
-| Sessions | turn counts restart per session; a drop closes one, opens the next |
-| Weight | re-sends would be cache-read tokens at 0.1× input; tokens only |
-
-## Replay — the guard against recorded traffic
-
-```bash
-npm run benchmark:replay
-```
-
-- Input: this project's transcripts under `~/.claude/projects/<slug>/`; every `Read`, `Grep`, `Glob`, `Bash` call, in order, one sandbox ledger per session.
-
-| Property | Value |
-|---|---|
-| Input | real tool calls from real sessions, not fixtures |
-| Isolation | one temp `HANDOFF_OS_DIR` per session, matching that session's dedup state |
-| Loop | open — a refusal cannot change what the agent did next |
-| Misses | shell pipelines and `$(...)`, which the read budget cannot size |
-| Bias | guarded sessions produce fewer hits, so the count is a floor |
-
-- Answers what the guard catches on this stream. Not Track B.
-
-<!-- handoff-replay -->
-| The maintainer's 16 sessions — run it on yours | Count | Share of judged |
-|---|---|---|
-| Tool calls recorded | 2,141 | — |
-| Judged by the guard | 1,473 | 100% |
-| **Refused** | **76** | **5%** |
-| — egress lock | 67 | 5% |
-| — whole-file cap | 5 | 0% |
-| — re-read dedup | 4 | 0% |
-
-Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code transcripts, re-fed to the guard in order, one sandbox per session. Open-loop: a refusal cannot change what the agent did next, so this is what the guard catches on that exact stream, not a counterfactual. Reproduce with `npm run benchmark:replay`.
-<!-- /handoff-replay -->
-
-## Live ledger — what the guard did on this machine
-
-<!-- handoff-stats -->
-| Measured over 16 turns | Tokens | Share |
-|---|---|---|
-| Read volume the session asked for | ~381.1k | 100% |
-| **Kept out** | **~245.7k** | **64%** |
-| — re-read dedup | ~29.8k | 8% |
-| — whole-file cap | ~8,200 | 2% |
-| — moved to a subagent | ~194.0k | 51% |
-| Admitted to the main thread | ~135.3k | 36% |
-
-| Context tax — the plugin's own footprint | Tokens |
-|---|---|
-| Session card, always in context | ~162 |
-| Skill descriptions, always in context | ~65 |
-| Agent descriptions, always in context | ~50 |
-| **Total footprint** | **~277** |
-| Per turn, on top of that | **0** (since 1.6.0) |
-| **Net kept out minus footprint** | **~245.5k** |
-
-| Measured billing | Tokens |
-|---|---|
-| Fresh — input + output + cache write | 18,488,496 |
-| Cache-read | 839,063,368 |
-| **Context re-send ratio** | **45.4×** |
-| Re-sends removed, kept × turns that followed | ~15.3M |
-
-Guard actions: 47. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
-<!-- /handoff-stats -->
+| OpenCode | its subagents run unguarded |
 
 ## Track A
 
 | Item | Value |
 |---|---|
-| Corpus | `tooling/corpus/guard-corpus.jsonl`, labelled; case counts in the `<!-- eval-results -->` block below |
-| Runner | `npm run benchmark:eval`, exits 1 on a miss, gated in CI |
-| Verdict | exit 2 means blocked |
-| `origin` field | `spec` = derived from the rule table, self-confirming · `probe` = found by adversarial probing · `regression` = reproduces a shipped bug |
-| Scoring | recall never without false-positive rate |
-
-- Same corpus, same scoring, any `PreToolUse` guard on stdin:
-
-```bash
-HANDOFF_EVAL_GUARD="node ../other-guard/hook.mjs" npm run benchmark:eval
-```
-
-- No third-party guard run here. Self-test with published method.
-
-## Comparison
-
-```bash
-npm run benchmark:compare
-```
-
-| Comparator | What it models | Fair to it |
-|---|---|---|
-| `none` | no guard, permission prompts only | The floor. Shows the corpus is not satisfiable by doing nothing. |
-| `policy` | Claude Code `permissions.deny` globs, read from `tooling/settings/policy.json` | The real built-in alternative. Loses on connector and file-content cases because a glob cannot express them. |
-| `keyword` | a pattern-list `PreToolUse` hook, ~35 dangerous-pattern regexes | The shape most published guard hooks ship. Graded on the same cases, including the safe ones. |
-| `denyall` | block every tool call | The ceiling. Perfect recall, useless in practice — this is why recall is never reported alone. |
-
-<!-- guard-scores -->
-| Guard | Caught | Wrongly blocked | F1 |
-|---|---|---|---|
-| no guard, permission prompts only | 0% | 0% | 0.00 |
-| Claude Code permissions.deny globs | 16% | 5% | 0.27 |
-| a pattern-list PreToolUse hook | 36% | 11% | 0.50 |
-| block every tool call | 100% | 100% | 0.73 |
-| **handoff-os** | 100% | 0% | 1.00 |
-
-91 cases, 2026-09-12; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
-
-61 of 87 scored cases are `spec` (rule-derived), 22 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
-<!-- /guard-scores -->
-
-- Mechanism baselines from published rule shapes, not vendor code; no product named.
-- Same case list, same scoring; `tooling/benchmark/baselines.mjs` committed for repeat or dispute.
-- `tooling/results/scores.json` written by the same run; feeds the README badges.
-- Cost is context tax: the plugin's own footprint against the rot it keeps out, per window, in the ledger report.
-- Spawn milliseconds print on `--latency` runs only; machine-specific, never published, never in `scores.json`.
-- Multiple roots aggregate: `node tooling/benchmark/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
+| Corpus | `tooling/corpus/guard-corpus.jsonl`, one labelled case per line |
+| Verdict | exit 2 = blocked |
+| `origin` | `spec` derived from the rule table · `probe` found by probing · `regression` reproduces a shipped bug |
+| Scoring | recall never without false-positive rate; a `spec`-heavy corpus makes recall a regression check, not a detection rate |
+| Other guards | `HANDOFF_EVAL_GUARD="node ../other-guard/hook.mjs" npm run benchmark:eval` — same corpus, same scoring |
+| Output | `tooling/results/scores.json`, feeds the README badges |
 
 <!-- eval-results -->
 Run 2026-09-12 · 91 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
@@ -206,33 +48,49 @@ Confusion: TP 50 · FN 0 · FP 0 · TN 37. Bypasses scored apart.
 61 of 87 scored cases are `spec` (rule-derived), 22 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /eval-results -->
 
-## Track B — paired runs, with and without the plugin
+| Comparator | Models | Note |
+|---|---|---|
+| `none` | no guard, permission prompts only | the floor |
+| `policy` | Claude Code `permissions.deny` globs from `tooling/settings/policy.json` | the built-in alternative; a glob cannot express connector or content cases |
+| `keyword` | a `PreToolUse` hook with ~35 dangerous-pattern regexes | the shape most published guard hooks ship |
+| `denyall` | block every tool call | the ceiling: perfect recall, useless |
+
+<!-- guard-scores -->
+| Guard | Caught | Wrongly blocked | F1 |
+|---|---|---|---|
+| no guard, permission prompts only | 0% | 0% | 0.00 |
+| Claude Code permissions.deny globs | 16% | 5% | 0.27 |
+| a pattern-list PreToolUse hook | 36% | 11% | 0.50 |
+| block every tool call | 100% | 100% | 0.73 |
+| **handoff-os** | 100% | 0% | 1.00 |
+
+91 cases, 2026-09-12; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
+
+61 of 87 scored cases are `spec` (rule-derived), 22 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+<!-- /guard-scores -->
+
+## Track B
 
 | Item | Rule |
 |---|---|
-| Runner | `npm run benchmark:ab` — `tooling/benchmark/benchmark.mjs ab` |
-| Tasks | `tooling/corpus/tasks.jsonl`, one object per line: `id`, `prompt`, `check` (shell, exit 0 = pass, `$AB_RESULT` holds the final reply), `expect_guard` (guard classes the task provokes; empty = neutral), optional `setup` |
-| Fixture | `tooling/benchmark/fixture/`, copied to a fresh temp dir per run, `git init` + one commit; `src/big.js` regenerates from `tools/make-big.mjs` |
-| Arms | A: `claude -p --plugin-dir plugins/handoff-os` · B: same command without it; `--output-format stream-json --max-turns 12 --setting-sources project --strict-mcp-config`, tools `Read,Grep,Glob,Bash,Edit,Write,Agent,Task` |
+| Tasks | `tooling/corpus/tasks.jsonl`: `id`, `prompt`, `check` (shell, exit 0 = pass, `$AB_RESULT` holds the final reply), `expect_guard`, optional `setup` |
+| Fixture | `tooling/benchmark/fixture/`, copied to a fresh temp dir per run, `git init` + one commit |
+| Arms | A: `claude -p --plugin-dir plugins/handoff-os` · B: the same command without it; `--max-turns 12 --setting-sources project --strict-mcp-config`, tools `Read,Grep,Glob,Bash,Edit,Write,Agent,Task` |
 | Order | random per task, seeded (`--seed`) |
-| Meter | `usage` of every assistant message, deduplicated by `request_id`; subagent messages included |
-| Billed tokens | raw = `input + cache_write + cache_read`; weighted = `input + 1.25× write(5m) + 2× write(1h) + 0.1× read` |
-| Guard events | `PreToolUse … hook error` tool results classified by rule text; `gated` from the Stop hook |
-| Ledger | arm A only: every counter in `.claude/.session-*.json` of the temp dir, `saved` + `lifetime` |
-| Footprint | session card + skill and agent descriptions, chars / 4; already inside arm A billing — reported, never subtracted |
-| Δ | with − without per task; mean, and share of the without-arm total, bootstrap 95% CI over 10,000 resamples |
-| Quality gate | pass rate per arm beside tokens; a token drop with a pass drop is a loss |
-| Micro | `micro-a` whole-file read of `src/big.js` · `micro-b` six-subagent fan-out; per arm billed tokens, subagents requested / blocked / spawned |
-| Budget | stops once cumulative billed tokens pass `--budget` (default 2000000 tok); partial results still written |
-| Output | `tooling/results/ab-results.json`, overwritten each run — only the current run is kept · this file's `<!-- ab-results -->` |
-| Ban | bytes / 4 never reported as billing |
+| Meter | `usage` of every assistant message, deduplicated by `request_id`, subagents included |
+| Guard events | `PreToolUse … hook error` tool results classified by rule text |
+| Δ | with − without per task; mean and share of the without-arm total, bootstrap 95% CI over 10,000 resamples |
+| Quality | pass rate per arm beside tokens; a token drop with a pass drop is a loss |
+| Micro | `micro-a` whole-file read of `src/big.js` · `micro-b` six-subagent fan-out |
+| Budget | stops once billed tokens pass `--budget` (default 2,000,000); partial results still written |
+| Output | `tooling/results/ab-results.json`, overwritten each run, and the block below |
 
 ```bash
-npm run benchmark:ab                                   # every task, both arms, micro experiments
-npm run benchmark:ab -- --task big-read                # one task
-npm run benchmark:ab -- --dry-run                      # pipeline only, no model call
-npm run benchmark:ab -- --render                       # rewrite the blocks from tooling/results/ab-results.json
-npm run benchmark:ab -- --plugin-dir <dir> --out <file>  # another plugin build; an --out outside the repo leaves the blocks alone
+npm run benchmark:ab                                     # every task, both arms, micro experiments
+npm run benchmark:ab -- --task big-read                  # one task
+npm run benchmark:ab -- --dry-run                        # pipeline only, no model call
+npm run benchmark:ab -- --render                         # rewrite the block from tooling/results/ab-results.json
+npm run benchmark:ab -- --plugin-dir <dir> --out <file>  # another plugin build; an --out outside the repo leaves the block alone
 npm run benchmark:ab -- --model <id> --n 5 --no-micro
 ```
 
@@ -287,24 +145,20 @@ npm run benchmark:ab -- --model claude-haiku-4-5-20251001
 ```
 <!-- /ab-results -->
 
-## Flood — one prompt, 20 subagents
+## Flood
 
 | Item | Rule |
 |---|---|
-| Runner | `npm run benchmark:flood` — `tooling/benchmark/benchmark.mjs flood` |
-| Fixture | `tooling/benchmark/fixture/` minus `src/`, `tests/`, `tools/`; plus `src/mod01.js … mod20.js`, generated at run time, three exports each |
+| Fixture | `tooling/benchmark/fixture/` minus `src/`, `tests/`, `tools/`; plus `src/mod01.js … mod20.js`, generated at run time |
 | Prompt | one: launch one subagent per module, all 20 in parallel, then one line per module |
-| Arms | without the plugin first, then `--plugin-dir plugins/handoff-os`; same flags as Track B, `--max-turns 25` |
+| Arms | without the plugin first, then `--plugin-dir plugins/handoff-os`; Track B flags, `--max-turns 25` |
 | Model | `claude-sonnet-5` by default; `--model <id>` |
-| Subagent calls | `Agent` / `Task` tool calls in the transcript |
 | Started | `subagent_stats.spawned` from the result event |
 | Refused | subagent calls answered by a `PreToolUse` hook error |
 | Tokens billed | `input + cache write + 0.1 × cache read`, transcript `usage`, subagents included |
-| Raw tokens per subagent | `input + cache write + cache read` of one subagent's messages, grouped by `parent_tool_use_id`, mean over the arm |
-| Finished | reply names all 20 modules |
-| Budget | stops once cumulative billed tokens pass `--budget` (default 2,000,000); partial result still written |
-| Output | `tooling/results/flood-results.json` · `docs/flood.svg` · README `<!-- handoff-flood -->` · this file's `<!-- flood-results -->` |
-| Figures | `tooling/cli/figures.mjs` renders `docs/flood.svg`, `docs/tiles-*.svg`, `docs/demo.svg` from `tooling/results/*.json` and plugin constants; `npm run upkeep` rewrites them, `upkeep:check` fails when they differ |
+| Finished | the reply names all 20 modules |
+| Output | `tooling/results/flood-results.json`, `docs/flood.svg`, the README figure and the block below |
+| Figures | `tooling/cli/figures.mjs` renders every `docs/*.svg` from `tooling/results/*.json` and plugin constants; `npm run upkeep` rewrites them |
 
 ```bash
 npm run benchmark:flood                 # both arms, one prompt

@@ -43,19 +43,23 @@ Restart Claude Code. Hooks load at session start.
 
 ## What it does
 
-<img src="docs/tiles-stops.svg" width="720" alt="Stops: 3 subagents per wave; 24 KB whole-file read cap; destructive git and rm calls; Done with no verification run">
+<img src="docs/tiles-stops.svg" width="720" alt="Stops: 3 subagents per wave; 24 KB whole-file read cap; destructive git and rm calls; outward send and publish calls">
 
-| Guard | Notes |
-|---|---|
-| Fan-out cap | `HANDOFF_MAX_PER_WAVE=3`, `HANDOFF_WAVE_MS=60000` — excess waits for the next wave. |
-| Read budget | Files over 24 KB arrive trimmed; an unchanged file is never re-sent. |
-| Dispatch budget | Every subagent names a tier; `HANDOFF_DENY_SUBAGENT_MODELS=opus,fable` never reviews. |
-| Egress lock | Shell, PowerShell and connectors alike; single actions reopen via `HANDOFF_MCP_ALLOW`. |
-| Verify gate | A "done" claim needs a real `verify` (else check, typecheck, build) run; stands down after two blocks. |
-| Git writes | `git push`, `commit`, `checkout` are not blocked by the plugin; deny them with `npm run sync` (opt back in with `--unlock git`). |
-| Session receipt | Printed at Stop; `HANDOFF_STATS=0` silences it. |
+Every rule is a `PreToolUse` hook in Node. Nothing is blocked that an environment variable cannot reopen, except a merge, a delete or an outward call.
 
-<img src="docs/tiles-wins.svg" width="720" alt="Wins: subagents held back; read volume kept out; billed on subagent fan-out">
+| Guard | What happens | Knob |
+|---|---|---|
+| Fan-out cap | the fourth subagent in one wave waits for the next wave | `HANDOFF_MAX_PER_WAVE=3`, `HANDOFF_WAVE_MS=60000` |
+| Denied models | a subagent `model:` on the list is refused; `opus` and `fable` by default | `HANDOFF_DENY_SUBAGENT_MODELS=opus,fable` |
+| Egress lock | outward shell (`npm publish`, `gh pr merge`, `curl -X POST`, `scp`, deploys), `gh api` mutations and connector send, publish, delete verbs stop before they run | `HANDOFF_MCP_ALLOW=<action,…>` reopens single connector actions |
+| Destructive shell | `git merge`, `git rm`, branch and tag delete, force push, `reset --hard`, `clean`; `rm` outside build and temp paths | none |
+| Metered credentials | `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, `apiKeyHelper` assignments; writes to `.env`, `secrets/`, key files | none |
+| Read trim | a whole-file `Read` or bare `cat` over 24 KB is rewritten to its first 24 KB, never blocked | none |
+| Read dedup | an unchanged file, or the identical Grep or Glob, is refused while already in context; forgotten on compact, clear or a write | none |
+| Git writes | `push`, `commit`, `checkout` are not the plugin's call | deny them with `npm run sync`; reopen with `--unlock git` |
+| Receipt | one line at Stop: `handoff-os · 2 blocked · 1 trimmed · 1 held` | `HANDOFF_STATS=0` |
+
+<img src="docs/tiles-wins.svg" width="720" alt="Wins: subagents held back; billed on subagent fan-out">
 
 ## Proof
 

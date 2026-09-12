@@ -1,14 +1,11 @@
 # Contributing
 
-## First PR in 20 minutes
-
-A labelled corpus line is the cheapest real contribution: it is what turns a refusal, or a missed
-refusal, into a permanent check.
+## First PR
 
 | Step | Command or file |
 |---|---|
 | 1. Fork and clone | `git clone <your fork>` |
-| 2. Prove the suite is green first | `npm test` |
+| 2. Green first | `npm test` |
 | 3. Add one case | a line in `tooling/corpus/guard-corpus.jsonl`: `id`, `category`, `tool`, `input`, `want`, `origin`, `note` |
 | 4. Add the same call to the suite | the matching list in `tooling/test/guard.test.mjs`, one entry, never a new `describe` |
 | 5. Score it | `npm run benchmark:eval` — exits 1 on a miss |
@@ -16,7 +13,7 @@ refusal, into a permanent check.
 
 | Corpus field | Value |
 |---|---|
-| `want` | `block` or `allow` — what the guard must do |
+| `want` | `block` or `allow` |
 | `origin` | `spec` derived from a rule · `probe` found by probing · `regression` reproduces a shipped bug |
 
 ## Labels
@@ -29,65 +26,11 @@ refusal, into a permanent check.
 | `missed-block` | the guard let an outward or destructive call through |
 | `docs` | a fact is wrong, stale, or has two homes |
 
-## Credits
-
-| Handle | First PR | What |
-|---|---|---|
-| — | — | — |
-
-## Scope
+## Rules
 
 | Rule | Value |
 |---|---|
-| Applies | every repository the plugin runs in |
-| Local rules | that codebase's own `CLAUDE.md`, never here |
-| Reuse | check Claude Code built-ins and public plugins first |
-| New skill | on second occurrence of the pattern only |
-
-## Code
-
-| Rule | Value |
-|---|---|
-| Dependencies | none; Node standard library only |
-| Comments | none explanatory in code |
-| Models | scripts do deterministic work, never models |
-| File size | 300 lines max per file in `plugins/`; must-ship helpers in `scripts/lib/`, analysis-only code in `tooling/` |
-
-## Tests
-
-| Suite | Runner |
-|---|---|
-| One file, `tooling/test/guard.test.mjs` | `npm test`, Node built-in runner |
-
-## Releases
-
-```bash
-npm run release patch "one-line note"
-```
-
-| Release step | Effect |
-|---|---|
-| Tree | must be clean — `release` exits 1 on any uncommitted change |
-| Suite | runs |
-| Version | bumps |
-| Manifest | regenerates |
-| Changelog | updates |
-
-| Bump | Earns it |
-|---|---|
-| `patch` | a guard bug only — a false block or a missed block |
-| `minor` | any behaviour or default change: new hook, new matcher, new bridge |
-
-| Cadence | Rule |
-|---|---|
-| Frequency | one release per week at most, batched from `main` |
-| Every release | CHANGELOG row · `git tag v<version>` · GitHub Release carrying that row as its body |
-
-| Rule | Value |
-|---|---|
-| Data | never commit organisation data, secrets, identifiers |
-| Setup | personalise with `npm run setup` |
+| Scope | every repository the plugin runs in; repo-local rules live in that repo's own `CLAUDE.md` |
+| Code and tests | [CLAUDE.md](CLAUDE.md) |
+| Release | `npm run release patch\|minor "one-line note"` on a clean tree; `patch` for a guard bug, `minor` for any behaviour or default change |
 | Reports | [SECURITY.md](SECURITY.md) |
-| Git | merge and delete stay denied in both modes |
-| `--without` token | matches `Bash`, `Read`, `Edit` rules only |
-| Connectors | no connector rule ships; a connector token matches nothing |

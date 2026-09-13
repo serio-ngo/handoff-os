@@ -4,6 +4,7 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.10.3 | 2026-09-13 | delegate nudge on by default (HANDOFF_DELEGATE=0 to silence): read refusals and the session card point at handoff-os:scout/runner, agent descriptions route proactively, model-less workflow waves warn they inherit the parent model |
 | 1.10.2 | 2026-09-12 | scripts split into entry points and lib; A/B run 4 |
 | 1.10.1 | 2026-09-12 | remove shell tricks parser |
 | 1.10.0 | 2026-09-11 | Guard messages report what happened and stop. HANDOFF_GIT_WRITE gates branch, commit and push, 0 by default; a pull request and every read stay open. Stop receipt is one line in tokens, and all-time folds every session in the root. demo.svg is captured from a live guard run. A benchmark run that produced no turn no longer overwrites committed results. |

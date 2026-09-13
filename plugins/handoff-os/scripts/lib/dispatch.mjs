@@ -3,7 +3,7 @@ import path from 'node:path';
 import {
   DENY_SUBAGENT_DEFAULT, FANOUT_BUDGET, MODEL_BEARING, MODEL_OPTION, MODEL_TIERS,
   QUALITY, REVIEW, SPAWN_TEXT, THINK_ESCALATION, UNBOUNDED_FANOUT, WORKFLOW_AGENT_CALL,
-  deniedSubagentRx, waveCap, waveWindow,
+  delegateOn, deniedSubagentRx, waveCap, waveWindow,
 } from './patterns.mjs';
 import { append } from '../audit.mjs';
 import { load, rootOf, save, sessionOf } from './ledger.mjs';
@@ -73,6 +73,13 @@ export function costBudget(input, tool) {
 export const agentsRequested = (input, tool) => (tool === 'Workflow'
   ? Math.max(1, declaredAgents(input) || (code(input.script).match(WORKFLOW_AGENT_CALL) || []).length)
   : 1);
+
+export function inheritNudge(input, tool) {
+  if (!delegateOn()) return null;
+  if ((tool !== 'Workflow' && tool !== 'TaskCreate') || agentsRequested(input, tool) < 2) return null;
+  if (MODEL_TIERS.test(String(input.model || '')) || selectedTiers(spawnText(input)).length) return null;
+  return 'names no tier — these subagents inherit the parent model; state haiku or sonnet';
+}
 
 export function claimSlot(dir, bucket, cap) {
   try { mkdirSync(dir, { recursive: true }); } catch {

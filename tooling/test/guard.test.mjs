@@ -224,6 +224,22 @@ describe('read and query budgets', () => {
     assert.equal(state('bq').saved.trimmed, 400 * 64 - out.updatedInput.limit * 64);
     assert.equal(state('bq').saved.rewrites, 1);
   });
+  it('names a scout subagent in a refused read unless HANDOFF_DELEGATE=0', () => {
+    const file = path.join(box, 'delegate.txt');
+    writeFileSync(file, 'delegated');
+    const fire2 = (session, extra) => spawnSync(process.execPath, [script('guard.mjs')], {
+      input: JSON.stringify({ cwd: box, session_id: session, tool_name: 'Read', tool_input: { file_path: file } }),
+      encoding: 'utf8', env: { ...process.env, HANDOFF_OS_DIR: box, ...extra },
+    });
+    fire2('dg', {});
+    const on = fire2('dg', {});
+    assert.equal(on.status, BLOCKED);
+    assert.match(on.stderr, /scout subagent/);
+    fire2('dg0', { HANDOFF_DELEGATE: '0' });
+    const off = fire2('dg0', { HANDOFF_DELEGATE: '0' });
+    assert.equal(off.status, BLOCKED);
+    assert.doesNotMatch(off.stderr, /scout subagent/);
+  });
   it('caps a content-mode Grep that names no head_limit', () => {
     const result = run('gc', { tool_name: 'Grep', tool_input: { pattern: 'todo', output_mode: 'content' } });
     assert.equal(result.status, ALLOWED);

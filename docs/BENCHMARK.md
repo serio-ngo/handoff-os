@@ -106,32 +106,32 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Live ledger — what the guard did on this machine
 
 <!-- handoff-stats -->
-| Measured over 16 turns | Tokens | Share |
+| Measured over 17 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~381.1k | 100% |
-| **Kept out** | **~245.7k** | **64%** |
-| — re-read dedup | ~29.8k | 8% |
-| — whole-file cap | ~8,200 | 2% |
-| — moved to a subagent | ~194.0k | 51% |
-| Admitted to the main thread | ~135.3k | 36% |
+| Read volume the session asked for | ~289.0k | 100% |
+| **Kept out** | **~173.0k** | **60%** |
+| — re-read dedup | ~26.5k | 9% |
+| — whole-file cap | ~0 | 0% |
+| — moved to a subagent | ~145.3k | 50% |
+| Admitted to the main thread | ~116.0k | 40% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
-| Session card, always in context | ~162 |
+| Session card, always in context | ~188 |
 | Skill descriptions, always in context | ~65 |
-| Agent descriptions, always in context | ~50 |
-| **Total footprint** | **~277** |
+| Agent descriptions, always in context | ~56 |
+| **Total footprint** | **~309** |
 | Per turn, on top of that | **0** (since 1.6.0) |
-| **Net kept out minus footprint** | **~245.5k** |
+| **Net kept out minus footprint** | **~172.7k** |
 
 | Measured billing | Tokens |
 |---|---|
-| Fresh — input + output + cache write | 18,488,496 |
-| Cache-read | 839,063,368 |
-| **Context re-send ratio** | **45.4×** |
-| Re-sends removed, kept × turns that followed | ~15.3M |
+| Fresh — input + output + cache write | 13,338,948 |
+| Cache-read | 496,938,673 |
+| **Context re-send ratio** | **37.3×** |
+| Re-sends removed, kept × turns that followed | ~1.2M |
 
-Guard actions: 47. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
+Guard actions: 34. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
 <!-- /handoff-stats -->
 
 ## Track A
@@ -174,7 +174,7 @@ npm run benchmark:compare
 | block every tool call | 100% | 100% | 0.73 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-91 cases, 2026-09-12; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
+91 cases, 2026-09-13; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
 
 61 of 87 scored cases are `spec` (rule-derived), 22 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
@@ -187,7 +187,7 @@ npm run benchmark:compare
 - Multiple roots aggregate: `node tooling/benchmark/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
-Run 2026-09-12 · 91 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-13 · 91 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
 
 | Metric | Value |
 |---|---|

@@ -1,6 +1,6 @@
 ---
 name: scout
-description: Use for a lookup with a clear input and a short answer — find a file, quote a value, read one page.
+description: Use proactively for a lookup with a clear input and a short answer — find a file, quote a value, read one page.
 tools: Read, Grep, Glob, WebFetch
 model: haiku
 ---

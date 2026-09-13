@@ -342,11 +342,12 @@ function release(args) {
   rows.unshift(`| ${plugin.version} | ${date} | ${note.replaceAll('|', '\\|')} |`);
   writeFileSync(changelog, `${head}${rows.join('\n')}\n`, 'utf8');
   writeFileSync(path.join(REPO, 'docs', 'MANIFEST.md'), manifest(), 'utf8');
-  row('released', plugin.version);
-  report();
   const bench = (...args) => spawnSync(process.execPath, [path.join(REPO, 'tooling', 'benchmark', 'benchmark.mjs'), REPO, ...args], { stdio: 'inherit' });
   bench('--eval', '--compare', '--write');
   bench('--write');
+  row('released', plugin.version);
+  row('figures', `${writeFigures().length} file(s)`);
+  report();
 }
 
 function setup(args) {

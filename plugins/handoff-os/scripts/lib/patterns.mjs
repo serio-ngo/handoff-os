@@ -8,6 +8,7 @@ export const waveWindow = (raw = process.env.HANDOFF_WAVE_MS) => {
   const n = Math.floor(Number(raw));
   return Number.isInteger(n) && n > 0 ? n : WAVE_MS;
 };
+export const delegateOn = (raw = process.env.HANDOFF_DELEGATE) => String(raw ?? '1').trim() !== '0';
 export const THINK_ESCALATION = /\b(?:ultrathink|megathink|think\s+(?:hard(?:er)?|deeply)|(?:reasoning[-_ ]?)?effort\s*[=:]\s*(?:high|xhigh|max))\b/i;
 export const WORKFLOW_AGENT_CALL = /(?<![.\w$])agent\s*\(/g;
 export const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)\s*\(/;

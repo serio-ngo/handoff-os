@@ -1,6 +1,6 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { BASH_OUTPUT_CAP, BIG_FILE_BYTES, GREP_HEAD_LIMIT } from './patterns.mjs';
+import { BASH_OUTPUT_CAP, BIG_FILE_BYTES, GREP_HEAD_LIMIT, delegateOn } from './patterns.mjs';
 import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
 import { Blocked } from './dispatch.mjs';
 import { shellQuote, shellReads } from './shell.mjs';
@@ -89,7 +89,7 @@ export function readBudget(payload, input, rewritable = false) {
       state.saved[bucket] += credit;
     }
     save(root, session, state);
-    throw new Blocked(`READ BUDGET: ${message}\n`);
+    throw new Blocked(`READ BUDGET: ${message}${main && delegateOn() ? ' — delegate the read to a scout subagent' : ''}\n`);
   };
 
   const seen = String(state.reads[key] ?? '');

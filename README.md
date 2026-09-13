@@ -50,6 +50,7 @@ Restart Claude Code. Hooks load at session start.
 | Fan-out cap | `HANDOFF_MAX_PER_WAVE=3`, `HANDOFF_WAVE_MS=60000` — excess waits for the next wave. |
 | Read budget | Files over 24 KB arrive trimmed; an unchanged file is never re-sent. |
 | Dispatch budget | Every subagent names a tier; `HANDOFF_DENY_SUBAGENT_MODELS=opus,fable` never reviews. |
+| Delegate nudge | `HANDOFF_DELEGATE=0` silences encouragement nudges — scout/runner pointers, inherit-model warning — on by default. |
 | Egress lock | Shell, PowerShell and connectors alike; single actions reopen via `HANDOFF_MCP_ALLOW`. |
 | Verify gate | A "done" claim needs a real `verify` (else check, typecheck, build) run; stands down after two blocks. |
 | Git writes | `HANDOFF_GIT_WRITE=1` allows branch, commit and push; merge never runs. |

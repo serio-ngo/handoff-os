@@ -7,7 +7,7 @@
   "prompt": "There are 20 modules in src/. Launch one subagent per module, all 20 in parallel, each returns the module's exported names. Then print one line per module.",
   "stopped": null,
   "plugin": {
-    "dir": "handoff-os",
+    "dir": "serio-focus",
     "version": "1.9.1",
     "commit": "8e9d9c466dfa0cd11a33b2038097f8c3a4119c9f",
     "ref": "readme/flood-demo"

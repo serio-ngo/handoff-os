@@ -9,7 +9,7 @@ compatibility: No external dependencies. Repo plans and repo specs only — not 
 
 | Target | Use |
 |---|---|
-| Org ops — tasks, filings, deadlines, anything in the tracker | `/handoff-os:task-loop`, never this skill |
+| Org ops — tasks, filings, deadlines, anything in the tracker | `/serio-focus:task-loop`, never this skill |
 | Any repo with its own `AGENTS.md`/`CLAUDE.md` planning section | that file — a repo-local contract always wins |
 | Repo plan or repo spec with no local contract | this skill |
 

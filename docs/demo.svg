@@ -1,39 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 922 450" width="922" height="450" role="img" aria-label="handoff-os session: Read src/big.js · 35 KB → READ CAP: big.js 35KB. Kept first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 asked, 3 run. Next: wait one wave · Bash · `git commit -m &quot;wip&quot;` → GIT WRITE: &quot;git commit -m &quot;wip&quot;&quot; needs a human — commit and push stay manual · Bash · `git push origin main` → GIT WRITE: &quot;git push origin main&quot; needs a human — commit and push stay manual · Bash · `rm -rf docs` → DELETE LOCK: &quot;rm -rf docs&quot; needs a human — recursive delete stays manual · Answer · focus style → Action first · Done ≤5 · one Next + command · Step N of M · HANDOFF OS · 1 trimmed · 100 held · 3 blocked · ~2,816 of ~8,960 tok kept out (31%) · all-time ~146.2k tok" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 930 450" width="930" height="450" role="img" aria-label="serio-focus session: Read src/big.js · 35 KB → READ CAP: big.js 35KB. Kept first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 asked, 3 run. Next: wait one wave · Bash · `git commit -m &quot;wip&quot;` → GIT WRITE: &quot;git commit -m &quot;wip&quot;&quot; needs a human — commit and push stay manual · Bash · `git push origin main` → GIT WRITE: &quot;git push origin main&quot; needs a human — commit and push stay manual · Bash · `rm -rf docs` → DELETE LOCK: &quot;rm -rf docs&quot; needs a human — recursive delete stays manual · Answer · focus style → Action first · Done ≤5 · one Next + command · Step N of M · SERIO FOCUS · 1 trimmed · 100 held · 3 blocked · ~2,816 of ~8,960 tok kept out (31%) · all-time ~146.2k tok" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace">
 <style>
 text{font-size:13.5px;white-space:pre}
-.row{opacity:0;animation:in 16s infinite both}
-@keyframes in{0%{opacity:0;transform:translateY(4px)}2%{opacity:1;transform:translateY(0)}95%{opacity:1}98%,100%{opacity:0}}
-@keyframes type{0%{width:0}100%{width:345px}}
+.row{opacity:0}
+@keyframes k0{0%{opacity:0;transform:translateY(4px)}1.4%{opacity:0;transform:translateY(4px)}3.6%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k1{0%{opacity:0;transform:translateY(4px)}5%{opacity:0;transform:translateY(4px)}7.1%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k2{0%{opacity:0;transform:translateY(4px)}17.9%{opacity:0;transform:translateY(4px)}20%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k3{0%{opacity:0;transform:translateY(4px)}21.4%{opacity:0;transform:translateY(4px)}23.6%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k4{0%{opacity:0;transform:translateY(4px)}23.9%{opacity:0;transform:translateY(4px)}26.1%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k5{0%{opacity:0;transform:translateY(4px)}27.5%{opacity:0;transform:translateY(4px)}29.6%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k6{0%{opacity:0;transform:translateY(4px)}30%{opacity:0;transform:translateY(4px)}32.1%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k7{0%{opacity:0;transform:translateY(4px)}33.6%{opacity:0;transform:translateY(4px)}35.7%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k8{0%{opacity:0;transform:translateY(4px)}36.1%{opacity:0;transform:translateY(4px)}38.2%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k9{0%{opacity:0;transform:translateY(4px)}39.6%{opacity:0;transform:translateY(4px)}41.8%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k10{0%{opacity:0;transform:translateY(4px)}42.1%{opacity:0;transform:translateY(4px)}44.3%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k11{0%{opacity:0;transform:translateY(4px)}45.7%{opacity:0;transform:translateY(4px)}47.9%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k12{0%{opacity:0;transform:translateY(4px)}48.2%{opacity:0;transform:translateY(4px)}50.4%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k13{0%{opacity:0;transform:translateY(4px)}51.8%{opacity:0;transform:translateY(4px)}53.9%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}@keyframes k14{0%{opacity:0;transform:translateY(4px)}54.3%{opacity:0;transform:translateY(4px)}56.4%{opacity:1;transform:translateY(0)}92.9%{opacity:1;transform:translateY(0)}96.4%{opacity:0}100%{opacity:0}}
+@keyframes type{0%{width:0}5.7%{width:0}15.7%{width:345px}100%{width:345px}}
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
-.typed{animation:type 1.4s steps(42) .8s both}
+.typed{animation:type 14s steps(42) infinite}
 .cursor{animation:blink 1s steps(1) infinite}
-.d0{animation-delay:0.2s}.d1{animation-delay:0.7s}.d2{animation-delay:2.5s}.d3{animation-delay:3s}.d4{animation-delay:3.4s}.d5{animation-delay:3.9s}.d6{animation-delay:4.2s}.d7{animation-delay:4.7s}.d8{animation-delay:5.1s}.d9{animation-delay:5.6s}.d10{animation-delay:5.9s}.d11{animation-delay:6.4s}.d12{animation-delay:6.7s}.d13{animation-delay:7.2s}.d14{animation-delay:7.6s}
+.d0{animation:k0 14s infinite both}.d1{animation:k1 14s infinite both}.d2{animation:k2 14s infinite both}.d3{animation:k3 14s infinite both}.d4{animation:k4 14s infinite both}.d5{animation:k5 14s infinite both}.d6{animation:k6 14s infinite both}.d7{animation:k7 14s infinite both}.d8{animation:k8 14s infinite both}.d9{animation:k9 14s infinite both}.d10{animation:k10 14s infinite both}.d11{animation:k11 14s infinite both}.d12{animation:k12 14s infinite both}.d13{animation:k13 14s infinite both}.d14{animation:k14 14s infinite both}
 </style>
-<rect x="0.5" y="0.5" width="921" height="449" rx="10" fill="#7d8590" fill-opacity=".07" stroke="#7d8590" stroke-opacity=".35"/>
-<path d="M0 34 H922" stroke="#7d8590" stroke-opacity=".35"/>
-<text x="22" y="22" fill="#7d8590" font-size="11.5">— handoff-os session</text>
+<rect x="0.5" y="0.5" width="929" height="449" rx="10" fill="#7d8590" fill-opacity=".07" stroke="#7d8590" stroke-opacity=".35"/>
+<path d="M0 34 H930" stroke="#7d8590" stroke-opacity=".35"/>
+<text x="22" y="22" fill="#7d8590" font-size="11.5">— serio-focus session</text>
 <text x="22" y="60" fill="#7d8590" font-size="12" class="row d0">$ claude</text>
 <clipPath id="t"><rect class="typed" x="22" y="70" height="18"/></clipPath>
 <g class="row d1" clip-path="url(#t)"><text x="22" y="84" fill="#7d8590" font-size="12" font-weight="600">&gt; review whole app and send results to me.</text></g>
 <text x="22" y="108" fill="#2a78d6" font-size="12" font-weight="600" class="row d2">⏺  Read src/big.js · 35 KB</text>
-<rect class="row d3" x="14" y="116" width="894" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
+<rect class="row d3" x="14" y="116" width="902" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
 <text x="22" y="132" fill="#2a78d6" font-size="12" class="row d3">↻  READ CAP: big.js 35KB. Kept first 384 lines</text>
-<text x="22" y="156" fill="#2a78d6" font-size="12" font-weight="600" class="row d4">⏺  Workflow · 100 agents</text>
-<rect class="row d5" x="14" y="164" width="894" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
-<text x="22" y="180" fill="#2a78d6" font-size="12" class="row d5">↻  FAN-OUT CAP: 100 asked, 3 run. Next: wait one wave</text>
-<text x="22" y="204" fill="#2a78d6" font-size="12" font-weight="600" class="row d6">⏺  Bash · `git commit -m &quot;wip&quot;`</text>
-<rect class="row d7" x="14" y="212" width="894" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
-<text x="22" y="228" fill="#2a78d6" font-size="12" class="row d7">↻  GIT WRITE: &quot;git commit -m &quot;wip&quot;&quot; needs a human — commit and push stay manual</text>
-<text x="22" y="252" fill="#2a78d6" font-size="12" font-weight="600" class="row d8">⏺  Bash · `git push origin main`</text>
-<rect class="row d9" x="14" y="260" width="894" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
-<text x="22" y="276" fill="#2a78d6" font-size="12" class="row d9">↻  GIT WRITE: &quot;git push origin main&quot; needs a human — commit and push stay manual</text>
-<text x="22" y="300" fill="#2a78d6" font-size="12" font-weight="600" class="row d10">⏺  Bash · `rm -rf docs`</text>
-<rect class="row d11" x="14" y="308" width="894" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
-<text x="22" y="324" fill="#2a78d6" font-size="12" class="row d11">↻  DELETE LOCK: &quot;rm -rf docs&quot; needs a human — recursive delete stays manual</text>
+<text x="22" y="156" fill="#7d8590" font-size="12" font-weight="600" class="row d4">⏺  Workflow · 100 agents</text>
+<rect class="row d5" x="14" y="164" width="902" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
+<text x="22" y="180" fill="#d95926" font-size="12" class="row d5">⨯  FAN-OUT CAP: 100 asked, 3 run. Next: wait one wave</text>
+<text x="22" y="204" fill="#7d8590" font-size="12" font-weight="600" class="row d6">⏺  Bash · `git commit -m &quot;wip&quot;`</text>
+<rect class="row d7" x="14" y="212" width="902" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
+<text x="22" y="228" fill="#d95926" font-size="12" class="row d7">⨯  GIT WRITE: &quot;git commit -m &quot;wip&quot;&quot; needs a human — commit and push stay manual</text>
+<text x="22" y="252" fill="#7d8590" font-size="12" font-weight="600" class="row d8">⏺  Bash · `git push origin main`</text>
+<rect class="row d9" x="14" y="260" width="902" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
+<text x="22" y="276" fill="#d95926" font-size="12" class="row d9">⨯  GIT WRITE: &quot;git push origin main&quot; needs a human — commit and push stay manual</text>
+<text x="22" y="300" fill="#7d8590" font-size="12" font-weight="600" class="row d10">⏺  Bash · `rm -rf docs`</text>
+<rect class="row d11" x="14" y="308" width="902" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
+<text x="22" y="324" fill="#d95926" font-size="12" class="row d11">⨯  DELETE LOCK: &quot;rm -rf docs&quot; needs a human — recursive delete stays manual</text>
 <text x="22" y="348" fill="#2a78d6" font-size="12" font-weight="600" class="row d12">⏺  Answer · focus style</text>
-<rect class="row d13" x="14" y="356" width="894" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
+<rect class="row d13" x="14" y="356" width="902" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
 <text x="22" y="372" fill="#2a78d6" font-size="12" class="row d13">↻  Action first · Done ≤5 · one Next + command · Step N of M</text>
-<rect class="row d14" x="14" y="379" width="894" height="30" rx="4" fill="#7d8590" fill-opacity=".08" stroke="#7d8590" stroke-opacity=".35"/>
-<text x="22" y="396" fill="#7d8590" font-size="12" font-weight="600" class="row d14">HANDOFF OS · 1 trimmed · 100 held · 3 blocked · ~2,816 of ~8,960 tok kept out (31%) · all-time ~146.2k tok</text>
-<g class="row d14"><rect class="cursor" x="898" y="385" width="7" height="13" fill="#2a78d6"/></g>
+<rect class="row d14" x="14" y="379" width="902" height="30" rx="4" fill="#7d8590" fill-opacity=".08" stroke="#7d8590" stroke-opacity=".35"/>
+<text x="22" y="396" fill="#7d8590" font-size="12" font-weight="600" class="row d14">SERIO FOCUS · 1 trimmed · 100 held · 3 blocked · ~2,816 of ~8,960 tok kept out (31%) · all-time ~146.2k tok</text>
+<g class="row d14"><rect class="cursor" x="906" y="385" width="7" height="13" fill="#2a78d6"/></g>
 </svg>

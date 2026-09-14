@@ -2,10 +2,10 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { card } from '../../plugins/handoff-os/scripts/card.mjs';
+import { card } from '../../plugins/serio-focus/scripts/card.mjs';
 
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const PLUGIN = path.join(REPO, 'plugins', 'handoff-os');
+export const PLUGIN = path.join(REPO, 'plugins', 'serio-focus');
 
 const frontmatter = (text, key) => {
   const hit = new RegExp(`^${key}:\\s*([\\s\\S]*?)(?=^[a-z_]+:|^---)`, 'm').exec(text);
@@ -35,8 +35,8 @@ export const walk = (dir, base = '') => (existsSync(dir) ? readdirSync(dir, { wi
     return entry.isDirectory() ? walk(path.join(dir, entry.name), rel) : [rel];
   });
 
-export const REPLY_OPEN = '<!-- handoff-os-reply -->';
-export const REPLY_CLOSE = '<!-- /handoff-os-reply -->';
+export const REPLY_OPEN = '<!-- serio-focus-reply -->';
+export const REPLY_CLOSE = '<!-- /serio-focus-reply -->';
 export const opencodeAgents = () => path.join(homedir(), '.config', 'opencode', 'AGENTS.md');
 
 export function replyBody() {
@@ -146,7 +146,7 @@ export const FLOW = [
 ];
 
 export function inventory(root = REPO) {
-  const plugin = path.join(root, 'plugins', 'handoff-os');
+  const plugin = path.join(root, 'plugins', 'serio-focus');
   let lines = 0;
   for (const file of FLOW) {
     const text = readFileSync(path.join(plugin, 'scripts', file), 'utf8').replace(/\r?\n$/, '');
@@ -216,7 +216,7 @@ function agentRows() {
 const cell = (value) => String(value).replace(/\|/g, '\\|');
 
 function hookRows() {
-  return Object.entries(readJson('plugins', 'handoff-os', 'hooks', 'hooks.json').hooks)
+  return Object.entries(readJson('plugins', 'serio-focus', 'hooks', 'hooks.json').hooks)
     .flatMap(([event, entries]) => entries.flatMap((entry) => entry.hooks.map((handler) => {
       const script = (/scripts\/[a-z-]+\.mjs/.exec(handler.command) || [])[0];
       return `| \`${event}\` | \`${cell(entry.matcher || '*')}\` | \`${script}\` |`;

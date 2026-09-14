@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { homedir } from 'node:os';
 import { MODES } from './baselines.mjs';
-import { BYTE_COUNTERS, COUNTERS } from '../../plugins/handoff-os/scripts/lib/ledger.mjs';
-import { kept, keptPct } from '../../plugins/handoff-os/scripts/lib/stats.mjs';
-import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/guard.mjs';
-import { usage } from '../../plugins/handoff-os/scripts/lib/transcript.mjs';
+import { BYTE_COUNTERS, COUNTERS } from '../../plugins/serio-focus/scripts/lib/ledger.mjs';
+import { kept, keptPct } from '../../plugins/serio-focus/scripts/lib/stats.mjs';
+import { SPAWN_TOOLS } from '../../plugins/serio-focus/scripts/guard.mjs';
+import { usage } from '../../plugins/serio-focus/scripts/lib/transcript.mjs';
 import { started, writeFlood } from '../cli/figures.mjs';
 import { compact, num, secs, tok } from '../cli/format.mjs';
 import { inventory, pluginVersion, writeBlock } from '../cli/generate.mjs';
@@ -58,7 +58,7 @@ const taxOf = (inv) => ({
 });
 const row = (label, value, extra = '') => console.log(`  ${label.padEnd(36)}${String(value).padStart(11)}${extra && `   ${extra}`}`);
 const rule = (name, fired, effect) => console.log(`  ${name.padEnd(22)}${num(fired).padStart(6)}   ${effect}`);
-const OWN = 'plugins/handoff-os/scripts/guard.mjs';
+const OWN = 'plugins/serio-focus/scripts/guard.mjs';
 const ORIGINS = ['spec', 'probe', 'regression'];
 
 const corpus = () => readFileSync(path.join(REPO, 'tooling', 'corpus', 'guard-corpus.jsonl'), 'utf8')
@@ -174,7 +174,7 @@ function compareBlock(own, baselines) {
   return [
     `| Guard | Caught | Wrongly blocked | F1 |`, '|---|---|---|---|',
     ...Object.entries(baselines).map(([mode, s]) => line(MODES[mode], s)),
-    line('**handoff-os**', own),
+    line('**serio-focus**', own),
     '',
     `${own.cases} cases, ${new Date().toISOString().slice(0, 10)}; the comparators are mechanism baselines in `
     + '`tooling/benchmark/baselines.mjs`, not vendor code.',
@@ -564,7 +564,7 @@ function abDocBlock(r) {
 
 const gitAt = (cwd, args) => (spawnSync('git', args, { cwd, encoding: 'utf8' }).stdout || '').trim() || null;
 
-const abPluginDir = (opts) => path.resolve(opts.pluginDir || path.join(REPO, 'plugins', 'handoff-os'));
+const abPluginDir = (opts) => path.resolve(opts.pluginDir || path.join(REPO, 'plugins', 'serio-focus'));
 
 function writeAbBlocks(result) {
   console.log(`  ${writeBlock(path.join(REPO, 'docs', 'BENCHMARK.md'), AB_DOC_OPEN, AB_DOC_CLOSE, abDocBlock(result))}`);
@@ -597,7 +597,7 @@ function ab(opts) {
     }
     return pair;
   };
-  console.log(`\nhandoff-os — Track B, ${tasks.length} task(s) × 2 arms, model ${opts.model}${opts.dryRun ? ', DRY RUN' : ''}\n`);
+  console.log(`\nserio-focus — Track B, ${tasks.length} task(s) × 2 arms, model ${opts.model}${opts.dryRun ? ', DRY RUN' : ''}\n`);
   for (const task of tasks) {
     const pair = runPair(task);
     if (pair.A && pair.B) rows.push({ id: task.id, expect: task.expect_guard || [], A: pair.A, B: pair.B });
@@ -690,7 +690,7 @@ function flood(opts) {
   const arms = {};
   let spend = 0;
   let stopped = null;
-  console.log(`\nhandoff-os — flood, ${FLOOD_MODULES} subagents requested, 2 arms, model ${opts.model}${opts.dryRun ? ', DRY RUN' : ''}\n`);
+  console.log(`\nserio-focus — flood, ${FLOOD_MODULES} subagents requested, 2 arms, model ${opts.model}${opts.dryRun ? ', DRY RUN' : ''}\n`);
   for (const arm of ['B', 'A']) {
     const row = runArm(task, arm, opts);
     arms[arm === 'A' ? 'with' : 'without'] = row;
@@ -781,7 +781,7 @@ function replay(root) {
             hook_event_name: 'PreToolUse',
             session_id: session,
             cwd: root,
-            agent_type: entry.isSidechain ? 'handoff-os:scout' : 'main',
+            agent_type: entry.isSidechain ? 'serio-focus:scout' : 'main',
             tool_name: part.name,
             tool_input: part.input || {},
           }),
@@ -892,7 +892,7 @@ function resends(rows) {
   return total;
 }
 
-console.log('\nhandoff-os — context kept out of the main thread, all recorded turns');
+console.log('\nserio-focus — context kept out of the main thread, all recorded turns');
 console.log(`  source: ${REPOS.length > 1 ? `${REPOS.length} repos` : 'audit/*.jsonl'}, ${t.turns} recorded turn(s)\n`);
 
 row('read volume the session asked for', `~${compact(readVolume)}`, 'tok');

@@ -1,23 +1,29 @@
 <div align="center">
 
-# handoff-os
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+  <img src="docs/logo.svg" width="240" alt="Serio">
+</picture>
 
-**Keeps AI answers short, scannable and doable — built for ADHD/AuDHD workflows.**
+# serio-focus
 
-Caps subagent floods and big reads. Every reply leads with the action and ends with one next step.
+**An ADHD quality-of-life tool for Claude Code: less noise, more done.**
 
-[![version](https://img.shields.io/github/package-json/v/serio-ngo/handoff-os?label=version&color=1f6feb)](plugins/handoff-os/.claude-plugin/plugin.json)
-[![verify](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/handoff-os/actions/workflows/verify.yml)
-[![license](https://img.shields.io/github/license/serio-ngo/handoff-os?color=1f6feb)](LICENSE)
+Every reply starts with the action and ends with one next step. Subagent floods are capped,
+big reads trimmed, destructive commands held for a human.
+
+[![version](https://img.shields.io/github/package-json/v/serio-ngo/serio-focus?label=version&color=1f6feb)](plugins/serio-focus/.claude-plugin/plugin.json)
+[![verify](https://github.com/serio-ngo/serio-focus/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/serio-focus/actions/workflows/verify.yml)
+[![license](https://img.shields.io/github/license/serio-ngo/serio-focus?color=1f6feb)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-1f6feb)](#start-here)
 
-[![guard caught](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.recall&suffix=%25&label=guard%20caught&color=2da44e)](docs/BENCHMARK.md)
-[![wrongly blocked](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.fpRate&suffix=%25&label=wrongly%20blocked&color=2da44e)](docs/BENCHMARK.md)
-[![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic&color=57606a)](plugins/handoff-os/scripts)
-[![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fhandoff-os%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.dependencies&label=dependencies&color=2da44e)](package.json)
+[![guard caught](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fserio-focus%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.recall&suffix=%25&label=guard%20caught&color=2da44e)](docs/BENCHMARK.md)
+[![wrongly blocked](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fserio-focus%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.fpRate&suffix=%25&label=wrongly%20blocked&color=2da44e)](docs/BENCHMARK.md)
+[![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fserio-focus%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic&color=57606a)](plugins/serio-focus/scripts)
+[![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fserio-focus%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.dependencies&label=dependencies&color=2da44e)](package.json)
 
 <!-- handoff-demo -->
-<img src="docs/demo.svg" width="922" alt="handoff-os session: Read src/big.js · 35 KB → READ CAP: big.js 35KB. Kept first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 asked, 3 run. Next: wait one wave · Bash · `git commit -m &quot;wip&quot;` → GIT WRITE: &quot;git commit -m &quot;wip&quot;&quot; needs a human — commit and push stay manual · Bash · `git push origin main` → GIT WRITE: &quot;git push origin main&quot; needs a human — commit and push stay manual · Bash · `rm -rf docs` → DELETE LOCK: &quot;rm -rf docs&quot; needs a human — recursive delete stays manual · Answer · focus style → Action first · Done ≤5 · one Next + command · Step N of M · HANDOFF OS · 1 trimmed · 100 held · 3 blocked · ~2,816 of ~8,960 tok kept out (31%) · all-time ~146.2k tok">
+<img src="docs/demo.svg" width="930" alt="serio-focus session: Read src/big.js · 35 KB → READ CAP: big.js 35KB. Kept first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 asked, 3 run. Next: wait one wave · Bash · `git commit -m &quot;wip&quot;` → GIT WRITE: &quot;git commit -m &quot;wip&quot;&quot; needs a human — commit and push stay manual · Bash · `git push origin main` → GIT WRITE: &quot;git push origin main&quot; needs a human — commit and push stay manual · Bash · `rm -rf docs` → DELETE LOCK: &quot;rm -rf docs&quot; needs a human — recursive delete stays manual · Answer · focus style → Action first · Done ≤5 · one Next + command · Step N of M · SERIO FOCUS · 1 trimmed · 100 held · 3 blocked · ~2,816 of ~8,960 tok kept out (31%) · all-time ~146.2k tok">
 <!-- /handoff-demo -->
 
 <sub>[Start here](#start-here) · [What it does](#what-it-does) · [Proof](#proof) · [Method](docs/BENCHMARK.md) · [Contributing](CONTRIBUTING.md)</sub>
@@ -36,14 +42,14 @@ The hook caps each wave at 3 and queues the rest.
 
 ## Start here
 
-1. `git clone https://github.com/serio-ngo/handoff-os.git && cd handoff-os`
-   You should see `Cloning into 'handoff-os'`.
+1. `git clone https://github.com/serio-ngo/serio-focus.git && cd serio-focus`
+   You should see `Cloning into 'serio-focus'`.
 2. `npm run setup`
    You should see `Ready. Restart Claude Code so the session card loads.`
 3. Restart Claude Code, then `npm run doctor`
    You should see every check answer `yes`.
 
-Without a checkout: `/plugin marketplace add serio-ngo/handoff-os`, then `/plugin install handoff-os@serio-ngo` and restart.
+Without a checkout: `/plugin marketplace add serio-ngo/serio-focus`, then `/plugin install serio-focus@serio-ngo` and restart.
 
 ## What it does
 

@@ -11,7 +11,7 @@ export const kept = (t) => BYTE_COUNTERS.reduce((sum, key) => sum + Number(t[key
 const volume = (t) => kept(t) + Number(t.read || 0);
 export const keptPct = (t) => (volume(t) ? Math.round((kept(t) / volume(t)) * 100) : 0);
 
-const line = (parts) => (parts.length ? `HANDOFF OS · ${parts.join(' · ')}` : '');
+const line = (parts) => (parts.length ? `SERIO FOCUS · ${parts.join(' · ')}` : '');
 
 // kept out of what: without the denominator a percentage cannot be checked.
 function volumeParts(t) {

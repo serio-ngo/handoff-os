@@ -8,8 +8,8 @@
   "description": "Open-source deterministic guardrails for Claude Code. Hooks and scripts only — no data, no telemetry, no dependencies.",
   "plugins": [
     {
-      "name": "handoff-os",
-      "source": "./plugins/handoff-os",
+      "name": "serio-focus",
+      "source": "./plugins/serio-focus",
       "description": "An egress lock, a verification gate, an audit trail and budget caps for Claude Code. Sends, payments, publishes, merges, deletes and credential writes stop before they run. No model call, no API key, no telemetry, no dependencies.",
       "category": "workflow",
       "keywords": ["governance", "guardrails", "human-in-the-loop", "audit", "solo-founder", "nonprofit"]

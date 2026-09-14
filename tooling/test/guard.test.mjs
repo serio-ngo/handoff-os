@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const ALLOWED = 0;
 const ASK = 'deny';
-const PLUGIN = fileURLToPath(new URL('../../plugins/handoff-os/', import.meta.url));
+const PLUGIN = fileURLToPath(new URL('../../plugins/serio-focus/', import.meta.url));
 const script = (name) => path.join(PLUGIN, 'scripts', name);
 
 const boxes = [];
@@ -98,7 +98,7 @@ describe('dispatch budget', () => {
     writeFileSync(path.join(box, '.claude', 'agents', 'pricey.md'), '---\nname: pricey\nmodel: opus\n---\n');
     const named = (tool_input) => at('dp-agents', { tool_name: 'Agent', tool_input });
     assert.equal(held('dp-agents', { prompt: 'x', subagent_type: 'pricey' }), ASK);
-    assert.equal(named({ prompt: 'x', subagent_type: 'handoff-os:scout' }), ALLOWED);
+    assert.equal(named({ prompt: 'x', subagent_type: 'serio-focus:scout' }), ALLOWED);
   });
   it('blocks opus without a QUALITY flag, and thinking a deliverable did not earn', () => {
     assert.equal(held('dp', { prompt: 'scan the repo', model: 'opus' }), ASK);
@@ -261,11 +261,11 @@ describe('session receipt', () => {
     at('rc-a', { tool_name: 'Read', tool_input: { file_path: file } });
     const first = run('rc-a', {});
     assert.equal(first.status, ALLOWED);
-    assert.match(first.stdout, /HANDOFF OS/);
+    assert.match(first.stdout, /SERIO FOCUS/);
     at('rc-b', { tool_name: 'Read', tool_input: { file_path: file } });
     const claim = run('rc-b', { last_assistant_message: 'All done, it works now.' });
     assert.equal(claim.status, ALLOWED);
-    assert.match(claim.stdout, /HANDOFF OS/);
+    assert.match(claim.stdout, /SERIO FOCUS/);
     assert.doesNotMatch(claim.stdout, /VERIFY GATE|stood down|done claimed|nothing run/i);
   });
 });

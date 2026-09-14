@@ -1,6 +1,6 @@
 # tooling
 
-<sub><b>Not the plugin.</b> Nothing in this tree ships or loads in a Claude Code session. The plugin is <a href="../plugins/handoff-os">plugins/handoff-os</a>.</sub>
+<sub><b>Not the plugin.</b> Nothing in this tree ships or loads in a Claude Code session. The plugin is <a href="../plugins/serio-focus">plugins/serio-focus</a>.</sub>
 
 | Folder | Contents | Entry point |
 |---|---|---|
@@ -13,6 +13,6 @@
 
 | Rule | Value |
 |---|---|
-| Imports | `tooling/` may import from `plugins/handoff-os/`; never the reverse |
+| Imports | `tooling/` may import from `plugins/serio-focus/`; never the reverse |
 | Dependencies | none; Node standard library only |
 | `results/` | generated — never hand-edit |

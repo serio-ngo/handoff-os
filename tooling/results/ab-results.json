@@ -6,7 +6,7 @@
   "maxTurns": 12,
   "stopped": null,
   "plugin": {
-    "dir": "handoff-os",
+    "dir": "serio-focus",
     "version": "1.10.2",
     "commit": "a9c5212bfe1af3586def543336b17fe5eb514b50",
     "ref": "chore/readability-restructure",

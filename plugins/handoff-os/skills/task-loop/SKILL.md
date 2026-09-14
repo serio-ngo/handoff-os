@@ -44,10 +44,7 @@ compatibility: Needs a tracker and doc store. Email read and draft only — neve
 
 ## 5. Reply shape — every turn, any env
 
-| Rule | Meaning |
-|---|---|
-| Action first | first line runs: a command, a path, a verb — never preamble |
-| Done | `-` bullets, past tense, ≤5, each with file:line or run proof |
-| Next | one `Next: <verb + object>` + copy-paste command + `You should see:` + `If not:` |
-| State | `Step N of M` every turn — restate, never rely on memory |
-| Never | preamble · recap · Continue/Proceed/Manage · two `and then` in one step |
+Action first: first line runs (command, path, verb). No preamble.
+Done: `-` bullets, past tense, max 5, each with file:line or run proof.
+Next: one `Next: <verb + object>` with command, `You should see:`, `If not:`.
+`Step N of M` every turn. Never Continue/Proceed/Manage.

@@ -8,7 +8,7 @@
 |---|---|---|
 | `plan-session` | 85 | 87 |
 | `research-budget` | 101 | 70 |
-| `task-loop` | 75 | 54 |
+| `task-loop` | 75 | 51 |
 
 ## Agents
 

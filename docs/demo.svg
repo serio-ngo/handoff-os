@@ -18,15 +18,15 @@ text{font-size:13.5px;white-space:pre}
 <text x="22" y="108" fill="#2a78d6" font-size="12" font-weight="600" class="row d2">⏺  Read src/big.js · 35 KB</text>
 <rect class="row d3" x="14" y="116" width="1140" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
 <text x="22" y="132" fill="#2a78d6" font-size="12" class="row d3">↻  HANDOFF OS: big.js is 35KB; trimmed to its first 384 lines</text>
-<text x="22" y="156" fill="#7d8590" font-size="12" font-weight="600" class="row d4">⏺  Workflow · 100 agents</text>
-<rect class="row d5" x="14" y="164" width="1140" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
-<text x="22" y="180" fill="#d95926" font-size="12" class="row d5">⨯  FAN-OUT CAP: 100 subagents requested, wave capped at 3</text>
-<text x="22" y="204" fill="#7d8590" font-size="12" font-weight="600" class="row d6">⏺  Agent model:opus · &quot;review the diff&quot;</text>
-<rect class="row d7" x="14" y="212" width="1140" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
-<text x="22" y="228" fill="#d95926" font-size="12" class="row d7">⨯  DISPATCH BUDGET: blocked an opus review</text>
-<text x="22" y="252" fill="#7d8590" font-size="12" font-weight="600" class="row d8">⏺  gmail send_message</text>
-<rect class="row d9" x="14" y="260" width="1140" height="22" rx="4" fill="#d95926" fill-opacity=".1"/>
-<text x="22" y="276" fill="#d95926" font-size="12" class="row d9">⨯  EGRESS LOCK: blocked mcp__gmail__send_message — &quot;send&quot; leaves the org or destroys a record</text>
+<text x="22" y="156" fill="#2a78d6" font-size="12" font-weight="600" class="row d4">⏺  Workflow · 100 agents</text>
+<rect class="row d5" x="14" y="164" width="1140" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
+<text x="22" y="180" fill="#2a78d6" font-size="12" class="row d5">↻  FAN-OUT CAP: 100 subagents requested, wave capped at 3</text>
+<text x="22" y="204" fill="#2a78d6" font-size="12" font-weight="600" class="row d6">⏺  Agent model:opus · &quot;review the diff&quot;</text>
+<rect class="row d7" x="14" y="212" width="1140" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
+<text x="22" y="228" fill="#2a78d6" font-size="12" class="row d7">↻  DISPATCH BUDGET: blocked an opus review</text>
+<text x="22" y="252" fill="#2a78d6" font-size="12" font-weight="600" class="row d8">⏺  gmail send_message</text>
+<rect class="row d9" x="14" y="260" width="1140" height="22" rx="4" fill="#2a78d6" fill-opacity=".1"/>
+<text x="22" y="276" fill="#2a78d6" font-size="12" class="row d9">↻  EGRESS LOCK: blocked mcp__gmail__send_message — &quot;send&quot; leaves the org or destroys a record</text>
 <text x="22" y="300" fill="#2a78d6" font-size="12" font-weight="600" class="row d10">⏺  Agent model:sonnet · &quot;review src/parse.js&quot;</text>
 <rect class="row d11" x="14" y="307" width="1140" height="30" rx="4" fill="#7d8590" fill-opacity=".08" stroke="#7d8590" stroke-opacity=".35"/>
 <text x="22" y="324" fill="#7d8590" font-size="12" font-weight="600" class="row d11">HANDOFF OS · 1 trimmed · 100 held · 1 redirected · 1 blocked · 1 dispatched · ~2,816 of ~8,960 tok kept out (31%) · all-time ~146.2k tok</text>

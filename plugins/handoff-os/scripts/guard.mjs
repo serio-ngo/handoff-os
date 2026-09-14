@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Blocked } from './lib/blocked.mjs';
 import { bump } from './lib/ledger.mjs';
-import { agentsRequested, bookRedirect, costBudget, dispatchBudget, inheritNudge, receipt } from './lib/dispatch.mjs';
+import { agentsRequested, bookRedirect, costBudget, dispatchBudget, receipt } from './lib/dispatch.mjs';
 import { fanOutCap } from './lib/fan-out.mjs';
 import { judgeShell, shellWriteTargets } from './lib/shell-danger.mjs';
 import { kb, noteWrite, readBudget, shellReadBudget } from './lib/read-budget.mjs';
@@ -31,7 +31,7 @@ function judgeRead(payload, input) {
 }
 
 function judgeSpawn(payload, input, tool) {
-  const verdict = dispatchBudget(input, payload.cwd) || costBudget(input, tool);
+  const verdict = dispatchBudget(input, payload.cwd, tool) || costBudget(input, tool);
   if (verdict) {
     if (verdict.tier) bookRedirect(payload, verdict.tier);
     deny(verdict.reason, 'DISPATCH BUDGET');
@@ -44,9 +44,7 @@ function judgeSpawn(payload, input, tool) {
   if (/scout/i.test(kind)) bump(payload, 'scouts', count);
   else if (/runner/i.test(kind)) bump(payload, 'runners', count);
   receipt(payload, input, tool);
-
-  const nudge = inheritNudge(input, tool);
-  return nudge ? { updatedInput: { ...input }, reason: `HANDOFF OS: ${nudge}` } : null;
+  return null;
 }
 
 function judgeShellCall(payload, input, tool) {
@@ -96,8 +94,16 @@ export function judge(raw = {}) {
 
 const refuse = (error) => {
   if (!(error instanceof Blocked)) throw error;
-  process.stderr.write(error.message);
-  process.exit(2);
+  const reason = error.message.trim();
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'ask',
+      permissionDecisionReason: reason,
+      additionalContext: reason,
+    },
+  }));
+  process.exit(0);
 };
 
 function main() {

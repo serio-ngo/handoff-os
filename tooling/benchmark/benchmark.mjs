@@ -79,9 +79,14 @@ function score(cmd, cases) {
     HANDOFF_OS_DIR: probe,
     POLICY_FILE: path.join(REPO, 'tooling', 'settings', 'policy.json'),
   };
+  const isHeld = (run) => {
+    if (run.status === 2) return true;
+    try { return JSON.parse(run.stdout || '').hookSpecificOutput?.permissionDecision === 'ask'; }
+    catch { return false; }
+  };
   const rows = cases.map((c) => {
     const run = spawnSync(cmd[0], cmd.slice(1), { input: payloadFor(c, probe), encoding: 'utf8', env });
-    return { ...c, blocked: run.status === 2 };
+    return { ...c, blocked: isHeld(run) };
   });
   const held = rows.filter((r) => !r.known_gap);
   const gaps = rows.filter((r) => r.known_gap);
@@ -150,7 +155,7 @@ function latency(cases = 90) {
 
 function evalBlock(result, label) {
   return [
-    `Run ${new Date().toISOString().slice(0, 10)} · ${result.cases} cases · guard \`${label}\` · exit 2 = blocked.`, '',
+    `Run ${new Date().toISOString().slice(0, 10)} · ${result.cases} cases · guard \`${label}\` · ask = held.`, '',
     '| Metric | Value |', '|---|---|',
     `| Recall | ${rate(result.tp, result.tp + result.fn)} |`,
     `| Precision | ${rate(result.tp, result.tp + result.fp)} |`,

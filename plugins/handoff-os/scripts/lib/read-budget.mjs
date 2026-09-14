@@ -1,7 +1,7 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { BASH_OUTPUT_CAP, BIG_FILE_BYTES, delegateOn } from './limits.mjs';
-import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
+import { load, rootOf, save, sessionOf } from './ledger.mjs';
 import { Blocked } from './blocked.mjs';
 import { shellQuote } from './shell-parse.mjs';
 import { shellReads } from './shell-reads.mjs';
@@ -142,7 +142,7 @@ export function shellReadBudget(payload, input, tool) {
   let rewrite = null;
   try {
     for (const read of shellReads(command)) {
-      if (read.unjudged) { bump(payload, 'unjudged'); continue; }
+      if (read.unjudged) continue;
       const file = path.resolve(typeof payload.cwd === 'string' ? payload.cwd : process.cwd(), read.file);
       if (!read.whole) { bookSlice(payload, file, read, { shell: true }); continue; }
       if (read.piped) { bookSlice(payload, file, { whole: true }, { shell: true }); continue; }

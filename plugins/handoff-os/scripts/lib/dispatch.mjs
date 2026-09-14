@@ -1,4 +1,4 @@
-import { DENY_SUBAGENT_DEFAULT, delegateOn } from './limits.mjs';
+import { DENY_SUBAGENT_DEFAULT } from './limits.mjs';
 import { declaredModel } from './agent-model.mjs';
 import { load, rootOf, save, sessionOf } from './ledger.mjs';
 import { append } from '../audit.mjs';
@@ -12,6 +12,7 @@ const UNBOUNDED_FANOUT = /\b(?:parallel|pipeline|Promise\s*\.\s*all(?:Settled)?)
 const FANOUT_BUDGET = /(?:^|\n)\s*\/\/\s*AGENTS:\s*(\d+)\b/;
 const WORKFLOW_AGENT_CALL = /(?<![.\w$])agent\s*\(/g;
 const SPAWN_TEXT = ['prompt', 'description', 'subagent_type', 'subject', 'script', 'name', 'title'];
+const MODEL_BEARING = ['Agent', 'Task'];
 
 export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
   const names = String(raw ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -31,15 +32,25 @@ function deniedVerdict(text, hit) {
 }
 
 // Judge the model the subagent will actually run on: the call names one, or its definition does.
-export function dispatchBudget(input, cwd, denied = deniedSubagentRx(process.env.HANDOFF_DENY_SUBAGENT_MODELS ?? DENY_SUBAGENT_DEFAULT)) {
+// A model-bearing call naming neither is held: an unnamed tier inherits the most expensive one.
+export function dispatchBudget(input, cwd, tool = 'Agent', denied = deniedSubagentRx(process.env.HANDOFF_DENY_SUBAGENT_MODELS ?? DENY_SUBAGENT_DEFAULT)) {
   const named = String(input.model || '').trim();
   const text = spawnText(input);
-  if (named && !MODEL_TIERS.test(named)) return { reason: `blocked model "${named}" — not a tier` };
+  if (!named) {
+    if (!MODEL_BEARING.includes(tool)) {
+      const selected = selectedTiers(text).find((tier) => denied.test(tier));
+      return selected ? deniedVerdict(text, selected) : null;
+    }
+    const declared = declaredModel(input.subagent_type, cwd);
+    if (declared) {
+      const hit = (declared.match(denied) || [])[0]?.toLowerCase();
+      return hit ? deniedVerdict(text, hit) : null;
+    }
+    return { reason: 'blocked a dispatch that names no model' };
+  }
+  if (!MODEL_TIERS.test(named)) return { reason: `blocked model "${named}" — not a tier` };
 
-  const model = named || declaredModel(input.subagent_type, cwd) || '';
-  const hit = model
-    ? (model.match(denied) || [])[0]?.toLowerCase()
-    : selectedTiers(text).find((tier) => denied.test(tier));
+  const hit = (named.match(denied) || [])[0]?.toLowerCase();
   return hit ? deniedVerdict(text, hit) : null;
 }
 
@@ -65,13 +76,6 @@ export function costBudget(input, tool) {
 export const agentsRequested = (input, tool) => (tool === 'Workflow'
   ? Math.max(1, declaredAgents(input) || (code(input.script).match(WORKFLOW_AGENT_CALL) || []).length)
   : 1);
-
-export function inheritNudge(input, tool) {
-  if (!delegateOn()) return null;
-  if ((tool !== 'Workflow' && tool !== 'TaskCreate') || agentsRequested(input, tool) < 2) return null;
-  if (MODEL_TIERS.test(String(input.model || '')) || selectedTiers(spawnText(input)).length) return null;
-  return 'names no tier — these subagents inherit the parent model; state haiku or sonnet';
-}
 
 export function bookRedirect(payload, tier) {
   const root = rootOf(payload);

@@ -39,13 +39,10 @@ export function card(text = memory()) {
     ? `set (${lines} lines) — read memory.md when owner context is needed`
     : 'empty — ask the owner for every org fact';
   return `Handoff OS — session card
-TIERS  GREEN inward, reversible → act · YELLOW outside the repo → act, audit one line
-       RED sends, pays, submits, publishes or is irreversible → STOP, hand off
-HANDOFF three lines, nothing else: DONE <prepared> · FILE <path> · YOU <verb> -> <where> -> <when>
-BLOCKED blocks first, suggests second — a block moves the action to the owner, never cancels it
-       name the way through in the same reply · never act around one unasked · never say "I could not"
-${delegateOn() ? 'DELEGATE lookups to handoff-os:scout · commands to handoff-os:runner — they return tables, you decide\n' : ''}NEVER  send · pay · submit · publish · every state-changing git · set ANTHROPIC_API_KEY /
-       ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN / apiKeyHelper · put org data in git
+TIERS  GREEN act · YELLOW act, audit one line · RED STOP, hand off
+HANDOFF three lines: DONE <prepared> · FILE <path> · YOU <verb> -> <where> -> <when>
+BLOCKED names the way through in the same reply · never act around one unasked
+${delegateOn() ? 'DELEGATE lookups to handoff-os:scout · commands to handoff-os:runner — they return tables, you decide\n' : ''}NEVER  send · pay · submit · publish · state-changing git · credentials · org data in git
 MEMORY ${status}
 PROOF  a "done" claim needs a real run: node "${VERIFY}" <session_id>`;
 }

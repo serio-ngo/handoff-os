@@ -234,6 +234,8 @@ function check() {
 }
 
 const BLOCKED = 2;
+const held = (run) => run.status === BLOCKED
+  || (() => { try { return JSON.parse(run.stdout || '').hookSpecificOutput?.permissionDecision === 'ask'; } catch { return false; } })();
 function doctor() {
   const settings = readJsonFile(path.join(CONFIG_DIR, 'settings.json'), {});
   const { declared, targets } = installTargets();
@@ -281,24 +283,24 @@ function doctor() {
 
   if (root) {
     check('the guard Claude Code resolves actually blocks',
-      at(root, 'guard.mjs', pre('Bash', { command: 'git merge main' })).status === BLOCKED,
+      held(at(root, 'guard.mjs', pre('Bash', { command: 'git merge main' }))),
       'live hook path, not the cache');
   }
 
-  const fire = (payload, env) => at(cache, 'guard.mjs', payload, env).status;
+  const fire = (payload, env) => at(cache, 'guard.mjs', payload, env);
   const shell = (command, env) => fire(pre('Bash', { command }), env);
-  check('the installed guard blocks a merge', shell('git merge main') === BLOCKED);
+  check('the installed guard blocks a merge', held(shell('git merge main')));
   check('the installed guard blocks every git write',
-    ['git commit -m x', 'git push origin main', 'git switch -c feat/x', 'git branch feat/x'].every((c) => shell(c, { HANDOFF_GIT_WRITE: '0' }) === BLOCKED),
+    ['git commit -m x', 'git push origin main', 'git switch -c feat/x', 'git branch feat/x'].every((c) => held(shell(c, { HANDOFF_GIT_WRITE: '0' }))),
     'commit, push, switch -c, branch — with the flag at 0');
-  check('the installed guard blocks an outward connector call', fire(pre('mcp__x__send_message', {})) === BLOCKED);
+  check('the installed guard blocks an outward connector call', held(fire(pre('mcp__x__send_message', {}))));
   check('the installed guard blocks an opus review, whatever the spawn tool',
-    SPAWN_TOOLS.every((tool) => fire(pre(tool, { model: 'opus', prompt: 'review the diff' })) === BLOCKED),
+    SPAWN_TOOLS.every((tool) => held(fire(pre(tool, { model: 'opus', prompt: 'review the diff' })))),
     SPAWN_TOOLS.join(', '));
-  check('the installed guard blocks a dispatch that names no model', fire(pre('Agent', { prompt: 'audit the repo' })) === BLOCKED);
-  check('the installed guard lets a sonnet review through', fire(pre('Agent', { model: 'sonnet', prompt: 'review the diff' })) === 0);
+  check('the installed guard blocks a dispatch that names no model', held(fire(pre('Agent', { prompt: 'audit the repo' }))));
+  check('the installed guard lets a sonnet review through', fire(pre('Agent', { model: 'sonnet', prompt: 'review the diff' })).status === 0);
   check('the installed guard lets a teammate spawn through, which cannot name a model',
-    fire(pre('TaskCreate', { description: 'analyse the config', subject: 'config' })) === 0);
+    fire(pre('TaskCreate', { description: 'analyse the config', subject: 'config' })).status === 0);
   check('the installed card prints', spawnSync(process.execPath, [path.join(cache, 'scripts', 'card.mjs')], { encoding: 'utf8' }).stdout.trim().length > 0);
   const month = new Date().toISOString().slice(0, 7);
   check('every probe receipt landed in the throwaway root, not the repo ledger',

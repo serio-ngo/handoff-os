@@ -25,8 +25,11 @@ const uncited = (message) => {
 function citationGate(payload, message) {
   if (!uncited(message)) process.exit(0);
   bump(payload, 'gated');
-  process.stderr.write('SCOUT CONTRACT: no file:line, URL or UNVERIFIED tag. Cite each fact, or mark it UNVERIFIED.\n');
-  process.exit(2);
+  process.stdout.write(JSON.stringify({
+    systemMessage: 'SCOUT CONTRACT: no file:line, URL or UNVERIFIED tag. Cite each fact, or mark it UNVERIFIED.',
+    hookSpecificOutput: { hookEventName: 'SubagentStop' },
+  }));
+  process.exit(0);
 }
 
 export function report(payload) {
@@ -90,8 +93,7 @@ function gate() {
   recordBlock(stateRoot, session, blocks);
 
   const shown = statsOn() ? lifetimeLine(bump(payload, 'gated'), stateRoot, session) : '';
-  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: done claimed, nothing run.\n  node "${SELF}" ${session}\n`);
-  process.exit(2);
+  announce(stats, `${shown ? `${shown}\n` : ''}Verify gate: done claimed, nothing run.\n  node "${SELF}" ${session}`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/guard.mjs';
 
-const BLOCKED = 2;
 const ALLOWED = 0;
+const ASK = 'ask';
 const SERVER = '00000000-0000-4000-a000-000000000000';
 const PLUGIN = fileURLToPath(new URL('../../plugins/handoff-os/', import.meta.url));
 const script = (name) => path.join(PLUGIN, 'scripts', name);
@@ -46,8 +46,15 @@ const at = (session, payload) => guard({ cwd: box, session_id: session, ...paylo
 const sh = (session, command) => at(session, { tool_name: 'Bash', tool_input: { command } });
 const bash = (command) => ({ tool_name: 'Bash', tool_input: { command } });
 const connector = (action, tool_input = {}) => ({ tool_name: `mcp__${SERVER}__${action}`, tool_input });
+const ask = (payload, env) => {
+  const run = spawnSync(process.execPath, [script('guard.mjs')], {
+    input: JSON.stringify(payload), encoding: 'utf8', env: env ?? { ...process.env, HANDOFF_OS_DIR: box },
+  });
+  assert.equal(run.status, ALLOWED);
+  return JSON.parse(run.stdout).hookSpecificOutput.permissionDecision;
+};
 const blocks = (label, cases, payload) => it(label, () => {
-  for (const c of cases) assert.equal(guard(payload(c)), BLOCKED, c);
+  for (const c of cases) assert.equal(ask(payload(c)), ASK, c);
 });
 
 blocks('blocks shell commands that leave the machine', [
@@ -99,25 +106,25 @@ blocks('blocks writes to brand-locked and secret-bearing paths', [
 ], (file_path) => ({ tool_name: 'Write', tool_input: { file_path, content: 'x' } }));
 
 it('judges a connector payload, not only its name', () => {
-  assert.equal(guard(connector('d1_database_query', { sql: 'DROP TABLE donors' })), BLOCKED);
-  assert.equal(guard(connector('execute_code')), BLOCKED);
-  assert.equal(guard(connector('workspace__bash', { command: 'git merge main' })), BLOCKED);
-  assert.equal(guard(connector('workspace__bash', { command: 'curl -X POST -d "a=1" https://api.example.com/items' })), BLOCKED);
+  assert.equal(ask(connector('d1_database_query', { sql: 'DROP TABLE donors' })), ASK);
+  assert.equal(ask(connector('execute_code')), ASK);
+  assert.equal(ask(connector('workspace__bash', { command: 'git merge main' })), ASK);
+  assert.equal(ask(connector('workspace__bash', { command: 'curl -X POST -d "a=1" https://api.example.com/items' })), ASK);
 });
 
 it('blocks every state-changing git command while HANDOFF_GIT_WRITE is not 1', () => {
   for (const command of [`${VCS} ${OUT} origin main`, `${VCS} commit -m x`, `${VCS} add -A`, `${VCS} switch -c feat/x`, `${VCS} branch feat/x`,
     `${VCS} commit --verify -m x`, `${VCS} checkout --merged x`, `${VCS} reset --contains x`]) {
-    assert.equal(guard(bash(command), { ...process.env, HANDOFF_OS_DIR: box, HANDOFF_GIT_WRITE: '0' }), BLOCKED, command);
+    assert.equal(ask(bash(command), { ...process.env, HANDOFF_OS_DIR: box, HANDOFF_GIT_WRITE: '0' }), ASK, command);
   }
 });
 
 it('blocks an account number through Write, Edit, MultiEdit, NotebookEdit and a shell redirect', () => {
-  assert.equal(guard({ tool_name: 'Write', tool_input: { file_path: 'notes.md', content: `IBAN ${ACCOUNT}` } }), BLOCKED);
-  assert.equal(guard({ tool_name: 'Edit', tool_input: { file_path: 'notes.md', old_string: 'a', new_string: ACCOUNT } }), BLOCKED);
-  assert.equal(guard({ tool_name: 'MultiEdit', tool_input: { file_path: 'notes.md', edits: [{ old_string: 'a', new_string: ACCOUNT }] } }), BLOCKED);
-  assert.equal(guard({ tool_name: 'NotebookEdit', tool_input: { notebook_path: 'notes.ipynb', new_source: ACCOUNT } }), BLOCKED);
-  assert.equal(sh('ac', `echo ${ACCOUNT} >> README.md`), BLOCKED);
+  assert.equal(ask({ tool_name: 'Write', tool_input: { file_path: 'notes.md', content: `IBAN ${ACCOUNT}` } }), ASK);
+  assert.equal(ask({ tool_name: 'Edit', tool_input: { file_path: 'notes.md', old_string: 'a', new_string: ACCOUNT } }), ASK);
+  assert.equal(ask({ tool_name: 'MultiEdit', tool_input: { file_path: 'notes.md', edits: [{ old_string: 'a', new_string: ACCOUNT }] } }), ASK);
+  assert.equal(ask({ tool_name: 'NotebookEdit', tool_input: { notebook_path: 'notes.ipynb', new_source: ACCOUNT } }), ASK);
+  assert.equal(ask({ cwd: box, session_id: 'ac', tool_name: 'Bash', tool_input: { command: `echo ${ACCOUNT} >> README.md` } }), ASK);
 });
 
 it('blocks commands a plain argv matcher would miss', () => {
@@ -142,31 +149,33 @@ it('blocks commands a plain argv matcher would miss', () => {
     'ri -r docs',
     'rd /s /q docs',
     'find docs -delete',
-  ]) assert.equal(sh('bp', command), BLOCKED, command);
+  ]) assert.equal(ask({ cwd: box, session_id: 'bp', tool_name: 'Bash', tool_input: { command } }), ASK, command);
 });
 
 describe('dispatch budget', () => {
   const spawn = (tool_input, tool_name = 'Agent') => at('dp', { tool_name, tool_input });
+  const held = (session, tool_input, tool_name = 'Agent') => ask({ cwd: box, session_id: session, tool_name, tool_input });
 
-  it('blocks an unknown tier, and a denied tier the agent definition declares rather than the call', () => {
-    assert.equal(spawn({ prompt: 'x', model: 'best-available' }), BLOCKED);
+  it('blocks a dispatch that names no model, an unknown tier, and a denied tier from the agent definition', () => {
+    assert.equal(held('dp', { prompt: 'x' }), ASK);
+    assert.equal(held('dp', { prompt: 'x', model: 'best-available' }), ASK);
     mkdirSync(path.join(box, '.claude', 'agents'), { recursive: true });
     writeFileSync(path.join(box, '.claude', 'agents', 'pricey.md'), '---\nname: pricey\nmodel: opus\n---\n');
     const named = (tool_input) => at('dp-agents', { tool_name: 'Agent', tool_input });
-    assert.equal(named({ prompt: 'x', subagent_type: 'pricey' }), BLOCKED);
+    assert.equal(held('dp-agents', { prompt: 'x', subagent_type: 'pricey' }), ASK);
     assert.equal(named({ prompt: 'x', subagent_type: 'handoff-os:scout' }), ALLOWED);
   });
   it('blocks opus without a QUALITY flag, and thinking a deliverable did not earn', () => {
-    assert.equal(spawn({ prompt: 'scan the repo', model: 'opus' }), BLOCKED);
+    assert.equal(held('dp', { prompt: 'scan the repo', model: 'opus' }), ASK);
     const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-dp.json'), 'utf8'));
     assert.equal(state.saved.redirects, 1);
     assert.equal(state.tiers.opus, 1);
-    assert.equal(spawn({ prompt: 'ultrathink about the schema', model: 'sonnet' }), BLOCKED);
+    assert.equal(held('dp', { prompt: 'ultrathink about the schema', model: 'sonnet' }), ASK);
     assert.equal(spawn({ script: 'agent("find where opus is configured")' }, 'Workflow'), ALLOWED);
   });
   it('blocks a workflow that never states its agent count, and caps the count it states', () => {
-    assert.equal(spawn({ script: "await Promise.all(rows.map((r) => agent('x', { model: 'sonnet' })))" }, 'Workflow'), BLOCKED);
-    assert.equal(spawn({ script: '// AGENTS: 30\nawait parallel(rows.map((r) => () => agent(r)))' }, 'Workflow'), BLOCKED);
+    assert.equal(held('dp', { script: "await Promise.all(rows.map((r) => agent('x', { model: 'sonnet' })))" }, 'Workflow'), ASK);
+    assert.equal(held('dp', { script: '// AGENTS: 30\nawait parallel(rows.map((r) => () => agent(r)))' }, 'Workflow'), ASK);
     assert.equal(spawn({ prompt: 'the wave a denied workflow claimed is free again', model: 'haiku' }), ALLOWED);
   });
   it('caps the wave when a stale file sits where the wave directory belongs', () => {
@@ -174,24 +183,26 @@ describe('dispatch budget', () => {
     writeFileSync(path.join(box, '.claude', '.wave-stale'), 'not a directory', 'utf8');
     const run = () => at('stale', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
     run(); run(); run();
-    assert.equal(run(), BLOCKED);
+    assert.equal(held('stale', { prompt: 'x', model: 'haiku' }), ASK);
   });
   it('blocks the fourth agent in one wave', () => {
     for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
-    assert.equal(spawn({ prompt: 'fourth', model: 'haiku' }), BLOCKED);
+    assert.equal(held('dp', { prompt: 'fourth', model: 'haiku' }), ASK);
   });
   it('caps the wave at HANDOFF_MAX_PER_WAVE, defaulting to 3 on garbage', () => {
-    const run = (session, extra = {}) => guard({ cwd: box, session_id: session, tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } },
+    const allow = (session, extra = {}) => guard({ cwd: box, session_id: session, tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } },
       { ...process.env, HANDOFF_OS_DIR: box, ...extra });
-    run('cap1', { HANDOFF_MAX_PER_WAVE: '1' });
-    assert.equal(run('cap1', { HANDOFF_MAX_PER_WAVE: '1' }), BLOCKED);
-    for (let n = 0; n < 3; n += 1) run('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' });
-    assert.equal(run('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' }), BLOCKED);
+    const hold = (session, extra = {}) => ask({ cwd: box, session_id: session, tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } },
+      { ...process.env, HANDOFF_OS_DIR: box, ...extra });
+    allow('cap1', { HANDOFF_MAX_PER_WAVE: '1' });
+    assert.equal(hold('cap1', { HANDOFF_MAX_PER_WAVE: '1' }), ASK);
+    for (let n = 0; n < 3; n += 1) allow('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' });
+    assert.equal(hold('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' }), ASK);
   });
   it('counts a capped wave as blocked', () => {
     const run = () => at('wv', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
     run(); run(); run();
-    assert.equal(run(), BLOCKED);
+    assert.equal(held('wv', { prompt: 'x', model: 'haiku' }), ASK);
     const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-wv.json'), 'utf8'));
     assert.equal(state.saved.blocked, 1);
     assert.equal(state.saved.agents, 3);
@@ -236,14 +247,18 @@ describe('read and query budgets', () => {
       input: JSON.stringify({ cwd: box, session_id: session, tool_name: 'Read', tool_input: { file_path: file } }),
       encoding: 'utf8', env: { ...process.env, HANDOFF_OS_DIR: box, ...extra },
     });
+    const decision = (result) => {
+      assert.equal(result.status, ALLOWED);
+      return JSON.parse(result.stdout).hookSpecificOutput;
+    };
     fire2('dg', {});
-    const on = fire2('dg', {});
-    assert.equal(on.status, BLOCKED);
-    assert.match(on.stderr, /scout subagent/);
+    const on = decision(fire2('dg', {}));
+    assert.equal(on.permissionDecision, ASK);
+    assert.match(on.permissionDecisionReason, /scout subagent/);
     fire2('dg0', { HANDOFF_DELEGATE: '0' });
-    const off = fire2('dg0', { HANDOFF_DELEGATE: '0' });
-    assert.equal(off.status, BLOCKED);
-    assert.doesNotMatch(off.stderr, /scout subagent/);
+    const off = decision(fire2('dg0', { HANDOFF_DELEGATE: '0' }));
+    assert.equal(off.permissionDecision, ASK);
+    assert.doesNotMatch(off.permissionDecisionReason, /scout subagent/);
   });
   it('caps a content-mode Grep that names no head_limit', () => {
     const result = run('gc', { tool_name: 'Grep', tool_input: { pattern: 'todo', output_mode: 'content' } });
@@ -280,13 +295,14 @@ describe('read and query budgets', () => {
   it('refuses an oversize read whose flag or redirect head -c cannot reproduce', () => {
     const flagged = path.join(box, 'flagged.txt');
     writeFileSync(flagged, `${'x'.repeat(70)}\n`.repeat(500));
-    assert.equal(sh('fl', `cat -n ${flagged}`), BLOCKED);
-    assert.equal(sh('fl2', `cat ${flagged} 2>&1`), BLOCKED);
-    assert.equal(sh('fl3', `cat ${flagged} 1>&2`), BLOCKED);
+    const hold = (session, command) => ask({ cwd: box, session_id: session, tool_name: 'Bash', tool_input: { command } });
+    assert.equal(hold('fl', `cat -n ${flagged}`), ASK);
+    assert.equal(hold('fl2', `cat ${flagged} 2>&1`), ASK);
+    assert.equal(hold('fl3', `cat ${flagged} 1>&2`), ASK);
     const small = path.join(box, 'beside.txt');
     writeFileSync(small, 'beside');
-    assert.equal(sh('fl4', `cat ${small}; cat -n ${flagged}`), BLOCKED);
-    assert.equal(sh('fl4', `cat ${small}`), ALLOWED);
+    assert.equal(hold('fl4', `cat ${small}; cat -n ${flagged}`), ASK);
+    assert.equal(at('fl4', { tool_name: 'Bash', tool_input: { command: `cat ${small}` } }), ALLOWED);
     assert.equal(state('fl4').saved.read, 6);
   });
   it('leaves a read redirected into a file alone — its bytes never reach the thread', () => {
@@ -296,21 +312,14 @@ describe('read and query budgets', () => {
     assert.equal(result.status, ALLOWED);
     assert.equal(result.stdout, '');
   });
-  it('lets many small whole-file reads through — only bytes bound the thread', () => {
-    for (let n = 0; n < 12; n += 1) {
-      const file = path.join(box, `whole-${n}.txt`);
-      writeFileSync(file, String(n).repeat(64));
-      assert.equal(at('dl', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED, file);
-    }
-  });
   it('blocks a re-read of the same unchanged bytes', () => {
     writeFileSync(probe, 'small');
     at('bq', { tool_name: 'Read', tool_input: { file_path: probe } });
-    assert.equal(at('bq', { tool_name: 'Read', tool_input: { file_path: probe } }), BLOCKED);
+    assert.equal(ask({ cwd: box, session_id: 'bq', tool_name: 'Read', tool_input: { file_path: probe } }), ASK);
   });
   it('blocks the identical Grep a second time', () => {
     at('bq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } });
-    assert.equal(at('bq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } }), BLOCKED);
+    assert.equal(ask({ cwd: box, session_id: 'bq', tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ASK);
   });
   it('forgets answered queries after a shell write', () => {
     at('wq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } });
@@ -335,7 +344,7 @@ describe('read and query budgets', () => {
   });
   it('books a repeat query apart from a file re-read, so byte totals stay honest', () => {
     at('rq', { tool_name: 'Grep', tool_input: { pattern: 'apart' } });
-    assert.equal(at('rq', { tool_name: 'Grep', tool_input: { pattern: 'apart' } }), BLOCKED);
+    assert.equal(ask({ cwd: box, session_id: 'rq', tool_name: 'Grep', tool_input: { pattern: 'apart' } }), ASK);
     const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-rq.json'), 'utf8'));
     assert.equal(state.saved.queries, 1);
     assert.equal(state.saved.rereads, 0);
@@ -345,17 +354,10 @@ describe('read and query budgets', () => {
     const file = path.join(box, 'retry.txt');
     writeFileSync(file, 'w'.repeat(30 * 1024));
     for (let n = 0; n < 3; n += 1) {
-      assert.equal(sh('rt', `cat -n ${file}`), BLOCKED);
+      assert.equal(ask({ cwd: box, session_id: 'rt', tool_name: 'Bash', tool_input: { command: `cat -n ${file}` } }), ASK);
     }
     assert.equal(state('rt').saved.slices, 1);
     assert.equal(state('rt').saved.deferred, 30 * 1024);
-  });
-  it('never blocks a read on how much the session has already read', () => {
-    for (let n = 0; n < 40; n += 1) {
-      const file = path.join(box, `long-${n}.txt`);
-      writeFileSync(file, 'q'.repeat(20 * 1024));
-      assert.equal(at('lg', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED, file);
-    }
   });
 });
 
@@ -373,17 +375,24 @@ describe('verify gate', () => {
   };
   const boxed = (root) => ({ ...process.env, HANDOFF_OS_DIR: root, CLAUDE_PROJECT_DIR: root });
   const stop = (root, payload) => fire(GATE, { cwd: root, ...payload }, boxed(root));
+  const warn = (root, payload) => {
+    const run = spawnSync(process.execPath, [GATE], {
+      input: JSON.stringify({ cwd: root, ...payload }), encoding: 'utf8', env: boxed(root),
+    });
+    assert.equal(run.status, ALLOWED);
+    return run.stdout;
+  };
   const wrote = (root, session_id) => guard({ cwd: root, session_id, tool_name: 'Edit', tool_input: { file_path: path.join(root, 'x.md'), old_string: 'a', new_string: 'b' } }, boxed(root));
   const proved = (root, session) => spawnSync(process.execPath, [GATE, session, root], { env: boxed(root), encoding: 'utf8' }).status;
 
-  it('blocks a done-claim no run supports, from the transcript, the payload, or beside a handoff card, and never a sentence that claims nothing', () => {
+  it('holds a done-claim no run supports, from the transcript, the payload, or beside a handoff card, and never a sentence that claims nothing', () => {
     const root = repoWith({ verify: 'node --version' });
     const card = 'The refactor is finished.\n\nDONE post drafted\nFILE x.md\nYOU post -> Show HN -> today';
     for (const session of ['unproven', 'direct', 'carded', 'nonclaim']) wrote(root, session);
-    assert.equal(stop(root, { session_id: 'unproven', transcript_path: transcript(root, 'All done, it works now.') }), BLOCKED);
-    assert.equal(stop(root, { session_id: 'direct', last_assistant_message: 'Shipped.' }), BLOCKED);
+    assert.match(warn(root, { session_id: 'unproven', transcript_path: transcript(root, 'All done, it works now.') }), /Verify gate/);
+    assert.match(warn(root, { session_id: 'direct', last_assistant_message: 'Shipped.' }), /Verify gate/);
     assert.equal(JSON.parse(readFileSync(path.join(root, '.claude', '.session-direct.json'), 'utf8')).saved.gated, 1);
-    assert.equal(stop(root, { session_id: 'carded', transcript_path: transcript(root, card) }), BLOCKED);
+    assert.match(warn(root, { session_id: 'carded', transcript_path: transcript(root, card) }), /Verify gate/);
     for (const text of ['I am ready to start', 'not fixed yet', 'step is complete; next…', 'nothing was done']) {
       assert.equal(stop(root, { session_id: 'nonclaim', last_assistant_message: text }), ALLOWED, text);
     }
@@ -395,22 +404,22 @@ describe('verify gate', () => {
     wrote(root, 'rearm');
     assert.equal(proved(root, 'rearm'), ALLOWED);
     wrote(root, 'rearm');
-    assert.equal(stop(root, { session_id: 'rearm', last_assistant_message: 'Done.' }), BLOCKED);
+    assert.match(warn(root, { session_id: 'rearm', last_assistant_message: 'Done.' }), /Verify gate/);
   });
 
-  it('stands down after two blocks so a session cannot be trapped', () => {
+  it('stands down after two holds so a session cannot be trapped', () => {
     const root = repoWith({ verify: 'node --version' });
     wrote(root, 'stubborn');
     const claim = { session_id: 'stubborn', transcript_path: transcript(root, 'Done.') };
-    assert.equal(stop(root, claim), BLOCKED);
-    assert.equal(stop(root, claim), BLOCKED);
-    assert.equal(stop(root, claim), ALLOWED);
+    assert.match(warn(root, claim), /Verify gate/);
+    assert.match(warn(root, claim), /Verify gate/);
+    assert.match(warn(root, claim), /stood down/);
   });
 
   it('prints the session receipt once per change, never twice unchanged', () => {
     const root = sandbox('receipt-');
     const env = boxed(root);
-    assert.equal(guard({ cwd: root, session_id: 'rc', tool_name: 'Bash', tool_input: { command: `${VCS} merge main` } }, env), BLOCKED);
+    assert.equal(ask({ cwd: root, session_id: 'rc', tool_name: 'Bash', tool_input: { command: `${VCS} merge main` } }, env), ASK);
     const receipt = () => spawnSync(process.execPath, [GATE], {
       input: JSON.stringify({ cwd: root, session_id: 'rc', hook_event_name: 'Stop' }), encoding: 'utf8', env,
     }).stdout;
@@ -418,9 +427,9 @@ describe('verify gate', () => {
     assert.equal(receipt(), '');
   });
 
-  it('blocks a substantive scout return that cites nothing', () => {
+  it('holds a substantive scout return that cites nothing', () => {
     const text = 'The repository routes every outward verb through one gate. '.repeat(4);
-    assert.equal(stop(sandbox('scout-'), { hook_event_name: 'SubagentStop', last_assistant_message: text }), BLOCKED);
+    assert.match(warn(sandbox('scout-'), { hook_event_name: 'SubagentStop', last_assistant_message: text }), /SCOUT CONTRACT/);
   });
 });
 

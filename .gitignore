@@ -3,7 +3,7 @@
 .claude/.session-*
 audit/*
 .claude/.wave-*
-plugins/handoff-os/memory.md
+plugins/serio-focus/memory.md
 config/memory.md
 node_modules/
 .DS_Store

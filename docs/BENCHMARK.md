@@ -168,7 +168,7 @@ npm run benchmark:compare
 | Claude Code permissions.deny globs | 15% | 5% | 0.26 |
 | a pattern-list PreToolUse hook | 35% | 10% | 0.49 |
 | block every tool call | 100% | 100% | 0.73 |
-| **handoff-os** | 100% | 0% | 1.00 |
+| **serio-focus** | 100% | 0% | 1.00 |
 
 95 cases, 2026-09-14; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
 
@@ -183,7 +183,7 @@ npm run benchmark:compare
 - Multiple roots aggregate: `node tooling/benchmark/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
-Run 2026-09-14 · 33 cases · guard `plugins/handoff-os/scripts/guard.mjs` · ask = held.
+Run 2026-09-14 · 33 cases · guard `plugins/serio-focus/scripts/guard.mjs` · ask = held.
 
 | Metric | Value |
 |---|---|

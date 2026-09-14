@@ -36,7 +36,7 @@ export function card(text = memory()) {
   const status = lines
     ? `set (${lines} lines) — read memory.md when owner context is needed`
     : 'empty — ask the owner for every org fact';
-  return `Handoff OS — session card
+  return `Serio Focus — session card
 CAPS  3 subagents per wave · files over 24KB arrive trimmed · git commit and push stay manual
 SHAPE the focus output style shapes every reply
 MEMORY ${status}`;

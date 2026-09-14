@@ -2,8 +2,8 @@
 
 | Review before install | Command |
 |---|---|
-| Hooks | `cat plugins/handoff-os/hooks/hooks.json` |
-| Scripts | `cat plugins/handoff-os/scripts/*.mjs plugins/handoff-os/scripts/lib/*.mjs` |
+| Hooks | `cat plugins/serio-focus/hooks/hooks.json` |
+| Scripts | `cat plugins/serio-focus/scripts/*.mjs plugins/serio-focus/scripts/lib/*.mjs` |
 | Suite | `npm test` |
 
 | Report | Rule |

@@ -1,6 +1,6 @@
 {"id":"budget-d01","category":"budget","tool":"Agent","input":{"prompt":"scan the repo","model":"opus"},"want":"block","origin":"spec","note":"top tier dispatched for ordinary work"}
 {"id":"budget-d02","category":"budget","tool":"Agent","input":{"prompt":"scan the repo"},"want":"block","origin":"spec","note":"dispatch that names no tier"}
-{"id":"budget-b04","category":"budget","tool":"Agent","input":{"prompt":"scan the repo","subagent_type":"handoff-os:scout"},"want":"allow","origin":"regression","note":"a named agent carries its model in its own definition; the call need not repeat it"}
+{"id":"budget-b04","category":"budget","tool":"Agent","input":{"prompt":"scan the repo","subagent_type":"serio-focus:scout"},"want":"allow","origin":"regression","note":"a named agent carries its model in its own definition; the call need not repeat it"}
 {"id":"budget-d03","category":"budget","tool":"Agent","input":{"prompt":"scan the repo","model":"best-available"},"want":"block","origin":"spec","note":"model string that maps to no tier"}
 {"id":"budget-d04","category":"budget","tool":"Agent","input":{"prompt":"ultrathink about the schema","model":"sonnet"},"want":"block","origin":"spec","note":"reasoning escalation the task did not earn"}
 {"id":"budget-d05","category":"budget","tool":"Workflow","input":{"script":"await parallel(rows.map((r) => () => agent(r)))"},"want":"block","origin":"spec","note":"fan-out whose width is never declared"}
@@ -11,7 +11,7 @@
 {"id":"budget-a03","category":"budget","tool":"Workflow","input":{"script":"// a pipeline (in the CI sense) is not a fan-out\nawait agent(\"one\")"},"want":"allow","origin":"regression","note":"fan-out helper named in a comment"}
 {"id":"budget-a04","category":"budget","tool":"Workflow","input":{"script":"// AGENTS: 3\nawait parallel(rows.map((r) => () => agent(r)))"},"want":"allow","origin":"spec","note":"declared width inside the per-wave cap"}
 {"id":"budget-a05","category":"budget","tool":"Agent","input":{"prompt":"QUALITY: writing — draft the launch note","model":"opus"},"want":"allow","origin":"spec","note":"top tier for prose that earns it"}
-{"id":"budget-a06","category":"budget","tool":"Agent","input":{"prompt":"quote the cap","model":"haiku","subagent_type":"handoff-os:scout"},"want":"allow","origin":"spec","note":"cheapest actor for a lookup"}
+{"id":"budget-a06","category":"budget","tool":"Agent","input":{"prompt":"quote the cap","model":"haiku","subagent_type":"serio-focus:scout"},"want":"allow","origin":"spec","note":"cheapest actor for a lookup"}
 {"id":"budget-a07","category":"budget","tool":"Workflow","input":{"script":"// one agent: do not call agent( twice\nconst s = \"use agent( ) here\";\nawait agent({ model: \"sonnet\", prompt: \"go\" });"},"want":"allow","origin":"probe","note":"agent( in a comment or a string is not a dispatch"}
 {"id":"git-d01","category":"git","tool":"Bash","input":{"command":"git commit -m x"},"want":"block","origin":"spec","note":"the owner commits"}
 {"id":"git-d02","category":"git","tool":"Bash","input":{"command":"git commit --verify -m x"},"want":"block","origin":"regression","note":"a flag after commit does not excuse it"}

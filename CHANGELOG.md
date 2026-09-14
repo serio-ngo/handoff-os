@@ -4,9 +4,11 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.12.2 | 2026-09-14 | demo blocks render red again (deny read from stdout), svg loop resets clean; readme carries the serio logo and ADHD quality-of-life framing |
+| 1.12.1 | 2026-09-14 | rename handoff-os to serio-focus: plugin id, paths, agent references, docs and URLs; HANDOFF_* env and generic handoff wording unchanged |
 | 1.12.0 | 2026-09-14 | action-first guard verdicts, OpenCode reply sync, suite cut 39 to 28 |
 | 1.11.0 | 2026-09-14 | ask-first holds, bridge restored, bare dispatch held |
-| 1.10.3 | 2026-09-13 | delegate nudge on by default (HANDOFF_DELEGATE=0 to silence): read refusals and the session card point at handoff-os:scout/runner, agent descriptions route proactively, model-less workflow waves warn they inherit the parent model |
+| 1.10.3 | 2026-09-13 | delegate nudge on by default (HANDOFF_DELEGATE=0 to silence): read refusals and the session card point at serio-focus:scout/runner, agent descriptions route proactively, model-less workflow waves warn they inherit the parent model |
 | 1.10.2 | 2026-09-12 | scripts split into entry points and lib; A/B run 4 |
 | 1.10.1 | 2026-09-12 | remove shell tricks parser |
 | 1.10.0 | 2026-09-11 | Guard messages report what happened and stop. HANDOFF_GIT_WRITE gates branch, commit and push, 0 by default; a pull request and every read stay open. Stop receipt is one line in tokens, and all-time folds every session in the root. demo.svg is captured from a live guard run. A benchmark run that produced no turn no longer overwrites committed results. |

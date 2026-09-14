@@ -28,7 +28,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: From `plugins/handoff-os/.claude-plugin/plugin.json`, or the release you installed.
+      description: From `plugins/serio-focus/.claude-plugin/plugin.json`, or the release you installed.
       placeholder: 1.6.0
     validations:
       required: true

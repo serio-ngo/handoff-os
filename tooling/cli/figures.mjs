@@ -2,9 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { COUNTERS, bank, load, save } from '../../plugins/handoff-os/scripts/lib/ledger.mjs';
-import { sessionLine } from '../../plugins/handoff-os/scripts/lib/stats.mjs';
-import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/handoff-os/scripts/lib/limits.mjs';
+import { COUNTERS, bank, load, save } from '../../plugins/serio-focus/scripts/lib/ledger.mjs';
+import { sessionLine } from '../../plugins/serio-focus/scripts/lib/stats.mjs';
+import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/serio-focus/scripts/lib/limits.mjs';
 import { num, secs } from './format.mjs';
 import { PLUGIN, REPO, readJson, writeBlock } from './generate.mjs';
 
@@ -167,7 +167,7 @@ function wrap(line, max) {
   return out;
 }
 
-// every demo verdict is this guard's own stderr or rewrite reason, captured live —
+// every demo verdict is this guard's own deny reason or rewrite reason, captured live —
 // except the last row, which quotes the focus output style verbatim
 function probe() {
   const root = mkdtempSync(path.join(tmpdir(), 'handoff-figure-'));
@@ -181,16 +181,23 @@ function probe() {
       encoding: 'utf8',
       env: { ...process.env, HANDOFF_OS_DIR: root, HANDOFF_GIT_WRITE: '0' },
     });
-    if (run.status === 2) return { blocked: true, verdict: run.stderr.trim() };
+    let decision = '';
+    let reason = '';
+    try {
+      const out = JSON.parse(run.stdout || '').hookSpecificOutput || {};
+      decision = out.permissionDecision || '';
+      reason = out.permissionDecisionReason || '';
+    } catch { /* a plain allow carries no stdout */ }
+    if (run.status === 2 || decision === 'deny' || decision === 'ask') return { blocked: true, verdict: reason || run.stderr.trim() };
     if (run.status !== 0) throw new Error(`guard exited ${run.status}: ${run.stderr}`);
-    return { blocked: false, verdict: run.stdout ? JSON.parse(run.stdout).hookSpecificOutput.permissionDecisionReason : '' };
+    return { blocked: false, verdict: reason };
   };
 
   // all-time is earlier sessions of this root, banked the way the Stop hook banks them
   for (let i = 0; i < DEMO_HISTORY; i += 1) {
     const session = `turn${i}`;
     fire('Bash', { command: `cat -n ${big}` }, { session });
-    fire('Read', { file_path: big }, { session, agent_type: 'handoff-os:scout' });
+    fire('Read', { file_path: big }, { session, agent_type: 'serio-focus:scout' });
     fire('Agent', { model: 'haiku', prompt: 'summarise the diff' }, { session });
     const state = load(root, session);
     bank(state);
@@ -213,7 +220,9 @@ function probe() {
 }
 
 function demoSvg({ steps, receipt } = probe()) {
-  const LOOP = 16; const WRAP = 110; const CH = 8.2;
+  const WRAP = 110; const CH = 8.2;
+  const FADE_IN = 0.3; const HOLD = 4; const FADE_OUT = 1; const BLANK = 0.5;
+  const TYPE_AT = 0.8; const TYPE_LEN = 1.4;
   const prompt = '> review whole app and send results to me.';
   const rows = [{ text: '$ claude' }, { text: prompt, typed: true, weight: 600 }];
   for (const step of steps) {
@@ -246,23 +255,35 @@ function demoSvg({ steps, receipt } = probe()) {
     } else body.push(text(22, y, row.text, { weight: row.weight, fill: row.fill, cls }));
   });
   const last = rows.length - 1;
-  const delays = rows.map((row, i) => `.d${i}{animation-delay:${Math.round(row.at * 10) / 10}s}`).join('');
-  const alt = `handoff-os session: ${steps.map((s) => (s.verdict ? `${s.label} → ${s.verdict}` : `${s.label}, allowed`)).join(' · ')} · ${receipt}`;
+  // one shared loop: every row fades in on its cue, all rows fade out together,
+  // the screen rests blank, then the loop restarts — a delay alone would not
+  // resync, since CSS animation-delay applies only before the first iteration
+  const loop = Math.ceil(at + HOLD + FADE_OUT + BLANK);
+  const pct = (s) => Math.round((Math.min(Math.max(s, 0), loop) / loop) * 1000) / 10;
+  const keys = rows.map((row, i) => {
+    const vis = Math.min(row.at + FADE_IN, loop - FADE_OUT);
+    return `@keyframes k${i}{0%{opacity:0;transform:translateY(4px)}${pct(row.at)}%{opacity:0;transform:translateY(4px)}`
+      + `${pct(vis)}%{opacity:1;transform:translateY(0)}${pct(loop - FADE_OUT)}%{opacity:1;transform:translateY(0)}`
+      + `${pct(loop - BLANK)}%{opacity:0}100%{opacity:0}}`;
+  }).join('');
+  const cues = rows.map((row, i) => `.d${i}{animation:k${i} ${loop}s infinite both}`).join('');
+  const typeW = Math.ceil(prompt.length * CH);
+  const alt = `serio-focus session: ${steps.map((s) => (s.verdict ? `${s.label} → ${s.verdict}` : `${s.label}, allowed`)).join(' · ')} · ${receipt}`;
   return { width: W, alt, svg: file([
     open(W, H, alt, MONO),
     '<style>',
     'text{font-size:13.5px;white-space:pre}',
-    `.row{opacity:0;animation:in ${LOOP}s infinite both}`,
-    '@keyframes in{0%{opacity:0;transform:translateY(4px)}2%{opacity:1;transform:translateY(0)}95%{opacity:1}98%,100%{opacity:0}}',
-    `@keyframes type{0%{width:0}100%{width:${Math.ceil(prompt.length * CH)}px}}`,
+    '.row{opacity:0}',
+    keys,
+    `@keyframes type{0%{width:0}${pct(TYPE_AT)}%{width:0}${pct(TYPE_AT + TYPE_LEN)}%{width:${typeW}px}100%{width:${typeW}px}}`,
     '@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}',
-    `.typed{animation:type 1.4s steps(${prompt.length}) .8s both}`,
+    `.typed{animation:type ${loop}s steps(${prompt.length}) infinite}`,
     '.cursor{animation:blink 1s steps(1) infinite}',
-    delays,
+    cues,
     '</style>',
     `<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="10" fill="${INK}" fill-opacity=".07" stroke="${INK}" stroke-opacity=".35"/>`,
     `<path d="M0 34 H${W}" stroke="${INK}" stroke-opacity=".35"/>`,
-    text(22, 22, '— handoff-os session', { size: 11.5 }),
+    text(22, 22, '— serio-focus session', { size: 11.5 }),
     ...body,
     `<g class="row d${last}"><rect class="cursor" x="${22 + Math.ceil(rows[last].text.length * CH) + 6}" y="${y0 + last * step - 11}" width="7" height="13" fill="${HUE.with}"/></g>`,
     '</svg>',

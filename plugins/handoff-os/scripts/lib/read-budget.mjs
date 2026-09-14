@@ -155,7 +155,7 @@ export function shellReadBudget(payload, input, tool) {
               + `head -c ${BIG_FILE_BYTES} ${shellQuote(read.file)}`
               + command.slice(read.at + read.span),
           },
-          reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to head -c ${BIG_FILE_BYTES}`,
+          reason: `READ CAP: ${trim.name} ${kb(trim.size)}. Kept head -c ${BIG_FILE_BYTES}`,
         };
       }
     }

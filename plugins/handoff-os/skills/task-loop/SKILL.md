@@ -15,7 +15,7 @@ compatibility: Needs a tracker and doc store. Email read and draft only — neve
 | 1. CAPTURE | Create the tracked item: title + one-line goal. YELLOW — do it, append one audit line. |
 | 2. BREAK | Read the item plus `config/memory.md`, only what the step needs. Split into ≤5 steps, each owned AI or human. |
 | 3. PREPARE | Draft every AI-owned artefact: doc in the doc store, draft email (never sent), checklist on the item. |
-| 4. HANDOFF | One handoff card per human click — DONE / FILE / YOU, three lines, per the session card. Update the item status. Stop. |
+| 4. HANDOFF | One handoff card per human click — DONE / FILE / YOU, three lines, per the session card. Shape every reply per §5. Update the item status. Stop. |
 
 ## 2. Step ownership
 
@@ -41,3 +41,10 @@ compatibility: Needs a tracker and doc store. Email read and draft only — neve
 | a connector name | the connector's create-item and status-change calls | a tracker connector is attached |
 | `github` | `gh project item-add` / `gh project item-edit` | code-first owner, no extra account |
 | `markdown` | append to `TODO.md` (`- [ ]` / `- [x]`) | offline, zero dependencies |
+
+## 5. Reply shape — every turn, any env
+
+Action first: first line runs (command, path, verb). No preamble.
+Done: `-` bullets, past tense, max 5, each with file:line or run proof.
+Next: one `Next: <verb + object>` with command, `You should see:`, `If not:`.
+`Step N of M` every turn. Never Continue/Proceed/Manage.

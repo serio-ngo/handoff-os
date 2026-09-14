@@ -26,7 +26,7 @@ export function queryBudget(payload, input, tool) {
     save(root, session, state);
     return {
       updatedInput: { ...input, head_limit: GREP_HEAD_LIMIT },
-      reason: `HANDOFF OS: head_limit ${GREP_HEAD_LIMIT} set on this Grep`,
+      reason: `QUERY CAP: head_limit ${GREP_HEAD_LIMIT} set on this Grep`,
     };
   }
   save(root, session, state);

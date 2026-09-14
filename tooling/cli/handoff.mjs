@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/guard.mjs';
 import { writeFigures } from './figures.mjs';
-import { PLUGIN, REPO, inventory, manifest, markdown, pluginVersion, policyFor, readJson, walk } from './generate.mjs';
+import { PLUGIN, REPO, REPLY_CLOSE, REPLY_OPEN, inventory, manifest, markdown, opencodeAgents, pluginVersion, policyFor, readJson, replyBody, walk, writeBlock } from './generate.mjs';
 
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude');
 const BANNED = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN'];
@@ -204,6 +204,19 @@ function install() {
   return { declared, targets };
 }
 
+function syncReply() {
+  const file = opencodeAgents();
+  if (!existsSync(file)) {
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, `${REPLY_OPEN}\n${REPLY_CLOSE}\n`, 'utf8');
+  }
+  const current = readFileSync(file, 'utf8');
+  if (!current.includes(REPLY_OPEN) || !current.includes(REPLY_CLOSE)) {
+    writeFileSync(file, `${current.replace(/\n+$/, '')}\n\n${REPLY_OPEN}\n${REPLY_CLOSE}\n`, 'utf8');
+  }
+  row('reply', writeBlock(file, REPLY_OPEN, REPLY_CLOSE, replyBody().split('\n')));
+}
+
 function normalise() {
   const files = walk(REPO)
     .filter((file) => TEXT.test(file))
@@ -308,6 +321,9 @@ function doctor() {
   check(`the plugin costs ~${Math.round(inventory().contextChars / 4)} tok of context`, true,
     'card plus skill and agent descriptions, always in context');
 
+  const agents = opencodeAgents();
+  if (existsSync(agents)) check('the reply block is in the OpenCode global AGENTS.md', readFileSync(agents, 'utf8').includes(replyBody()));
+
   const failed = checks.filter((ok) => !ok).length;
   console.log(`  ${checks.length - failed} of ${checks.length} yes`);
   return { failed, installed };
@@ -357,7 +373,10 @@ function setup(args) {
   if (args.project) sync({ ...args, scope: 'project', target: args.project });
   upkeep();
   install();
+  syncReply();
   report();
+  console.log('Cowork: paste this into Settings > Cowork > Global instructions:');
+  console.log(replyBody());
   console.log('');
   const { failed } = doctor();
   console.log('');

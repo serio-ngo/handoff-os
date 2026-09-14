@@ -106,32 +106,32 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Live ledger — what the guard did on this machine
 
 <!-- handoff-stats -->
-| Measured over 33 turns | Tokens | Share |
+| Measured over 42 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~461.8k | 100% |
-| **Kept out** | **~188.4k** | **41%** |
-| — re-read dedup | ~41.9k | 9% |
+| Read volume the session asked for | ~532.0k | 100% |
+| **Kept out** | **~190.1k** | **36%** |
+| — re-read dedup | ~43.6k | 8% |
 | — whole-file cap | ~0 | 0% |
-| — moved to a subagent | ~145.3k | 31% |
-| Admitted to the main thread | ~273.3k | 59% |
+| — moved to a subagent | ~145.3k | 27% |
+| Admitted to the main thread | ~341.9k | 64% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
-| Session card, always in context | ~157 |
+| Session card, always in context | ~181 |
 | Skill descriptions, always in context | ~65 |
 | Agent descriptions, always in context | ~56 |
-| **Total footprint** | **~278** |
+| **Total footprint** | **~302** |
 | Per turn, on top of that | **0** (since 1.6.0) |
-| **Net kept out minus footprint** | **~188.2k** |
+| **Net kept out minus footprint** | **~189.8k** |
 
 | Measured billing | Tokens |
 |---|---|
-| Fresh — input + output + cache write | 21,175,984 |
-| Cache-read | 951,940,958 |
-| **Context re-send ratio** | **45.0×** |
+| Fresh — input + output + cache write | 23,051,993 |
+| Cache-read | 970,963,786 |
+| **Context re-send ratio** | **42.1×** |
 | Re-sends removed, kept × turns that followed | ~4.1M |
 
-Guard actions: 55. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
+Guard actions: 59. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
 <!-- /handoff-stats -->
 
 ## Track A

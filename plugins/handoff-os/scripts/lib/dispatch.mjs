@@ -22,12 +22,13 @@ export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
 }
 
 export const spawnText = (input) => SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
-const article = (word) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 const selectedTiers = (text) => [...String(text).matchAll(MODEL_OPTION)].map((hit) => hit[1].toLowerCase());
 
-function deniedVerdict(text, hit) {
-  if (REVIEW.test(text)) return { reason: `blocked ${article(hit)} ${hit} review`, tier: hit };
-  if (!QUALITY.test(text)) return { reason: `blocked ${article(hit)} ${hit} subagent`, tier: hit };
+function deniedVerdict(text, hit, denied) {
+  const alt = ['sonnet', 'haiku'].find((tier) => !denied.test(tier));
+  const next = alt ? `. Use ${alt}` : '';
+  if (REVIEW.test(text)) return { reason: `blocked ${hit} review${next}`, tier: hit };
+  if (!QUALITY.test(text)) return { reason: `blocked ${hit} subagent${next}`, tier: hit };
   return null;
 }
 
@@ -39,19 +40,19 @@ export function dispatchBudget(input, cwd, tool = 'Agent', denied = deniedSubage
   if (!named) {
     if (!MODEL_BEARING.includes(tool)) {
       const selected = selectedTiers(text).find((tier) => denied.test(tier));
-      return selected ? deniedVerdict(text, selected) : null;
+      return selected ? deniedVerdict(text, selected, denied) : null;
     }
     const declared = declaredModel(input.subagent_type, cwd);
     if (declared) {
       const hit = (declared.match(denied) || [])[0]?.toLowerCase();
-      return hit ? deniedVerdict(text, hit) : null;
+      return hit ? deniedVerdict(text, hit, denied) : null;
     }
     return { reason: 'blocked a dispatch that names no model' };
   }
   if (!MODEL_TIERS.test(named)) return { reason: `blocked model "${named}" — not a tier` };
 
   const hit = (named.match(denied) || [])[0]?.toLowerCase();
-  return hit ? deniedVerdict(text, hit) : null;
+  return hit ? deniedVerdict(text, hit, denied) : null;
 }
 
 const code = (text) => String(text ?? '')

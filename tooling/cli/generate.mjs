@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { card } from '../../plugins/handoff-os/scripts/card.mjs';
@@ -33,6 +34,19 @@ export const walk = (dir, base = '') => (existsSync(dir) ? readdirSync(dir, { wi
     const rel = base ? `${base}/${entry.name}` : entry.name;
     return entry.isDirectory() ? walk(path.join(dir, entry.name), rel) : [rel];
   });
+
+export const REPLY_OPEN = '<!-- handoff-os-reply -->';
+export const REPLY_CLOSE = '<!-- /handoff-os-reply -->';
+export const opencodeAgents = () => path.join(homedir(), '.config', 'opencode', 'AGENTS.md');
+
+export function replyBody() {
+  const lines = readFileSync(path.join(PLUGIN, 'skills', 'task-loop', 'SKILL.md'), 'utf8').split('\n');
+  const start = lines.findIndex((line) => /^##\s/.test(line) && line.includes('Reply shape'));
+  if (start < 0) throw new Error('task-loop SKILL.md has no Reply shape section.');
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((line) => line.startsWith('## '));
+  return rest.slice(0, end < 0 ? undefined : end).join('\n').trim();
+}
 
 const SCOPES = {
   user: ({ deny, ask }) => ({

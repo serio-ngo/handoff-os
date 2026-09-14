@@ -52,7 +52,7 @@ export function judgeConnector(tool, input) {
   const allowed = RESTORATIVE.test(dashed)
     || (READ_PREFIX.test(dashed) && !strong)
     || ALLOW.some((rx) => rx.test(dashed));
-  if (hit && !allowed) return `blocked ${tool} — "${hit}" leaves the org or destroys a record`;
+  if (hit && !allowed) return `blocked ${tool} — "${hit}" needs a human`;
 
   const rawFetch = WEB_FETCH_SERVER.test(tool.split('__')[1] || '')
     && (READ_PREFIX.test(dashed) || /(?:scrape|crawl|extract|search)/.test(action));

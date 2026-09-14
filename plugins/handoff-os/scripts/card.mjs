@@ -41,6 +41,7 @@ export function card(text = memory()) {
   return `Handoff OS — session card
 TIERS  GREEN act · YELLOW act, audit one line · RED STOP, hand off
 HANDOFF three lines: DONE <prepared> · FILE <path> · YOU <verb> -> <where> -> <when>
+REPLY action first · Done bullets ≤5 · one Next + command + You should see / If not · Step N of M
 BLOCKED names the way through in the same reply · never act around one unasked
 ${delegateOn() ? 'DELEGATE lookups to handoff-os:scout · commands to handoff-os:runner — they return tables, you decide\n' : ''}NEVER  send · pay · submit · publish · state-changing git · credentials · org data in git
 MEMORY ${status}

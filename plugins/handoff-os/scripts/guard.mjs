@@ -10,6 +10,7 @@ import { kb, noteWrite, readBudget, shellReadBudget } from './lib/read-budget.mj
 import { queryBudget } from './lib/query-budget.mjs';
 import { judgeWrite } from './lib/file-write.mjs';
 import { judgeConnector } from './lib/connector.mjs';
+import { guideOn } from './lib/limits.mjs';
 
 export const SPAWN_TOOLS = ['Agent', 'Task', 'TaskCreate', 'Workflow'];
 export const WRITE_TOOLS = ['Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
@@ -17,9 +18,9 @@ export { Blocked };
 
 let current = {};
 
-const deny = (reason, label = 'EGRESS LOCK') => {
+const deny = (reason, label = 'EGRESS LOCK', hint = '') => {
   bump(current, 'blocked');
-  throw new Blocked(`${label}: ${reason}\n`);
+  throw new Blocked(`${label}: ${reason}\n`, hint);
 };
 
 function judgeRead(payload, input) {
@@ -85,7 +86,7 @@ export function judge(raw = {}) {
   if (tool === 'Bash' || tool === 'PowerShell') return judgeShellCall(payload, input, tool);
   if (tool.startsWith('mcp__')) {
     const reason = judgeConnector(tool, input);
-    if (reason) deny(reason);
+    if (reason) deny(reason, 'EGRESS LOCK', `HANDOFF_MCP_ALLOW=${tool.split('__').slice(2).join('__').toLowerCase()} (restart)`);
     return null;
   }
   if (WRITE_TOOLS.includes(tool)) judgeFileWrite(payload, input);
@@ -99,7 +100,7 @@ const refuse = (error) => {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'ask',
-      permissionDecisionReason: reason,
+      permissionDecisionReason: guideOn() && error.hint ? `${reason} — override: ${error.hint}` : reason,
       additionalContext: reason,
     },
   }));

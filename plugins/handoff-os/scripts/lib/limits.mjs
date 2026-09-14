@@ -14,4 +14,5 @@ export const waveCap = (raw = process.env.HANDOFF_MAX_PER_WAVE) => positive(raw,
 export const waveWindow = (raw = process.env.HANDOFF_WAVE_MS) => positive(raw, WAVE_MS);
 export const delegateOn = (raw = process.env.HANDOFF_DELEGATE) => String(raw ?? '1').trim() !== '0';
 export const statsOn = () => process.env.HANDOFF_STATS !== '0';
+export const guideOn = () => process.env.HANDOFF_GUIDE !== '0';
 export const gitWriteAllowed = () => process.env.HANDOFF_GIT_WRITE === '1';

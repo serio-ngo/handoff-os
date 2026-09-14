@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { statsOn } from './lib/limits.mjs';
+import { guideOn, statsOn } from './lib/limits.mjs';
 import { COUNTERS, bank, bump, load, rootOf, save, savings, sessionOf } from './lib/ledger.mjs';
 import { lifetimeLine, sessionLine } from './lib/stats.mjs';
 import { lastAssistantText, usage } from './lib/transcript.mjs';
@@ -75,21 +75,23 @@ function gate() {
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
   const scripts = scriptsAt(root);
   if (!scripts) announce(stats);
-  if (!DONE_CLAIM.test(message.replace(HANDOFF_CARD, ''))) announce(stats);
 
   const command = stepsToCommand(resolveSteps(scripts));
-  if (!command) announce(stats);
-
   const session = sessionOf(payload);
   const stateRoot = rootOf(payload);
   const written = Number(load(stateRoot, session).written || 0);
-  if (!written) announce(stats);
-
   const proved = provedAt(stateRoot, session);
-  if (proved && Date.now() - proved < MARKER_MAX_AGE_MS && proved >= written) announce(stats);
+  const fresh = proved && Date.now() - proved < MARKER_MAX_AGE_MS && proved >= written;
+  const trail = guideOn() && command && written && !fresh ? `Next: node "${SELF}" ${session}` : '';
+  const receipt = [stats, trail].filter(Boolean).join('\n') || null;
+
+  if (!DONE_CLAIM.test(message.replace(HANDOFF_CARD, ''))) announce(stats && receipt);
+  if (!command) announce(stats);
+  if (!written) announce(stats);
+  if (fresh) announce(stats);
 
   const blocks = blocksSoFar(stateRoot, session);
-  if (blocks >= MAX_BLOCKS) announce(stats, `Verify gate stood down. "${command}" is unproven.`);
+  if (blocks >= MAX_BLOCKS) announce(receipt, `Verify gate stood down. "${command}" is unproven.`);
   recordBlock(stateRoot, session, blocks);
 
   const shown = statsOn() ? lifetimeLine(bump(payload, 'gated'), stateRoot, session) : '';

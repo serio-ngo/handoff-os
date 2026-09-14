@@ -47,6 +47,7 @@ export function fanOutCap(payload, count = 1) {
     save(root, session, state);
     throw new Blocked(count > 1
       ? `FAN-OUT CAP: ${count} subagents requested, wave capped at ${cap}\n`
-      : `FAN-OUT CAP: subagent ${slot}, wave capped at ${cap}\n`);
+      : `FAN-OUT CAP: subagent ${slot}, wave capped at ${cap}\n`,
+    `HANDOFF_MAX_PER_WAVE=${Math.max(count, cap + 1)} (restart)`);
   }
 }

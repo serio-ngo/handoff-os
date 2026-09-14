@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdir
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../../plugins/handoff-os/scripts/guard.mjs';
+import { guideOn } from '../../plugins/handoff-os/scripts/lib/limits.mjs';
 import { writeFigures } from './figures.mjs';
 import { PLUGIN, REPO, inventory, manifest, markdown, pluginVersion, policyFor, readJson, walk } from './generate.mjs';
 
@@ -241,8 +242,10 @@ function doctor() {
   const { declared, targets } = installTargets();
   const cache = path.join(cacheRoot(), declared);
   const checks = [];
+  let firstFail = '';
   const check = (question, ok, detail = '') => {
     checks.push(ok);
+    if (!ok && !firstFail) firstFail = question;
     console.log(`  ${ok ? 'yes' : 'NO '}  ${question}${detail ? ` — ${detail}` : ''}`);
     return ok;
   };
@@ -310,6 +313,7 @@ function doctor() {
 
   const failed = checks.filter((ok) => !ok).length;
   console.log(`  ${checks.length - failed} of ${checks.length} yes`);
+  if (failed && guideOn()) console.log(`  Fix this first: ${firstFail}`);
   return { failed, installed };
 }
 
@@ -353,12 +357,17 @@ function release(args) {
 }
 
 function setup(args) {
+  const step = (n, label) => { if (guideOn()) console.log(`[${n}/4] ${label}`); };
+  step(1, 'sync settings');
   sync(args);
   if (args.project) sync({ ...args, scope: 'project', target: args.project });
+  step(2, 'upkeep');
   upkeep();
+  step(3, 'install plugin');
   install();
   report();
   console.log('');
+  step(4, 'doctor');
   const { failed } = doctor();
   console.log('');
   console.log(failed

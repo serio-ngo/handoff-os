@@ -124,12 +124,17 @@ export function writeBlock(file, open, close, lines) {
 export const FLOW = [
   'guard.mjs',
   'verify.mjs',
-  'lib/patterns.mjs',
-  'lib/shell.mjs',
-  'lib/writes.mjs',
-  'lib/mcp.mjs',
+  'lib/limits.mjs',
+  'lib/shell-parse.mjs',
+  'lib/shell-danger.mjs',
+  'lib/shell-reads.mjs',
+  'lib/file-write.mjs',
+  'lib/connector.mjs',
   'lib/dispatch.mjs',
-  'lib/reads.mjs',
+  'lib/agent-model.mjs',
+  'lib/fan-out.mjs',
+  'lib/read-budget.mjs',
+  'lib/query-budget.mjs',
 ];
 
 export function inventory(root = REPO) {
@@ -147,7 +152,8 @@ export function inventory(root = REPO) {
   const handlers = events.reduce((sum, [, group]) => sum
     + group.reduce((n, entry) => n + entry.hooks.length, 0), 0);
 
-  const patterns = (readFileSync(path.join(plugin, 'scripts', 'lib', 'patterns.mjs'), 'utf8').match(/^export const/gm) || []).length;
+  const patterns = FLOW.reduce((n, file) => n
+    + (readFileSync(path.join(plugin, 'scripts', file), 'utf8').match(/^const [A-Z_]+ = \/|^const [A-Z_]+ = \[/gm) || []).length, 0);
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
   const { cardChars, skillChars, agentChars, contextChars } = footprint('');
 

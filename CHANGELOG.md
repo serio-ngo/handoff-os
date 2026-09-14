@@ -4,6 +4,7 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.11.0 | 2026-09-14 | ask-first holds, bridge restored, bare dispatch held |
 | 1.10.3 | 2026-09-13 | delegate nudge on by default (HANDOFF_DELEGATE=0 to silence): read refusals and the session card point at handoff-os:scout/runner, agent descriptions route proactively, model-less workflow waves warn they inherit the parent model |
 | 1.10.2 | 2026-09-12 | scripts split into entry points and lib; A/B run 4 |
 | 1.10.1 | 2026-09-12 | remove shell tricks parser |

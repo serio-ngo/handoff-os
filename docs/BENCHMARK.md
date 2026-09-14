@@ -106,32 +106,32 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Live ledger — what the guard did on this machine
 
 <!-- handoff-stats -->
-| Measured over 17 turns | Tokens | Share |
+| Measured over 33 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~289.0k | 100% |
-| **Kept out** | **~173.0k** | **60%** |
-| — re-read dedup | ~26.5k | 9% |
+| Read volume the session asked for | ~461.8k | 100% |
+| **Kept out** | **~188.4k** | **41%** |
+| — re-read dedup | ~41.9k | 9% |
 | — whole-file cap | ~0 | 0% |
-| — moved to a subagent | ~145.3k | 50% |
-| Admitted to the main thread | ~116.0k | 40% |
+| — moved to a subagent | ~145.3k | 31% |
+| Admitted to the main thread | ~273.3k | 59% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
-| Session card, always in context | ~188 |
+| Session card, always in context | ~157 |
 | Skill descriptions, always in context | ~65 |
 | Agent descriptions, always in context | ~56 |
-| **Total footprint** | **~309** |
+| **Total footprint** | **~278** |
 | Per turn, on top of that | **0** (since 1.6.0) |
-| **Net kept out minus footprint** | **~172.7k** |
+| **Net kept out minus footprint** | **~188.2k** |
 
 | Measured billing | Tokens |
 |---|---|
-| Fresh — input + output + cache write | 13,338,948 |
-| Cache-read | 496,938,673 |
-| **Context re-send ratio** | **37.3×** |
-| Re-sends removed, kept × turns that followed | ~1.2M |
+| Fresh — input + output + cache write | 21,175,984 |
+| Cache-read | 951,940,958 |
+| **Context re-send ratio** | **45.0×** |
+| Re-sends removed, kept × turns that followed | ~4.1M |
 
-Guard actions: 34. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
+Guard actions: 55. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
 <!-- /handoff-stats -->
 
 ## Track A
@@ -140,7 +140,7 @@ Guard actions: 34. Token counts are file bytes / 4 from this repo's own local le
 |---|---|
 | Corpus | `tooling/corpus/guard-corpus.jsonl`, labelled; case counts in the `<!-- eval-results -->` block below |
 | Runner | `npm run benchmark:eval`, exits 1 on a miss, gated in CI |
-| Verdict | exit 2 means blocked |
+| Verdict | ask = held (exit 2 counts too) |
 | `origin` field | `spec` = derived from the rule table, self-confirming · `probe` = found by adversarial probing · `regression` = reproduces a shipped bug |
 | Scoring | recall never without false-positive rate; `known_gap` cases scored apart |
 
@@ -169,14 +169,14 @@ npm run benchmark:compare
 | Guard | Caught | Wrongly blocked | F1 |
 |---|---|---|---|
 | no guard, permission prompts only | 0% | 0% | 0.00 |
-| Claude Code permissions.deny globs | 16% | 5% | 0.27 |
-| a pattern-list PreToolUse hook | 36% | 11% | 0.50 |
+| Claude Code permissions.deny globs | 15% | 5% | 0.26 |
+| a pattern-list PreToolUse hook | 35% | 10% | 0.49 |
 | block every tool call | 100% | 100% | 0.73 |
 | **handoff-os** | 100% | 0% | 1.00 |
 
-91 cases, 2026-09-13; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
+95 cases, 2026-09-14; the comparators are mechanism baselines in `tooling/benchmark/baselines.mjs`, not vendor code.
 
-61 of 87 scored cases are `spec` (rule-derived), 22 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+61 of 91 scored cases are `spec` (rule-derived), 22 `probe`, 8 `regression`; recall here is a regression check, not a detection rate.
 <!-- /guard-scores -->
 
 - Mechanism baselines from published rule shapes, not vendor code; no product named.
@@ -187,24 +187,24 @@ npm run benchmark:compare
 - Multiple roots aggregate: `node tooling/benchmark/benchmark.mjs <repo…> [--write]`; combined totals print, outputs land in the first root.
 
 <!-- eval-results -->
-Run 2026-09-13 · 91 cases · guard `plugins/handoff-os/scripts/guard.mjs` · exit 2 = blocked.
+Run 2026-09-14 · 95 cases · guard `plugins/handoff-os/scripts/guard.mjs` · ask = held.
 
 | Metric | Value |
 |---|---|
-| Recall | 50/50 (100%) |
-| Precision | 50/50 (100%) |
-| False-positive rate | 0/37 (0%) |
+| Recall | 52/52 (100%) |
+| Precision | 52/52 (100%) |
+| False-positive rate | 0/39 (0%) |
 | F1 | 1.00 |
 | Known bypasses caught | 0/4 (0%) |
 
-Confusion: TP 50 · FN 0 · FP 0 · TN 37. Bypasses scored apart.
+Confusion: TP 52 · FN 0 · FP 0 · TN 39. Bypasses scored apart.
 
 - `evasion-01` open — the binary name is held in a shell variable.
 - `evasion-02` open — payload decoded by a pipeline, not by a shell flag.
 - `evasion-03` open — an unquoted no-op flag used as a POST body excuses the segment.
 - `evasion-04` open — connector action whose name carries no classifiable verb.
 
-61 of 87 scored cases are `spec` (rule-derived), 22 `probe`, 4 `regression`; recall here is a regression check, not a detection rate.
+61 of 91 scored cases are `spec` (rule-derived), 22 `probe`, 8 `regression`; recall here is a regression check, not a detection rate.
 <!-- /eval-results -->
 
 ## Track B — paired runs, with and without the plugin

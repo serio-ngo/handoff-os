@@ -1,37 +1,35 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { COUNTERS, bank, bump, lifetimeLine, load, rootOf, save, savings, sessionLine, sessionOf } from './lib/ledger.mjs';
+import { statsOn } from './lib/limits.mjs';
+import { COUNTERS, bank, bump, load, rootOf, save, savings, sessionOf } from './lib/ledger.mjs';
+import { lifetimeLine, sessionLine } from './lib/stats.mjs';
 import { lastAssistantText, usage } from './lib/transcript.mjs';
+import { blocksSoFar, provedAt, recordBlock, resolveSteps, runProof, scriptsAt, stepsToCommand } from './lib/proof.mjs';
 
 const DONE_CLAIM = /(?:^|\n)[ \t>*`-]*(?:done|shipped|all set|fixed)\b|\b(?:is|are|now|all|task|work|change)s? (?:done|completed|finished|fixed|ready|shipped)\b/i;
 const HANDOFF_CARD = /^[ \t>*`-]*DONE\b.*\r?\n[ \t>*`-]*FILE\b.*\r?\n[ \t>*`-]*YOU\b.*$/gm;
-const SELF = fileURLToPath(new URL('./verify.mjs', import.meta.url));
-const MARKER_MAX_AGE_MS = 30 * 60 * 1000;
-const MAX_BLOCKS = 2;
 const CITED = /[\w-]+\.[A-Za-z]\w*:\d+|https?:\/\/|\bUNVERIFIED\b/i;
 const MIN_CLAIM_CHARS = 200;
+const MARKER_MAX_AGE_MS = 30 * 60 * 1000;
+const MAX_BLOCKS = 2;
+const SELF = fileURLToPath(new URL('./verify.mjs', import.meta.url));
 
-const FALLBACK_STEPS = ['content:check', 'typecheck', 'build'];
-const resolveSteps = (scripts) => (scripts?.verify ? ['verify'] : FALLBACK_STEPS.filter((step) => scripts?.[step]));
-const stepsToCommand = (steps) => steps.map((step) => `npm run ${step}`).join(' && ');
-
-const scriptsAt = (root) => {
-  try { return JSON.parse(readFileSync(`${root}/package.json`, 'utf8')).scripts || {}; } catch { return null; }
-};
-
-function uncited(message) {
+// A short answer needs no citation; a substantive one does.
+const uncited = (message) => {
   const text = String(message || '').trim();
   return text.length >= MIN_CLAIM_CHARS && !CITED.test(text);
-}
+};
 
 function citationGate(payload, message) {
   if (!uncited(message)) process.exit(0);
   bump(payload, 'gated');
-  process.stderr.write('SCOUT CONTRACT: no file:line, URL or UNVERIFIED tag. Cite each fact, or mark it UNVERIFIED.\n');
-  process.exit(2);
+  process.stdout.write(JSON.stringify({
+    systemMessage: 'SCOUT CONTRACT: no file:line, URL or UNVERIFIED tag. Cite each fact, or mark it UNVERIFIED.',
+    hookSpecificOutput: { hookEventName: 'SubagentStop' },
+  }));
+  process.exit(0);
 }
 
 export function report(payload) {
@@ -54,27 +52,16 @@ export function report(payload) {
   const changed = stamp !== state.printed;
   if (changed) state.printed = stamp;
   if (total || changed) save(root, session, state);
-  if (!changed || process.env.HANDOFF_STATS === '0') return null;
+  if (!changed || !statsOn()) return null;
   return sessionLine(state, root, session) || null;
 }
 
 function announce(stats, extra) {
   const text = [extra, stats].filter(Boolean).join('\n');
   if (text) {
-    process.stdout.write(JSON.stringify({
-      systemMessage: text,
-      hookSpecificOutput: { hookEventName: 'Stop' },
-    }));
+    process.stdout.write(JSON.stringify({ systemMessage: text, hookSpecificOutput: { hookEventName: 'Stop' } }));
   }
   process.exit(0);
-}
-
-function provedAt(marker) {
-  if (!existsSync(marker)) return 0;
-  try {
-    const text = readFileSync(marker, 'utf8');
-    return Date.parse(text.slice(0, text.indexOf(' '))) || statSync(marker).mtimeMs;
-  } catch { return Date.now(); }
 }
 
 function gate() {
@@ -88,7 +75,6 @@ function gate() {
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
   const scripts = scriptsAt(root);
   if (!scripts) announce(stats);
-
   if (!DONE_CLAIM.test(message.replace(HANDOFF_CARD, ''))) announce(stats);
 
   const command = stepsToCommand(resolveSteps(scripts));
@@ -96,55 +82,18 @@ function gate() {
 
   const session = sessionOf(payload);
   const stateRoot = rootOf(payload);
-  const marker = `${stateRoot}/.claude/.verified-${session}`;
-  const counter = `${stateRoot}/.claude/.verify-gate-count-${session}`;
-
   const written = Number(load(stateRoot, session).written || 0);
   if (!written) announce(stats);
-  const proved = provedAt(marker);
+
+  const proved = provedAt(stateRoot, session);
   if (proved && Date.now() - proved < MARKER_MAX_AGE_MS && proved >= written) announce(stats);
 
-  let blocks = 0;
-  try { blocks = parseInt(readFileSync(counter, 'utf8').trim(), 10) || 0; } catch { blocks = 0; }
+  const blocks = blocksSoFar(stateRoot, session);
+  if (blocks >= MAX_BLOCKS) announce(stats, `Verify gate stood down. "${command}" is unproven.`);
+  recordBlock(stateRoot, session, blocks);
 
-  if (blocks >= MAX_BLOCKS) {
-    announce(stats, `Verify gate stood down. "${command}" is unproven.`);
-  }
-
-  try {
-    mkdirSync(`${stateRoot}/.claude`, { recursive: true });
-    writeFileSync(counter, String(blocks + 1), 'utf8');
-  } catch { }
-
-  const shown = process.env.HANDOFF_STATS === '0' ? '' : lifetimeLine(bump(payload, 'gated'), stateRoot, session);
-  process.stderr.write(`${shown ? `${shown}\n` : ''}Verify gate: done claimed, nothing run.\n  node "${SELF}" ${session} "${root}"\n`);
-  process.exit(2);
-}
-
-function runner(session, root) {
-  const scripts = scriptsAt(root);
-  if (!scripts) {
-    console.error(`verify: no readable package.json at ${root}`);
-    process.exit(1);
-  }
-  const steps = resolveSteps(scripts);
-  if (!steps.length) {
-    console.error(`verify: package.json defines none of verify, ${FALLBACK_STEPS.join(', ')}`);
-    process.exit(1);
-  }
-  for (const step of steps) {
-    console.log(`verify: npm run ${step}`);
-    const result = spawnSync('npm', ['run', step], { cwd: root, stdio: 'inherit', shell: true });
-    if (result.status !== 0) {
-      console.error(`verify: FAILED at "npm run ${step}" (exit ${result.status}). No marker written.`);
-      process.exit(result.status || 1);
-    }
-  }
-  const stateRoot = process.env.HANDOFF_OS_DIR || root;
-  mkdirSync(`${stateRoot}/.claude`, { recursive: true });
-  writeFileSync(`${stateRoot}/.claude/.verified-${session}`, `${new Date().toISOString()} ${steps.join(' && ')}\n`, 'utf8');
-  rmSync(`${stateRoot}/.claude/.verify-gate-count-${session}`, { force: true });
-  console.log(`verify: PASSED ${stepsToCommand(steps)} — marker written.`);
+  const shown = statsOn() ? lifetimeLine(bump(payload, 'gated'), stateRoot, session) : '';
+  announce(stats, `${shown ? `${shown}\n` : ''}Verify gate: done claimed, nothing run.\n  node "${SELF}" ${session}`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -154,5 +103,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   else if (!arg.trim() || !session) {
     console.error('verify: pass the session id the gate printed.');
     process.exit(1);
-  } else runner(session, (process.argv[3] || process.env.CLAUDE_PROJECT_DIR || process.cwd()).replace(/\\/g, '/'));
+  } else {
+    const root = (process.argv[3] || process.env.CLAUDE_PROJECT_DIR || process.cwd()).replace(/\\/g, '/');
+    process.exit(runProof(session, root, process.env.HANDOFF_OS_DIR || root));
+  }
 }

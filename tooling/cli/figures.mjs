@@ -122,8 +122,8 @@ function tiles(r, scores = readJson('tooling', 'results', 'scores.json')) {
     stops: [
       [String(MAX_PER_WAVE), 'subagents per wave'],
       [`${Math.round(BIG_FILE_BYTES / 1024)} KB`, 'whole-file read cap'],
-      ['git · rm', 'destructive calls'],
-      ['"Done"', 'no verification run'],
+      ['commit · push', 'git writes need a human'],
+      ['one line', 'session receipt'],
     ],
     wins: [
       [String(held(r)), 'subagents held back'],
@@ -167,7 +167,8 @@ function wrap(line, max) {
   return out;
 }
 
-// every demo verdict is this guard's own stderr or rewrite reason, captured live
+// every demo verdict is this guard's own stderr or rewrite reason, captured live —
+// except the last row, which quotes the focus output style verbatim
 function probe() {
   const root = mkdtempSync(path.join(tmpdir(), 'handoff-figure-'));
   const big = path.join(root, 'src', 'big.js');
@@ -190,7 +191,7 @@ function probe() {
     const session = `turn${i}`;
     fire('Bash', { command: `cat -n ${big}` }, { session });
     fire('Read', { file_path: big }, { session, agent_type: 'handoff-os:scout' });
-    fire('Agent', { model: 'opus', prompt: 'review the diff' }, { session });
+    fire('Agent', { model: 'haiku', prompt: 'summarise the diff' }, { session });
     const state = load(root, session);
     bank(state);
     for (const key of COUNTERS) state.saved[key] = 0;
@@ -200,10 +201,11 @@ function probe() {
   const steps = [
     ['Read src/big.js · 35 KB', 'Read', { file_path: big }],
     [`Workflow · ${DEMO_AGENTS} agents`, 'Workflow', { script: `// AGENTS: ${DEMO_AGENTS}\nawait parallel(mods.map((m) => () => agent(m)))` }],
-    ['Agent model:opus · "review the diff"', 'Agent', { model: 'opus', prompt: 'review the diff' }],
-    ['gmail send_message', 'mcp__gmail__send_message', { to: 'board@example.org' }],
-    ['Agent model:sonnet · "review src/parse.js"', 'Agent', { model: 'sonnet', prompt: 'review src/parse.js' }],
+    ['Bash · `git commit -m "wip"`', 'Bash', { command: 'git commit -m "wip"' }],
+    ['Bash · `git push origin main`', 'Bash', { command: 'git push origin main' }],
+    ['Bash · `rm -rf docs`', 'Bash', { command: 'rm -rf docs' }],
   ].map(([label, tool, input]) => ({ label, ...fire(tool, input) }));
+  steps.push({ label: 'Answer · focus style', blocked: false, verdict: 'Action first · Done ≤5 · one Next + command · Step N of M' });
 
   const receipt = sessionLine(load(root, 'demo'), root, 'demo');
   rmSync(root, { recursive: true, force: true });

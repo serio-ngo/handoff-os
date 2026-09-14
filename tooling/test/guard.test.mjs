@@ -7,8 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ALLOWED = 0;
-const ASK = 'ask';
-const SERVER = '00000000-0000-4000-a000-000000000000';
+const ASK = 'deny';
 const PLUGIN = fileURLToPath(new URL('../../plugins/handoff-os/', import.meta.url));
 const script = (name) => path.join(PLUGIN, 'scripts', name);
 
@@ -31,19 +30,11 @@ const fire = (file, payload, env = { ...process.env, HANDOFF_OS_DIR: box }) => s
   env,
 }).status;
 
-const VCS = ['g', 'i', 't'].join('');
-const OUT = ['p', 'u', 's', 'h'].join('');
-const KEY = ['ANTHROPIC', 'API', 'KEY'].join('_');
-const HELPER = ['api', 'Key', 'Helper'].join('');
-const ACCOUNT = 'PL10000000000000000000000000';
-const ENC = Buffer.from([VCS, 'merge', 'main'].join(' '), 'utf16le').toString('base64');
-
 const guard = (payload, env) => fire(script('guard.mjs'), payload, env);
 const at = (session, payload) => guard({ cwd: box, session_id: session, ...payload },
   { ...process.env, HANDOFF_OS_DIR: box });
 const sh = (session, command) => at(session, { tool_name: 'Bash', tool_input: { command } });
 const bash = (command) => ({ tool_name: 'Bash', tool_input: { command } });
-const connector = (action, tool_input = {}) => ({ tool_name: `mcp__${SERVER}__${action}`, tool_input });
 const ask = (payload, env) => {
   const run = spawnSync(process.execPath, [script('guard.mjs')], {
     input: JSON.stringify(payload), encoding: 'utf8', env: env ?? { ...process.env, HANDOFF_OS_DIR: box },
@@ -55,99 +46,45 @@ const blocks = (label, cases, payload) => it(label, () => {
   for (const c of cases) assert.equal(ask(payload(c)), ASK, c);
 });
 
-blocks('blocks shell commands that leave the machine', [
-  'gh pr merge 12 --squash',
-  'npm publish --access public',
-  'curl -X POST -d "a=1" https://api.example.com/items',
-  'scp notes.md host:/tmp',
-  'terraform apply',
+blocks('blocks git commit and push', [
+  'git commit -m x',
+  'git commit --verify -m x',
+  'git -C sub commit -m x',
+  'git push origin main',
+  'git push --force origin main',
+  'bash -c "git push origin main"',
+  'powershell -Command "git commit -m x"',
 ], bash);
 
-blocks('blocks shell commands that would meter API credits', [
-  `export ${KEY}=sk-test`,
-  'setx CLAUDE_CODE_OAUTH_TOKEN abc',
-  `echo '{"${HELPER}":"./k.sh"}' >> conf.json`,
-], bash);
-
-blocks('blocks git merge, delete and history rewrite', [
-  `${VCS} merge main`,
-  `echo x && ${VCS} merge main`,
-  `${VCS} branch -D feature`,
-  `${VCS} tag -d v1`,
-  `${VCS} rm notes.md`,
-  `${VCS} remote remove origin`,
-  `${VCS} clean -fd`,
-  `${VCS} reset --hard HEAD~1`,
-  `${VCS} ${OUT} --force origin main`,
-], bash);
-
-blocks('blocks outward PowerShell and credential assignment', [
-  'Invoke-RestMethod -Uri https://api.example.com -Method Post -Body \'{"a":1}\'',
-  '$env:ANTHROPIC_AUTH_TOKEN = "x"',
-], (command) => ({ tool_name: 'PowerShell', tool_input: { command } }));
-
-blocks('blocks connector actions that send or destroy', [
-  'send_message', 'create_and_send_email', 'forward', 'publish-brand-template-v2',
-  'trash_thread', 'delete_event', 'run_workflow', 'trigger_build', 'approve_expense',
-  'schedule_message',
-], connector);
-
-blocks('blocks raw web-fetch connectors', [
-  'mcp__tavily__search', 'mcp__fetch__fetch_url', 'mcp__brave-search__web_search',
-], (name) => ({ tool_name: name, tool_input: {} }));
-
-blocks('blocks writes to brand-locked and secret-bearing paths', [
-  'assets/brand/logo.png',
-  '/synthetic/repo/.env',
-  'deploy/id_ed25519',
-  '/synthetic/repo/contacts.csv',
-], (file_path) => ({ tool_name: 'Write', tool_input: { file_path, content: 'x' } }));
-
-it('judges a connector payload, not only its name', () => {
-  assert.equal(ask(connector('d1_database_query', { sql: 'DROP TABLE donors' })), ASK);
-  assert.equal(ask(connector('execute_code')), ASK);
-  assert.equal(ask(connector('workspace__bash', { command: 'git merge main' })), ASK);
-  assert.equal(ask(connector('workspace__bash', { command: 'curl -X POST -d "a=1" https://api.example.com/items' })), ASK);
-});
-
-it('blocks every state-changing git command while HANDOFF_GIT_WRITE is not 1', () => {
-  for (const command of [`${VCS} ${OUT} origin main`, `${VCS} commit -m x`, `${VCS} add -A`, `${VCS} switch -c feat/x`, `${VCS} branch feat/x`,
-    `${VCS} commit --verify -m x`, `${VCS} checkout --merged x`, `${VCS} reset --contains x`]) {
-    assert.equal(ask(bash(command), { ...process.env, HANDOFF_OS_DIR: box, HANDOFF_GIT_WRITE: '0' }), ASK, command);
+it('reopens commit and push while HANDOFF_GIT_WRITE is 1', () => {
+  const open = (command) => guard({ cwd: box, session_id: 'git-open', tool_name: 'Bash', tool_input: { command } },
+    { ...process.env, HANDOFF_OS_DIR: box, HANDOFF_GIT_WRITE: '1' });
+  for (const command of ['git commit -m x', 'git push origin main']) {
+    assert.equal(open(command), ALLOWED, command);
   }
 });
 
-it('blocks an account number through Write, Edit, MultiEdit, NotebookEdit and a shell redirect', () => {
-  assert.equal(ask({ tool_name: 'Write', tool_input: { file_path: 'notes.md', content: `IBAN ${ACCOUNT}` } }), ASK);
-  assert.equal(ask({ tool_name: 'Edit', tool_input: { file_path: 'notes.md', old_string: 'a', new_string: ACCOUNT } }), ASK);
-  assert.equal(ask({ tool_name: 'MultiEdit', tool_input: { file_path: 'notes.md', edits: [{ old_string: 'a', new_string: ACCOUNT }] } }), ASK);
-  assert.equal(ask({ tool_name: 'NotebookEdit', tool_input: { notebook_path: 'notes.ipynb', new_source: ACCOUNT } }), ASK);
-  assert.equal(ask({ cwd: box, session_id: 'ac', tool_name: 'Bash', tool_input: { command: `echo ${ACCOUNT} >> README.md` } }), ASK);
+it('allows git reads and local branch work', () => {
+  for (const command of ['git status', 'git log --oneline', 'git diff --stat', 'git fetch origin',
+    'git checkout main', 'git stash push -m wip', 'git branch feat/x', 'git merge main',
+    'git push --dry-run origin main']) {
+    assert.equal(at('git-ok', { tool_name: 'Bash', tool_input: { command } }), ALLOWED, command);
+  }
 });
 
-it('blocks commands a plain argv matcher would miss', () => {
-  for (const command of [
-    `command ${VCS} merge main`,
-    `eval "${VCS} merge main"`,
-    `cmd /c "${VCS} merge main"`,
-    `powershell -Command "${VCS} merge main"`,
-    'rm -rf docs',
-    'rm -rf node_modules src',
-    'rm -rf /',
-    'Remove-Item -Recurse -Force docs',
-    'gh api graphql -f query=mutation{addComment}',
-    'python -c "import requests;requests.post(u, json=d)"',
-    'echo k > .env',
-    `cmd /c ${VCS} merge main`,
-    `powershell -Command ${VCS} merge main`,
-    `bash -c ${VCS} merge main`,
-    `pwsh -NoProfile -Command rm -rf docs`,
-    `powershell -EncodedCommand ${ENC}`,
-    'curl -X POST -d "q=--help" https://api.example.com/items',
-    'ri -r docs',
-    'rd /s /q docs',
-    'find docs -delete',
-  ]) assert.equal(ask({ cwd: box, session_id: 'bp', tool_name: 'Bash', tool_input: { command } }), ASK, command);
+blocks('blocks recursive deletes and git wipes', [
+  'rm -rf docs',
+  'rm -rf /',
+  'ri -r docs',
+  'Remove-Item -Recurse -Force docs',
+  'git clean -fdx',
+  'git reset --hard HEAD~1',
+], bash);
+
+it('allows deletes inside disposable paths', () => {
+  for (const command of ['rm -rf node_modules/.cache/x', 'rm --help']) {
+    assert.equal(at('rm-ok', { tool_name: 'Bash', tool_input: { command } }), ALLOWED, command);
+  }
 });
 
 describe('dispatch budget', () => {
@@ -179,6 +116,22 @@ describe('dispatch budget', () => {
   it('blocks the fourth agent in one wave', () => {
     for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
     assert.equal(held('dp', { prompt: 'fourth', model: 'haiku' }), ASK);
+  });
+});
+
+describe('fan-out cap', () => {
+  const spawn = (session, tool_input, tool_name = 'Agent') => at(session, { tool_name, tool_input });
+  const held = (session, tool_input, tool_name = 'Agent') => ask({ cwd: box, session_id: session, tool_name, tool_input });
+
+  it('runs three agents per wave and holds the fourth', () => {
+    for (let n = 0; n < 3; n += 1) assert.equal(spawn('wave', { prompt: `s${n}`, model: 'haiku' }), ALLOWED);
+    assert.equal(held('wave', { prompt: 'fourth', model: 'haiku' }), ASK);
+  });
+  it('holds a declared 30-agent workflow wave', () => {
+    assert.equal(held('wide', { script: '// AGENTS: 30\nawait parallel(rows.map((r) => agent(r)))' }, 'Workflow'), ASK);
+  });
+  it('lets a single workflow agent through', () => {
+    assert.equal(spawn('narrow', { script: 'await agent("find where opus is configured")' }, 'Workflow'), ALLOWED);
   });
 });
 
@@ -291,63 +244,28 @@ describe('read and query budgets', () => {
   });
 });
 
-describe('verify gate', () => {
+describe('session receipt', () => {
   const GATE = script('verify.mjs');
-  const repoWith = (scripts) => {
-    const root = sandbox('verify-');
-    writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'probe', scripts }), 'utf8');
-    return root;
-  };
-  const transcript = (root, text) => {
-    const file = path.join(root, 'transcript.jsonl');
-    writeFileSync(file, `${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } })}\n`, 'utf8');
-    return file;
-  };
-  const boxed = (root) => ({ ...process.env, HANDOFF_OS_DIR: root, CLAUDE_PROJECT_DIR: root });
-  const stop = (root, payload) => fire(GATE, { cwd: root, ...payload }, boxed(root));
-  const warn = (root, payload) => {
-    const run = spawnSync(process.execPath, [GATE], {
-      input: JSON.stringify({ cwd: root, ...payload }), encoding: 'utf8', env: boxed(root),
-    });
-    assert.equal(run.status, ALLOWED);
-    return run.stdout;
-  };
-  const wrote = (root, session_id) => guard({ cwd: root, session_id, tool_name: 'Edit', tool_input: { file_path: path.join(root, 'x.md'), old_string: 'a', new_string: 'b' } }, boxed(root));
-  const proved = (root, session) => spawnSync(process.execPath, [GATE, session, root], { env: boxed(root), encoding: 'utf8' }).status;
-
-  it('holds a done-claim no run supports, from the transcript, the payload, or beside a handoff card, and never a sentence that claims nothing', () => {
-    const root = repoWith({ verify: 'node --version' });
-    const card = 'The refactor is finished.\n\nDONE post drafted\nFILE x.md\nYOU post -> Show HN -> today';
-    for (const session of ['unproven', 'direct', 'carded', 'nonclaim']) wrote(root, session);
-    assert.match(warn(root, { session_id: 'unproven', transcript_path: transcript(root, 'All done, it works now.') }), /Verify gate/);
-    assert.match(warn(root, { session_id: 'direct', last_assistant_message: 'Shipped.' }), /Verify gate/);
-    assert.equal(JSON.parse(readFileSync(path.join(root, '.claude', '.session-direct.json'), 'utf8')).saved.gated, 1);
-    assert.match(warn(root, { session_id: 'carded', transcript_path: transcript(root, card) }), /Verify gate/);
-    for (const text of ['I am ready to start', 'not fixed yet', 'step is complete; next…', 'nothing was done']) {
-      assert.equal(stop(root, { session_id: 'nonclaim', last_assistant_message: text }), ALLOWED, text);
-    }
-    assert.equal(stop(root, { session_id: 'lookup-only', last_assistant_message: 'Done.' }), ALLOWED);
+  const run = (session, payload) => spawnSync(process.execPath, [GATE], {
+    input: JSON.stringify({ cwd: box, session_id: session, ...payload }), encoding: 'utf8', env: { ...process.env, HANDOFF_OS_DIR: box },
   });
 
-  it('gates a done-claim again once a write follows the proving run', () => {
-    const root = repoWith({ verify: 'node --version' });
-    wrote(root, 'rearm');
-    assert.equal(proved(root, 'rearm'), ALLOWED);
-    wrote(root, 'rearm');
-    assert.match(warn(root, { session_id: 'rearm', last_assistant_message: 'Done.' }), /Verify gate/);
+  it('stays silent with nothing to report', () => {
+    const quiet = run('quiet', {});
+    assert.equal(quiet.status, ALLOWED);
+    assert.equal(quiet.stdout, '');
   });
-
-  it('stands down after two holds so a session cannot be trapped', () => {
-    const root = repoWith({ verify: 'node --version' });
-    wrote(root, 'stubborn');
-    const claim = { session_id: 'stubborn', transcript_path: transcript(root, 'Done.') };
-    assert.match(warn(root, claim), /Verify gate/);
-    assert.match(warn(root, claim), /Verify gate/);
-    assert.match(warn(root, claim), /stood down/);
-  });
-
-  it('holds a substantive scout return that cites nothing', () => {
-    const text = 'The repository routes every outward verb through one gate. '.repeat(4);
-    assert.match(warn(sandbox('scout-'), { hook_event_name: 'SubagentStop', last_assistant_message: text }), /SCOUT CONTRACT/);
+  it('prints one receipt line after activity, never a gate', () => {
+    const file = path.join(box, 'receipt.txt');
+    writeFileSync(file, 'hello');
+    at('rc-a', { tool_name: 'Read', tool_input: { file_path: file } });
+    const first = run('rc-a', {});
+    assert.equal(first.status, ALLOWED);
+    assert.match(first.stdout, /HANDOFF OS/);
+    at('rc-b', { tool_name: 'Read', tool_input: { file_path: file } });
+    const claim = run('rc-b', { last_assistant_message: 'All done, it works now.' });
+    assert.equal(claim.status, ALLOWED);
+    assert.match(claim.stdout, /HANDOFF OS/);
+    assert.doesNotMatch(claim.stdout, /VERIFY GATE|stood down|done claimed|nothing run/i);
   });
 });

@@ -8,7 +8,7 @@
 |---|---|---|
 | `plan-session` | 85 | 87 |
 | `research-budget` | 101 | 70 |
-| `task-loop` | 75 | 51 |
+| `task-loop` | 75 | 48 |
 
 ## Agents
 
@@ -25,16 +25,15 @@
 | `PreToolUse` | `^(Read\|Bash\|PowerShell\|Edit\|Write\|NotebookEdit\|MultiEdit\|Task\|Agent\|Workflow\|Grep\|Glob\|mcp__)` | `scripts/guard.mjs` |
 | `SessionStart` | `startup\|resume\|clear\|compact\|fork` | `scripts/card.mjs` |
 | `Stop` | `*` | `scripts/verify.mjs` |
-| `SubagentStop` | `scout$` | `scripts/verify.mjs` |
 
 ## Inventory
 
 | What ships | Count |
 |---|---|
-| Guard logic, agent-affecting only | **1080** lines across 13 flow files |
+| Guard logic, agent-affecting only | **832** lines across 11 flow files |
 | Stats, receipts, adapters (`audit`, `card`, `bridge`, `ledger`, `transcript`) | excluded from the count |
-| Pattern rules | **59** |
-| Hooks | **5** handlers on 5 events |
+| Pattern rules | **35** |
+| Hooks | **4** handlers on 4 events |
 | Skills | **3** |
 | Subagents | **2** |
 | Third-party packages | **0** |

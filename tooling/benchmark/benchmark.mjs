@@ -81,7 +81,7 @@ function score(cmd, cases) {
   };
   const isHeld = (run) => {
     if (run.status === 2) return true;
-    try { return JSON.parse(run.stdout || '').hookSpecificOutput?.permissionDecision === 'ask'; }
+    try { return ['ask', 'deny'].includes(JSON.parse(run.stdout || '').hookSpecificOutput?.permissionDecision); }
     catch { return false; }
   };
   const rows = cases.map((c) => {
@@ -138,7 +138,7 @@ function latency(cases = 90) {
   const env = { ...process.env, HANDOFF_OS_DIR: probe };
   const shapes = [
     { id: 'lat-allow', tool: 'Bash', input: { command: 'git status' } },
-    { id: 'lat-block', tool: 'Bash', input: { command: 'git merge main' } },
+    { id: 'lat-block', tool: 'Bash', input: { command: 'git commit -m x' } },
     { id: 'lat-mcp', tool: 'mcp__gmail__get_thread', input: { id: '1' } },
   ];
   const times = [];

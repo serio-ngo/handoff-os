@@ -8,8 +8,6 @@ import { fanOutCap } from './lib/fan-out.mjs';
 import { judgeShell, shellWriteTargets } from './lib/shell-danger.mjs';
 import { kb, noteWrite, readBudget, shellReadBudget } from './lib/read-budget.mjs';
 import { queryBudget } from './lib/query-budget.mjs';
-import { judgeWrite } from './lib/file-write.mjs';
-import { judgeConnector } from './lib/connector.mjs';
 
 export const SPAWN_TOOLS = ['Agent', 'Task', 'TaskCreate', 'Workflow'];
 export const WRITE_TOOLS = ['Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
@@ -17,7 +15,7 @@ export { Blocked };
 
 let current = {};
 
-const deny = (reason, label = 'EGRESS LOCK') => {
+const deny = (reason, label = 'BLOCKED') => {
   bump(current, 'blocked');
   throw new Blocked(`${label}: ${reason}\n`);
 };
@@ -49,27 +47,17 @@ function judgeSpawn(payload, input, tool) {
 
 function judgeShellCall(payload, input, tool) {
   if ('command' in input && typeof input.command !== 'string') {
-    deny('blocked a shell call whose command was not a string');
+    deny('blocked a shell call whose command was not a string', 'GIT WRITE');
   }
   const command = typeof input.command === 'string' ? input.command : '';
   const verdict = judgeShell(command);
-  if (verdict) deny(verdict);
+  if (verdict) deny(verdict, /recursive delete|git wipe/.test(verdict) ? 'DELETE LOCK' : 'GIT WRITE');
 
-  const targets = shellWriteTargets(command);
-  for (const target of targets) {
-    const reason = judgeWrite(target, command, 'a shell write');
-    if (reason) deny(reason);
-  }
-  if (targets.length) noteWrite(payload);
+  if (shellWriteTargets(command).length) noteWrite(payload);
   return shellReadBudget(payload, input, tool);
 }
 
-function judgeFileWrite(payload, input) {
-  const edits = Array.isArray(input.edits) ? input.edits.map((edit) => edit?.new_string ?? '') : [];
-  const content = [input.content, input.new_string, input.new_source, ...edits]
-    .filter((value) => typeof value === 'string').join('\n');
-  const reason = judgeWrite(String(input.file_path || input.notebook_path || ''), content);
-  if (reason) deny(reason);
+function judgeFileWrite(payload) {
   noteWrite(payload);
 }
 
@@ -83,12 +71,7 @@ export function judge(raw = {}) {
   if (tool === 'Grep' || tool === 'Glob') return queryBudget(payload, input, tool);
   if (SPAWN_TOOLS.includes(tool)) return judgeSpawn(payload, input, tool);
   if (tool === 'Bash' || tool === 'PowerShell') return judgeShellCall(payload, input, tool);
-  if (tool.startsWith('mcp__')) {
-    const reason = judgeConnector(tool, input);
-    if (reason) deny(reason);
-    return null;
-  }
-  if (WRITE_TOOLS.includes(tool)) judgeFileWrite(payload, input);
+  if (WRITE_TOOLS.includes(tool)) judgeFileWrite(payload);
   return null;
 }
 
@@ -98,7 +81,7 @@ const refuse = (error) => {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
-      permissionDecision: 'ask',
+      permissionDecision: 'deny',
       permissionDecisionReason: reason,
       additionalContext: reason,
     },

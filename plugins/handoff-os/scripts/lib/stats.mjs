@@ -39,15 +39,3 @@ export function sessionLine(state, root, session) {
   if (kept(life) > kept(s)) parts.push(`all-time ~${compact(tok(kept(life)))} tok`);
   return line(parts);
 }
-
-export function lifetimeLine(state, root, session) {
-  const life = allTime(state, root, session);
-  const parts = volumeParts(life);
-  const actions = ['rereads', 'slices', 'queries', 'caps', 'blocked']
-    .reduce((sum, key) => sum + Number(life[key] || 0), 0);
-  if (actions) parts.push(plural(actions, 'guard action', 'guard actions'));
-  if (life.gated) parts.push(`${num(life.gated)} gated`);
-  if (life.scouts) parts.push(plural(Number(life.scouts), 'scout', 'scouts'));
-  if (life.runners) parts.push(plural(Number(life.runners), 'runner', 'runners'));
-  return line(parts);
-}

@@ -40,12 +40,8 @@ export const REPLY_CLOSE = '<!-- /handoff-os-reply -->';
 export const opencodeAgents = () => path.join(homedir(), '.config', 'opencode', 'AGENTS.md');
 
 export function replyBody() {
-  const lines = readFileSync(path.join(PLUGIN, 'skills', 'task-loop', 'SKILL.md'), 'utf8').split('\n');
-  const start = lines.findIndex((line) => /^##\s/.test(line) && line.includes('Reply shape'));
-  if (start < 0) throw new Error('task-loop SKILL.md has no Reply shape section.');
-  const rest = lines.slice(start + 1);
-  const end = rest.findIndex((line) => line.startsWith('## '));
-  return rest.slice(0, end < 0 ? undefined : end).join('\n').trim();
+  const text = readFileSync(path.join(PLUGIN, 'output-styles', 'focus.md'), 'utf8');
+  return text.replace(/^---[\s\S]*?---\s*/, '').trim();
 }
 
 const SCOPES = {
@@ -142,8 +138,6 @@ export const FLOW = [
   'lib/shell-parse.mjs',
   'lib/shell-danger.mjs',
   'lib/shell-reads.mjs',
-  'lib/file-write.mjs',
-  'lib/connector.mjs',
   'lib/dispatch.mjs',
   'lib/agent-model.mjs',
   'lib/fan-out.mjs',

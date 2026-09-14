@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const COUNTERS = ['agents', 'blocked', 'rereads', 'slices', 'queries', 'caps', 'rewrites',
@@ -18,7 +18,29 @@ export const sessionOf = (payload = {}) => String(payload.session_id || 'unknown
 const ledgerPath = (root, session) => path.join(root, '.claude', `.session-${session}.json`);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const STALE = [[/^\.wave-/, DAY_MS], [/^\.verif(?:ied|y-gate-count)-/, DAY_MS], [/^\.session-/, 30 * DAY_MS]];
+const STALE = [[/\.lock$/, 60 * 1000], [/^\.wave-/, DAY_MS],
+  [/^\.verif(?:ied|y-gate-count)-/, DAY_MS], [/^\.session-/, 30 * DAY_MS]];
+
+const LOCK_TRIES = 60;
+const LOCK_NAP_MS = 8;
+const nap = (ms) => { try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); } catch { } };
+
+// Hook processes run concurrently and share no memory: an unlocked read-modify-write
+// loses every counter but the last writer's.
+function withLock(root, session, fn) {
+  const file = `${ledgerPath(root, session)}.lock`;
+  try { mkdirSync(path.dirname(file), { recursive: true }); } catch { return fn(); }
+  for (let n = 0; n < LOCK_TRIES; n += 1) {
+    let fd = null;
+    try { fd = openSync(file, 'wx'); } catch { nap(LOCK_NAP_MS); continue; }
+    try { return fn(); } finally {
+      try { closeSync(fd); } catch { }
+      rmSync(file, { force: true });
+    }
+  }
+  rmSync(file, { force: true });
+  return fn();
+}
 
 export function sweep(root) {
   const dir = path.join(root, '.claude');
@@ -58,13 +80,19 @@ export function save(root, session, state) {
   }
 }
 
+export function bumpAll(root, session, deltas) {
+  return withLock(root, session, () => {
+    const state = load(root, session);
+    for (const [field, amount] of Object.entries(deltas)) {
+      state.saved[field] = (state.saved[field] || 0) + amount;
+    }
+    save(root, session, state);
+    return state;
+  });
+}
+
 export function bump(payload, field, amount = 1) {
-  const root = rootOf(payload);
-  const session = sessionOf(payload);
-  const state = load(root, session);
-  state.saved[field] = (state.saved[field] || 0) + amount;
-  save(root, session, state);
-  return state;
+  return bumpAll(rootOf(payload), sessionOf(payload), { [field]: amount });
 }
 
 export function fold(base, add = {}) {

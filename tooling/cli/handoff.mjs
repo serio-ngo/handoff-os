@@ -248,7 +248,7 @@ function check() {
 
 const BLOCKED = 2;
 const held = (run) => run.status === BLOCKED
-  || (() => { try { return JSON.parse(run.stdout || '').hookSpecificOutput?.permissionDecision === 'ask'; } catch { return false; } })();
+  || (() => { try { return ['ask', 'deny'].includes(JSON.parse(run.stdout || '').hookSpecificOutput?.permissionDecision); } catch { return false; } })();
 function doctor() {
   const settings = readJsonFile(path.join(CONFIG_DIR, 'settings.json'), {});
   const { declared, targets } = installTargets();
@@ -296,17 +296,20 @@ function doctor() {
 
   if (root) {
     check('the guard Claude Code resolves actually blocks',
-      held(at(root, 'guard.mjs', pre('Bash', { command: 'git merge main' }))),
+      held(at(root, 'guard.mjs', pre('Bash', { command: 'git commit -m x' }))),
       'live hook path, not the cache');
   }
 
   const fire = (payload, env) => at(cache, 'guard.mjs', payload, env);
   const shell = (command, env) => fire(pre('Bash', { command }), env);
-  check('the installed guard blocks a merge', held(shell('git merge main')));
-  check('the installed guard blocks every git write',
-    ['git commit -m x', 'git push origin main', 'git switch -c feat/x', 'git branch feat/x'].every((c) => held(shell(c, { HANDOFF_GIT_WRITE: '0' }))),
-    'commit, push, switch -c, branch — with the flag at 0');
-  check('the installed guard blocks an outward connector call', held(fire(pre('mcp__x__send_message', {}))));
+  check('the installed guard blocks a commit', held(shell('git commit -m x')));
+  check('the installed guard blocks commit and push, nothing else git',
+    ['git commit -m x', 'git push origin main'].every((c) => held(shell(c, { HANDOFF_GIT_WRITE: '0' })))
+    && ['git status', 'git checkout main', 'git stash push -m wip', 'git merge main'].every((c) => !held(shell(c, { HANDOFF_GIT_WRITE: '0' }))),
+    'commit, push held; status, checkout, stash, merge pass');
+  check('the installed guard blocks recursive deletes and git wipes',
+    ['rm -rf docs', 'git clean -fdx', 'git reset --hard HEAD~1'].every((c) => held(shell(c))),
+    'rm -r, clean -fdx, reset --hard');
   check('the installed guard blocks an opus review, whatever the spawn tool',
     SPAWN_TOOLS.every((tool) => held(fire(pre(tool, { model: 'opus', prompt: 'review the diff' })))),
     SPAWN_TOOLS.join(', '));

@@ -1,7 +1,7 @@
 import { closeSync, mkdirSync, openSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { waveCap, waveWindow } from './limits.mjs';
-import { load, rootOf, save, sessionOf } from './ledger.mjs';
+import { bumpAll, rootOf, sessionOf } from './ledger.mjs';
 import { Blocked } from './blocked.mjs';
 
 // One file per claimed slot: exclusive create is the only counter that survives
@@ -38,13 +38,7 @@ export function fanOutCap(payload, count = 1) {
     for (const held of claimed) {
       try { rmSync(path.join(dir, `${bucket}-${held}`), { force: true }); } catch { }
     }
-    const root = rootOf(payload);
-    const session = sessionOf(payload);
-    const state = load(root, session);
-    state.saved.blocked += 1;
-    state.saved.waves += 1;
-    state.saved.agentsCapped += count;
-    save(root, session, state);
+    bumpAll(rootOf(payload), sessionOf(payload), { blocked: 1, waves: 1, agentsCapped: count });
     throw new Blocked(count > 1
       ? `FAN-OUT CAP: ${count} asked, ${cap} run. Next: wait one wave\n`
       : `FAN-OUT CAP: subagent ${slot} held. Next: wait one wave\n`);

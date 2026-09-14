@@ -5,8 +5,8 @@
 | Folder | Contents | Entry point |
 |---|---|---|
 | `cli/` | Maintainer CLI and the generators behind every generated block | `npm run setup` · `upkeep` · `doctor` · `release` |
-| `benchmark/` | Scoring harness, the four comparator baselines, the throwaway fixture repo | `npm run benchmark:eval` · `benchmark:ab` · `benchmark:flood` |
-| `corpus/` | `guard-corpus.jsonl` labelled cases · `tasks.jsonl` A/B tasks | hand-edited; one line per case |
+| `benchmark/` | Scoring harness, the four comparator baselines | `npm run benchmark:eval` · `benchmark:replay` |
+| `corpus/` | `guard-corpus.jsonl` labelled cases | hand-edited; one line per case |
 | `results/` | Generated scores and run records | written by `benchmark:*`, read by the README badges and figures |
 | `test/` | `guard.test.mjs`, the only suite | `npm test` |
 | `settings/` | `policy.json`, the permission `deny` list a plugin cannot ship | `npm run sync` |

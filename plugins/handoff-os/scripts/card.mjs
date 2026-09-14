@@ -3,10 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load, rootOf, save, sessionOf, sweep } from './lib/ledger.mjs';
-import { delegateOn } from './lib/limits.mjs';
 
 const FREEING = new Set(['compact', 'clear']);
-const VERIFY = fileURLToPath(new URL('./verify.mjs', import.meta.url));
 function forgetReads(payload) {
   if (!FREEING.has(String(payload.source || ''))) return false;
   const root = rootOf(payload);
@@ -39,13 +37,9 @@ export function card(text = memory()) {
     ? `set (${lines} lines) — read memory.md when owner context is needed`
     : 'empty — ask the owner for every org fact';
   return `Handoff OS — session card
-TIERS  GREEN act · YELLOW act, audit one line · RED STOP, hand off
-HANDOFF three lines: DONE <prepared> · FILE <path> · YOU <verb> -> <where> -> <when>
-REPLY action first · Done bullets ≤5 · one Next + command + You should see / If not · Step N of M
-BLOCKED names the way through in the same reply · never act around one unasked
-${delegateOn() ? 'DELEGATE lookups to handoff-os:scout · commands to handoff-os:runner — they return tables, you decide\n' : ''}NEVER  send · pay · submit · publish · state-changing git · credentials · org data in git
-MEMORY ${status}
-PROOF  a "done" claim needs a real run: node "${VERIFY}" <session_id>`;
+CAPS  3 subagents per wave · files over 24KB arrive trimmed · git commit and push stay manual
+SHAPE the focus output style shapes every reply
+MEMORY ${status}`;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -1,7 +1,7 @@
 {
   "name": "handoff-os",
   "version": "1.12.0",
-  "description": "An egress lock, a verification gate, an audit trail and budget caps for Claude Code. Sends, payments, publishes, merges, deletes and credential writes stop before they run. No model call, no API key, no telemetry, no dependencies.",
+  "description": "A focus-first companion for ADHD/AuDHD workflows in Claude Code: short scannable answers, subagent flood caps, read budgets and a git commit/push lock. No model call, no API key, no telemetry, no dependencies.",
   "license": "Apache-2.0",
   "private": true,
   "homepage": "https://github.com/serio-ngo/handoff-os#readme",
@@ -29,8 +29,6 @@
     "benchmark": "node tooling/benchmark/benchmark.mjs",
     "benchmark:eval": "node tooling/benchmark/benchmark.mjs --eval",
     "benchmark:compare": "node tooling/benchmark/benchmark.mjs --eval --compare --write",
-    "benchmark:replay": "node tooling/benchmark/benchmark.mjs --replay --write",
-    "benchmark:ab": "node tooling/benchmark/benchmark.mjs ab",
-    "benchmark:flood": "node tooling/benchmark/benchmark.mjs flood"
+    "benchmark:replay": "node tooling/benchmark/benchmark.mjs --replay --write"
   }
 }

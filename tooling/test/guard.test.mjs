@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
+import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/guard.mjs';
 
 const BLOCKED = 2;
 const ALLOWED = 0;
@@ -106,7 +106,8 @@ it('judges a connector payload, not only its name', () => {
 });
 
 it('blocks every state-changing git command while HANDOFF_GIT_WRITE is not 1', () => {
-  for (const command of [`${VCS} ${OUT} origin main`, `${VCS} commit -m x`, `${VCS} add -A`, `${VCS} switch -c feat/x`, `${VCS} branch feat/x`]) {
+  for (const command of [`${VCS} ${OUT} origin main`, `${VCS} commit -m x`, `${VCS} add -A`, `${VCS} switch -c feat/x`, `${VCS} branch feat/x`,
+    `${VCS} commit --verify -m x`, `${VCS} checkout --merged x`, `${VCS} reset --contains x`]) {
     assert.equal(guard(bash(command), { ...process.env, HANDOFF_OS_DIR: box, HANDOFF_GIT_WRITE: '0' }), BLOCKED, command);
   }
 });
@@ -147,9 +148,13 @@ it('blocks commands a plain argv matcher would miss', () => {
 describe('dispatch budget', () => {
   const spawn = (tool_input, tool_name = 'Agent') => at('dp', { tool_name, tool_input });
 
-  it('blocks a dispatch that names no model or an unknown tier', () => {
-    assert.equal(spawn({ prompt: 'x' }), BLOCKED);
+  it('blocks an unknown tier, and a denied tier the agent definition declares rather than the call', () => {
     assert.equal(spawn({ prompt: 'x', model: 'best-available' }), BLOCKED);
+    mkdirSync(path.join(box, '.claude', 'agents'), { recursive: true });
+    writeFileSync(path.join(box, '.claude', 'agents', 'pricey.md'), '---\nname: pricey\nmodel: opus\n---\n');
+    const named = (tool_input) => at('dp-agents', { tool_name: 'Agent', tool_input });
+    assert.equal(named({ prompt: 'x', subagent_type: 'pricey' }), BLOCKED);
+    assert.equal(named({ prompt: 'x', subagent_type: 'handoff-os:scout' }), ALLOWED);
   });
   it('blocks opus without a QUALITY flag, and thinking a deliverable did not earn', () => {
     assert.equal(spawn({ prompt: 'scan the repo', model: 'opus' }), BLOCKED);

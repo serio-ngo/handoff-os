@@ -1,17 +1,18 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { BASH_OUTPUT_CAP, BIG_FILE_BYTES, GREP_HEAD_LIMIT, delegateOn } from './patterns.mjs';
+import { BASH_OUTPUT_CAP, BIG_FILE_BYTES, delegateOn } from './limits.mjs';
 import { bump, load, rootOf, save, sessionOf } from './ledger.mjs';
-import { Blocked } from './dispatch.mjs';
-import { shellQuote, shellReads } from './shell.mjs';
-
-export const actorOf = (payload = {}) => String(payload.agent_type || 'main').replace(/[:|]/g, '');
+import { Blocked } from './blocked.mjs';
+import { shellQuote } from './shell-parse.mjs';
+import { shellReads } from './shell-reads.mjs';
 
 const SAMPLE_BYTES = 64 * 1024;
 const SAMPLE_LINES = 200;
-export const kb = (bytes) => `${Math.round(bytes / 1024)}KB`;
 
-export function lineLength(file, size) {
+export const kb = (bytes) => `${Math.round(bytes / 1024)}KB`;
+export const actorOf = (payload = {}) => String(payload.agent_type || 'main').replace(/[:|]/g, '');
+
+function averageLineLength(file, size) {
   if (!size) return 0;
   const buffer = Buffer.alloc(Math.min(size, SAMPLE_BYTES));
   let n = 0;
@@ -28,9 +29,9 @@ export function lineLength(file, size) {
   return lines ? end / lines : n;
 }
 
-export function sliceBytes(file, size, { from = 0, lines, bytes }) {
+function sliceBytes(file, size, { from = 0, lines, bytes }) {
   if (bytes !== undefined) return Math.min(bytes, size);
-  const avg = lineLength(file, size);
+  const avg = averageLineLength(file, size);
   if (!avg) return 0;
   const total = size / avg;
   const start = Math.min(from, total);
@@ -38,15 +39,15 @@ export function sliceBytes(file, size, { from = 0, lines, bytes }) {
   return Math.max(0, Math.min(size, Math.round(count * avg)));
 }
 
-export function fileStats(file) {
+const statFile = (file) => {
   try {
     const stats = statSync(file);
     return stats.isFile() ? stats : null;
   } catch { return null; }
-}
+};
 
-export function bookSlice(payload, file, spec, { shell = false } = {}) {
-  const stats = fileStats(file);
+function bookSlice(payload, file, spec, { shell = false } = {}) {
+  const stats = statFile(file);
   if (!stats) return;
   const root = rootOf(payload);
   const session = sessionOf(payload);
@@ -68,7 +69,7 @@ export function readBudget(payload, input, rewritable = false) {
     });
     return null;
   }
-  const stats = fileStats(file);
+  const stats = statFile(file);
   if (!stats) return null;
 
   const root = rootOf(payload);
@@ -106,7 +107,7 @@ export function readBudget(payload, input, rewritable = false) {
       refuse('slices', 'deferred', stats.size, 's',
         `${name} is ${kb(stats.size)}, over the ${kb(BIG_FILE_BYTES)} whole-file limit`);
     }
-    const avg = lineLength(resolved, stats.size);
+    const avg = averageLineLength(resolved, stats.size);
     const lines = Math.max(1, Math.floor(BIG_FILE_BYTES / (avg || stats.size)));
     const admitted = rewritable === 'shell' ? BIG_FILE_BYTES : Math.min(stats.size, Math.round(lines * avg));
     if (admitted < stats.size) {
@@ -122,6 +123,17 @@ export function readBudget(payload, input, rewritable = false) {
   else state.saved.offload += bytes;
   save(root, session, state);
   return trim;
+}
+
+function unbook(payload, before) {
+  const root = rootOf(payload);
+  const session = sessionOf(payload);
+  const state = load(root, session);
+  for (const key of Object.keys(state.reads)) {
+    if (!(key in before.reads) && !key.includes('|x:')) delete state.reads[key];
+  }
+  for (const key of ['read', 'offload', 'rewrites', 'trimmed']) state.saved[key] = before.saved[key];
+  save(root, session, state);
 }
 
 export function shellReadBudget(payload, input, tool) {
@@ -154,17 +166,6 @@ export function shellReadBudget(payload, input, tool) {
   return rewrite;
 }
 
-export function unbook(payload, before) {
-  const root = rootOf(payload);
-  const session = sessionOf(payload);
-  const state = load(root, session);
-  for (const key of Object.keys(state.reads)) {
-    if (!(key in before.reads) && !key.includes('|x:')) delete state.reads[key];
-  }
-  for (const key of ['read', 'offload', 'rewrites', 'trimmed']) state.saved[key] = before.saved[key];
-  save(root, session, state);
-}
-
 export function noteWrite(payload) {
   const root = rootOf(payload);
   const session = sessionOf(payload);
@@ -174,28 +175,4 @@ export function noteWrite(payload) {
   }
   state.written = Date.now();
   save(root, session, state);
-}
-
-export function queryBudget(payload, input, tool) {
-  const root = rootOf(payload);
-  const session = sessionOf(payload);
-  const state = load(root, session);
-  const key = `${actorOf(payload)}|q:${tool}:${JSON.stringify(input)}`;
-  if (state.reads[key]) {
-    if (state.reads[key] === 1) state.saved.queries += 1;
-    state.reads[key] = 2;
-    save(root, session, state);
-    throw new Blocked(`READ BUDGET: this exact ${tool} already ran and nothing has been written since\n`);
-  }
-  state.reads[key] = 1;
-  if (tool === 'Grep' && input.output_mode === 'content' && input.head_limit === undefined) {
-    state.saved.caps += 1;
-    save(root, session, state);
-    return {
-      updatedInput: { ...input, head_limit: GREP_HEAD_LIMIT },
-      reason: `HANDOFF OS: head_limit ${GREP_HEAD_LIMIT} set on this Grep`,
-    };
-  }
-  save(root, session, state);
-  return null;
 }

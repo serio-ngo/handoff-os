@@ -31,9 +31,9 @@
 
 | What ships | Count |
 |---|---|
-| Guard logic, agent-affecting only | **1056** lines across 8 flow files |
+| Guard logic, agent-affecting only | **1064** lines across 13 flow files |
 | Stats, receipts, adapters (`audit`, `card`, `bridge`, `ledger`, `transcript`) | excluded from the count |
-| Pattern rules | **66** |
+| Pattern rules | **57** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |
 | Subagents | **2** |

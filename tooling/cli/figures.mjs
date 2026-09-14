@@ -2,8 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { COUNTERS, bank, load, save, sessionLine } from '../../plugins/handoff-os/scripts/lib/ledger.mjs';
-import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/handoff-os/scripts/lib/patterns.mjs';
+import { COUNTERS, bank, load, save } from '../../plugins/handoff-os/scripts/lib/ledger.mjs';
+import { sessionLine } from '../../plugins/handoff-os/scripts/lib/stats.mjs';
+import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/handoff-os/scripts/lib/limits.mjs';
 import { num, secs } from './format.mjs';
 import { PLUGIN, REPO, readJson, writeBlock } from './generate.mjs';
 

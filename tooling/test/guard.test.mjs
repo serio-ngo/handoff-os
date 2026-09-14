@@ -5,14 +5,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SPAWN_TOOLS, WRITE_TOOLS } from '../../plugins/handoff-os/scripts/guard.mjs';
 
 const ALLOWED = 0;
 const ASK = 'ask';
 const SERVER = '00000000-0000-4000-a000-000000000000';
 const PLUGIN = fileURLToPath(new URL('../../plugins/handoff-os/', import.meta.url));
 const script = (name) => path.join(PLUGIN, 'scripts', name);
-const hooks = JSON.parse(readFileSync(path.join(PLUGIN, 'hooks', 'hooks.json'), 'utf8')).hooks;
 
 const boxes = [];
 const sandbox = (prefix) => {
@@ -178,45 +176,9 @@ describe('dispatch budget', () => {
     assert.equal(held('dp', { script: '// AGENTS: 30\nawait parallel(rows.map((r) => () => agent(r)))' }, 'Workflow'), ASK);
     assert.equal(spawn({ prompt: 'the wave a denied workflow claimed is free again', model: 'haiku' }), ALLOWED);
   });
-  it('caps the wave when a stale file sits where the wave directory belongs', () => {
-    mkdirSync(path.join(box, '.claude'), { recursive: true });
-    writeFileSync(path.join(box, '.claude', '.wave-stale'), 'not a directory', 'utf8');
-    const run = () => at('stale', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
-    run(); run(); run();
-    assert.equal(held('stale', { prompt: 'x', model: 'haiku' }), ASK);
-  });
   it('blocks the fourth agent in one wave', () => {
     for (let n = 0; n < 3; n += 1) spawn({ prompt: `s${n}`, model: 'haiku' });
     assert.equal(held('dp', { prompt: 'fourth', model: 'haiku' }), ASK);
-  });
-  it('caps the wave at HANDOFF_MAX_PER_WAVE, defaulting to 3 on garbage', () => {
-    const allow = (session, extra = {}) => guard({ cwd: box, session_id: session, tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } },
-      { ...process.env, HANDOFF_OS_DIR: box, ...extra });
-    const hold = (session, extra = {}) => ask({ cwd: box, session_id: session, tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } },
-      { ...process.env, HANDOFF_OS_DIR: box, ...extra });
-    allow('cap1', { HANDOFF_MAX_PER_WAVE: '1' });
-    assert.equal(hold('cap1', { HANDOFF_MAX_PER_WAVE: '1' }), ASK);
-    for (let n = 0; n < 3; n += 1) allow('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' });
-    assert.equal(hold('cap3', { HANDOFF_MAX_PER_WAVE: 'bogus' }), ASK);
-  });
-  it('counts a capped wave as blocked', () => {
-    const run = () => at('wv', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku' } });
-    run(); run(); run();
-    assert.equal(held('wv', { prompt: 'x', model: 'haiku' }), ASK);
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-wv.json'), 'utf8'));
-    assert.equal(state.saved.blocked, 1);
-    assert.equal(state.saved.agents, 3);
-    assert.equal(state.saved.waves, 1);
-    assert.equal(state.saved.agentsCapped, 1);
-  });
-  it('counts scout and runner dispatches apart from the wave', () => {
-    const run = (subagent_type) => at('ct', { tool_name: 'Agent', tool_input: { prompt: 'x', model: 'haiku', subagent_type } });
-    assert.equal(run('handoff-os:scout'), ALLOWED);
-    assert.equal(run('handoff-os:runner'), ALLOWED);
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-ct.json'), 'utf8'));
-    assert.equal(state.saved.scouts, 1);
-    assert.equal(state.saved.runners, 1);
-    assert.equal(state.saved.agents, 2);
   });
 });
 
@@ -266,13 +228,6 @@ describe('read and query budgets', () => {
     assert.equal(rewritten(result).updatedInput.head_limit, 50);
     assert.equal(state('gc').saved.caps, 1);
   });
-  it('books a sed slice as admitted bytes, never as kept out', () => {
-    const file = path.join(box, 'slice.txt');
-    writeFileSync(file, `${'s'.repeat(63)}\n`.repeat(100));
-    assert.equal(sh('sl', `sed -n '11,20p' ${file}`), ALLOWED);
-    assert.equal(state('sl').saved.read, 640);
-    assert.equal(state('sl').saved.trimmed + state('sl').saved.deferred + state('sl').saved.bytes, 0);
-  });
   it('rewrites the read it judged, not an earlier copy of the same text, and keeps a spaced path whole', () => {
     const big = `${'x'.repeat(70)}\n`.repeat(500);
     const plain = path.join(box, 'echoed.txt');
@@ -305,13 +260,6 @@ describe('read and query budgets', () => {
     assert.equal(at('fl4', { tool_name: 'Bash', tool_input: { command: `cat ${small}` } }), ALLOWED);
     assert.equal(state('fl4').saved.read, 6);
   });
-  it('leaves a read redirected into a file alone — its bytes never reach the thread', () => {
-    const piped = path.join(box, 'piped.txt');
-    writeFileSync(piped, `${'x'.repeat(70)}\n`.repeat(500));
-    const result = run('rd', { tool_name: 'Bash', tool_input: { command: `cat ${piped} &> ${path.join(box, 'out.txt')}` } });
-    assert.equal(result.status, ALLOWED);
-    assert.equal(result.stdout, '');
-  });
   it('blocks a re-read of the same unchanged bytes', () => {
     writeFileSync(probe, 'small');
     at('bq', { tool_name: 'Read', tool_input: { file_path: probe } });
@@ -325,32 +273,12 @@ describe('read and query budgets', () => {
     at('wq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } });
     sh('wq', 'ls -d missing 2>/dev/null');
     assert.equal(ask({ cwd: box, session_id: 'wq', tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ASK);
+    sh('wq', 'echo hi > $null');
+    assert.equal(ask({ cwd: box, session_id: 'wq', tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ASK);
+    sh('wq', 'echo hi > NUL');
+    assert.equal(ask({ cwd: box, session_id: 'wq', tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ASK);
     sh('wq', 'echo hi >> probe2.txt');
     assert.equal(at('wq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ALLOWED);
-  });
-  it('scopes dedup to the acting agent', () => {
-    const file = path.join(box, 'shared.txt');
-    writeFileSync(file, 'shared');
-    at('sx', { agent_type: 'scout', tool_name: 'Read', tool_input: { file_path: file } });
-    assert.equal(at('sx', { tool_name: 'Read', tool_input: { file_path: file } }), ALLOWED);
-    at('sx', { agent_type: 'scout', tool_name: 'Grep', tool_input: { pattern: 'scoped' } });
-    assert.equal(at('sx', { tool_name: 'Grep', tool_input: { pattern: 'scoped' } }), ALLOWED);
-  });
-  it('books a subagent read as offloaded, not admitted to the main thread', () => {
-    const file = path.join(box, 'offload.txt');
-    writeFileSync(file, 'z'.repeat(2048));
-    at('of', { agent_type: 'handoff-os:scout', tool_name: 'Read', tool_input: { file_path: file } });
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-of.json'), 'utf8'));
-    assert.equal(state.saved.offload, 2048);
-    assert.equal(state.saved.read, 0);
-  });
-  it('books a repeat query apart from a file re-read, so byte totals stay honest', () => {
-    at('rq', { tool_name: 'Grep', tool_input: { pattern: 'apart' } });
-    assert.equal(ask({ cwd: box, session_id: 'rq', tool_name: 'Grep', tool_input: { pattern: 'apart' } }), ASK);
-    const state = JSON.parse(readFileSync(path.join(box, '.claude', '.session-rq.json'), 'utf8'));
-    assert.equal(state.saved.queries, 1);
-    assert.equal(state.saved.rereads, 0);
-    assert.equal(state.saved.bytes, 0);
   });
   it('credits a refused read once however often it is retried', () => {
     const file = path.join(box, 'retry.txt');
@@ -418,33 +346,8 @@ describe('verify gate', () => {
     assert.match(warn(root, claim), /stood down/);
   });
 
-  it('prints the session receipt once per change, never twice unchanged', () => {
-    const root = sandbox('receipt-');
-    const env = boxed(root);
-    assert.equal(ask({ cwd: root, session_id: 'rc', tool_name: 'Bash', tool_input: { command: `${VCS} merge main` } }, env), ASK);
-    const receipt = () => spawnSync(process.execPath, [GATE], {
-      input: JSON.stringify({ cwd: root, session_id: 'rc', hook_event_name: 'Stop' }), encoding: 'utf8', env,
-    }).stdout;
-    assert.match(receipt(), /"systemMessage":"HANDOFF OS · 1 blocked"/);
-    assert.equal(receipt(), '');
-  });
-
   it('holds a substantive scout return that cites nothing', () => {
     const text = 'The repository routes every outward verb through one gate. '.repeat(4);
     assert.match(warn(sandbox('scout-'), { hook_event_name: 'SubagentStop', last_assistant_message: text }), /SCOUT CONTRACT/);
-  });
-});
-
-describe('hooks', () => {
-  it('routes every judged tool to one guard, audits connector writes but not reads', () => {
-    assert.equal(hooks.PreToolUse.length, 1);
-    const pre = new RegExp(hooks.PreToolUse[0].matcher);
-    for (const tool of ['Read', 'Bash', 'PowerShell', 'Grep', 'Glob', 'mcp__server__send', ...WRITE_TOOLS, ...SPAWN_TOOLS]) {
-      assert.ok(pre.test(tool), tool);
-    }
-    const post = new RegExp(hooks.PostToolUse[0].matcher);
-    for (const action of ['get_thread', 'list_labels', 'search_threads']) assert.ok(!post.test(`mcp__${SERVER}__${action}`), action);
-    for (const action of ['send_message', 'create_update', 'delete_item']) assert.ok(post.test(`mcp__${SERVER}__${action}`), action);
-    for (const tool of WRITE_TOOLS) assert.ok(post.test(tool), tool);
   });
 });

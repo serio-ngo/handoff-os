@@ -741,7 +741,7 @@ const REPLAY_RULES = [
   [/whole-file limit/, 'whole-file cap'],
   [/over the \d+KB ceiling/, 'session ceiling'],
   [/already ran and nothing has been written/, 'repeat query'],
-  [/set head_limit/, 'runaway query cap'],
+  [/head_limit \d+ set/, 'runaway query cap'],
   [/FAN-OUT CAP/, 'fan-out cap'],
   [/DISPATCH BUDGET/, 'dispatch budget'],
   [/EGRESS LOCK/, 'egress lock'],

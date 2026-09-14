@@ -83,7 +83,7 @@ const METERED_CREDENTIAL = [
 ];
 
 // A discard sink or an fd dup stores nothing: neither is a write.
-const DISCARD_TARGET = /^(?:&\d+|\/dev\/(?:null|stdout|stderr|tty)|nul)$/i;
+const DISCARD_TARGET = /^(?:&\d+|\$null|\/dev\/(?:null|stdout|stderr|tty)|nul:?)$/i;
 
 export const SHELL_WRITE_TARGET = [
   /(?:^|\s)(?:\d?>>?|&>)\s*['"]?([^'"\s]+)/,

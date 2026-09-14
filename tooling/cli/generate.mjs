@@ -41,8 +41,8 @@ export const opencodeAgents = () => path.join(homedir(), '.config', 'opencode', 
 
 export function replyBody() {
   const lines = readFileSync(path.join(PLUGIN, 'skills', 'task-loop', 'SKILL.md'), 'utf8').split('\n');
-  const start = lines.findIndex((line) => line.startsWith('## 5.'));
-  if (start < 0) throw new Error('task-loop SKILL.md has no ## 5.');
+  const start = lines.findIndex((line) => /^##\s/.test(line) && line.includes('Reply shape'));
+  if (start < 0) throw new Error('task-loop SKILL.md has no Reply shape section.');
   const rest = lines.slice(start + 1);
   const end = rest.findIndex((line) => line.startsWith('## '));
   return rest.slice(0, end < 0 ? undefined : end).join('\n').trim();

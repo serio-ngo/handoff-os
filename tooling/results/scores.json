@@ -1,6 +1,6 @@
 {
   "generated": "2026-09-14",
-  "version": "1.10.3",
+  "version": "1.11.0",
   "cases": 95,
   "recall": 100,
   "precision": 100,
@@ -39,13 +39,13 @@
       "f1": 0.73
     }
   },
-  "keptPct": 60,
-  "keptTokens": 173005,
-  "readVolumeTokens": 288973,
+  "keptPct": 41,
+  "keptTokens": 188429,
+  "readVolumeTokens": 461768,
   "offloadTokens": 145298,
-  "resendRatio": 37.3,
-  "ledgerTurns": 17,
-  "resendsRemoved": 1164573,
+  "resendRatio": 45,
+  "ledgerTurns": 33,
+  "resendsRemoved": 4125850,
   "taxTokens": 278,
   "repos": 1,
   "origins": {

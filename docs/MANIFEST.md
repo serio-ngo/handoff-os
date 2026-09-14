@@ -8,7 +8,7 @@
 |---|---|---|
 | `plan-session` | 85 | 87 |
 | `research-budget` | 101 | 70 |
-| `task-loop` | 75 | 44 |
+| `task-loop` | 75 | 54 |
 
 ## Agents
 
@@ -31,9 +31,9 @@
 
 | What ships | Count |
 |---|---|
-| Guard logic, agent-affecting only | **1076** lines across 13 flow files |
+| Guard logic, agent-affecting only | **1078** lines across 13 flow files |
 | Stats, receipts, adapters (`audit`, `card`, `bridge`, `ledger`, `transcript`) | excluded from the count |
-| Pattern rules | **58** |
+| Pattern rules | **59** |
 | Hooks | **5** handlers on 5 events |
 | Skills | **3** |
 | Subagents | **2** |

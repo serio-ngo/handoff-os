@@ -22,12 +22,11 @@ export function deniedSubagentRx(raw = DENY_SUBAGENT_DEFAULT) {
 }
 
 export const spawnText = (input) => SPAWN_TEXT.map((key) => input[key]).filter((value) => typeof value === 'string').join(' ');
-const article = (word) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 const selectedTiers = (text) => [...String(text).matchAll(MODEL_OPTION)].map((hit) => hit[1].toLowerCase());
 
 function deniedVerdict(text, hit) {
-  if (REVIEW.test(text)) return { reason: `blocked ${article(hit)} ${hit} review`, tier: hit };
-  if (!QUALITY.test(text)) return { reason: `blocked ${article(hit)} ${hit} subagent`, tier: hit };
+  if (REVIEW.test(text)) return { reason: `blocked ${hit} review. Use sonnet`, tier: hit };
+  if (!QUALITY.test(text)) return { reason: `blocked ${hit} subagent. Use sonnet`, tier: hit };
   return null;
 }
 

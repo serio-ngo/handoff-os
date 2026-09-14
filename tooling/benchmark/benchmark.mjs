@@ -256,7 +256,7 @@ const AB_RULES = [
   [/over the \d+KB ceiling/, 'ceiling'],
   [/is unchanged and already in context/, 're-read'],
   [/already ran and nothing has been written/, 'repeat-query'],
-  [/set head_limit/, 'runaway-query'],
+  [/head_limit \d+ set/, 'runaway-query'],
   [/FAN-OUT CAP/, 'fan-out'],
   [/DISPATCH BUDGET/, 'dispatch'],
   [/EGRESS LOCK/, 'egress-lock'],

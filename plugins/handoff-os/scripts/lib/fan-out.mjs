@@ -46,7 +46,7 @@ export function fanOutCap(payload, count = 1) {
     state.saved.agentsCapped += count;
     save(root, session, state);
     throw new Blocked(count > 1
-      ? `FAN-OUT CAP: ${count} subagents requested, wave capped at ${cap}\n`
-      : `FAN-OUT CAP: subagent ${slot}, wave capped at ${cap}\n`);
+      ? `FAN-OUT CAP: ${count} asked, ${cap} run. Next: wait one wave\n`
+      : `FAN-OUT CAP: subagent ${slot} held. Next: wait one wave\n`);
   }
 }

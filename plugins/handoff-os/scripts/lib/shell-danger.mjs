@@ -82,6 +82,9 @@ const METERED_CREDENTIAL = [
   new RegExp(`\\b(?:setx|export|\\$env:)\\b[^\\n]{0,40}(?:${CREDENTIALS})\\b\\s*[=:]?\\s*\\S`, 'i'),
 ];
 
+// A discard sink or an fd dup stores nothing: neither is a write.
+const DISCARD_TARGET = /^(?:&\d+|\/dev\/(?:null|stdout|stderr|tty)|nul)$/i;
+
 export const SHELL_WRITE_TARGET = [
   /(?:^|\s)(?:\d?>>?|&>)\s*['"]?([^'"\s]+)/,
   /\btee\s+(?:-a\s+)?['"]?([^'"\s]+)/,
@@ -135,7 +138,7 @@ export function shellWriteTargets(command) {
   for (const segment of segments(command)) {
     for (const rx of SHELL_WRITE_TARGET) {
       const hit = rx.exec(segment);
-      if (hit && hit[1]) out.push(hit[1]);
+      if (hit && hit[1] && !DISCARD_TARGET.test(hit[1])) out.push(hit[1]);
     }
   }
   return out;

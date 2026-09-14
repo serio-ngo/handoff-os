@@ -26,7 +26,7 @@ function judgeRead(payload, input) {
   const trim = readBudget(payload, input, 'read');
   return trim ? {
     updatedInput: { ...input, offset: 0, limit: trim.lines },
-    reason: `HANDOFF OS: ${trim.name} is ${kb(trim.size)}; trimmed to its first ${trim.lines} lines`,
+    reason: `READ CAP: ${trim.name} ${kb(trim.size)}. Kept first ${trim.lines} lines`,
   } : null;
 }
 

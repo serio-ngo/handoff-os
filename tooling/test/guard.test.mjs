@@ -321,8 +321,10 @@ describe('read and query budgets', () => {
     at('bq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } });
     assert.equal(ask({ cwd: box, session_id: 'bq', tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ASK);
   });
-  it('forgets answered queries after a shell write', () => {
+  it('forgets answered queries after a shell write, never after a discard redirect', () => {
     at('wq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } });
+    sh('wq', 'ls -d missing 2>/dev/null');
+    assert.equal(ask({ cwd: box, session_id: 'wq', tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ASK);
     sh('wq', 'echo hi >> probe2.txt');
     assert.equal(at('wq', { tool_name: 'Grep', tool_input: { pattern: 'todo' } }), ALLOWED);
   });

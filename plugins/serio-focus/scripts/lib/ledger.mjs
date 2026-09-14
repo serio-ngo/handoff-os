@@ -110,16 +110,3 @@ export function bank(state) {
   state.session = fold(state.session, state.saved);
   return state.lifetime;
 }
-
-// Every other session's banked lifetime, so one window can report the whole repo.
-export function allTime(state, root, session) {
-  const mine = lifetime(state);
-  if (!root || !session) return mine;
-  let names = [];
-  try { names = readdirSync(path.join(root, '.claude')); } catch { return mine; }
-  return names.reduce((out, name) => {
-    const other = /^\.session-(.+)\.json$/.exec(name);
-    if (!other || other[1] === session) return out;
-    try { return fold(out, JSON.parse(readFileSync(path.join(root, '.claude', name), 'utf8')).lifetime); } catch { return out; }
-  }, mine);
-}

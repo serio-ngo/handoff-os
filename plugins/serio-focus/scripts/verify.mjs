@@ -2,7 +2,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { append } from './audit.mjs';
-import { statsOn } from './lib/limits.mjs';
 import { COUNTERS, bank, load, rootOf, save, savings, sessionOf } from './lib/ledger.mjs';
 import { sessionLine } from './lib/stats.mjs';
 import { usage } from './lib/transcript.mjs';
@@ -27,8 +26,8 @@ export function report(payload) {
   const changed = stamp !== state.printed;
   if (changed) state.printed = stamp;
   if (total || changed) save(root, session, state);
-  if (!changed || !statsOn()) return null;
-  return sessionLine(state, root, session) || null;
+  if (!changed) return null;
+  return sessionLine(state) || null;
 }
 
 // One line at Stop, never a stack.

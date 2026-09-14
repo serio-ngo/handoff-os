@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { COUNTERS, bank, load, save } from '../../plugins/serio-focus/scripts/lib/ledger.mjs';
+import { load } from '../../plugins/serio-focus/scripts/lib/ledger.mjs';
 import { sessionLine } from '../../plugins/serio-focus/scripts/lib/stats.mjs';
 import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/serio-focus/scripts/lib/limits.mjs';
 import { num, secs } from './format.mjs';
@@ -13,7 +13,6 @@ const HUE = { without: '#d95926', with: '#2a78d6' };
 const DEMO_AGENTS = 100;
 const DEMO_FILE_BYTES = 35 * 1024;
 const DEMO_LINE_BYTES = 64;
-const DEMO_HISTORY = 8;
 
 const DEMO_OPEN = '<!-- handoff-demo -->';
 const DEMO_CLOSE = '<!-- /handoff-demo -->';
@@ -193,18 +192,6 @@ function probe() {
     return { blocked: false, verdict: reason };
   };
 
-  // all-time is earlier sessions of this root, banked the way the Stop hook banks them
-  for (let i = 0; i < DEMO_HISTORY; i += 1) {
-    const session = `turn${i}`;
-    fire('Bash', { command: `cat -n ${big}` }, { session });
-    fire('Read', { file_path: big }, { session, agent_type: 'serio-focus:scout' });
-    fire('Agent', { model: 'haiku', prompt: 'summarise the diff' }, { session });
-    const state = load(root, session);
-    bank(state);
-    for (const key of COUNTERS) state.saved[key] = 0;
-    save(root, session, state);
-  }
-
   const steps = [
     ['Read src/big.js · 35 KB', 'Read', { file_path: big }],
     [`Workflow · ${DEMO_AGENTS} agents`, 'Workflow', { script: `// AGENTS: ${DEMO_AGENTS}\nawait parallel(mods.map((m) => () => agent(m)))` }],
@@ -214,7 +201,7 @@ function probe() {
   ].map(([label, tool, input]) => ({ label, ...fire(tool, input) }));
   steps.push({ label: 'Answer · focus style', blocked: false, verdict: 'Action first · Done ≤5 · one Next + command · Step N of M' });
 
-  const receipt = sessionLine(load(root, 'demo'), root, 'demo');
+  const receipt = sessionLine(load(root, 'demo'));
   rmSync(root, { recursive: true, force: true });
   return { steps, receipt };
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { SPAWN_TOOLS } from '../../plugins/serio-focus/scripts/guard.mjs';
@@ -321,6 +321,13 @@ function doctor() {
   const month = new Date().toISOString().slice(0, 7);
   check('every probe receipt landed in the throwaway root, not the repo ledger',
     existsSync(path.join(probe, 'audit', `${month}.jsonl`)), probe);
+
+  // Every check above spawns the scripts here. Only the ledger proves Claude Code spawns them.
+  const ledger = path.join(process.env.HANDOFF_OS_DIR || REPO, 'audit', `${month}.jsonl`);
+  const since = existsSync(ledger) ? Date.now() - statSync(ledger).mtimeMs : Infinity;
+  check('Claude Code itself fired a hook here within a day',
+    since < 24 * 60 * 60 * 1000,
+    existsSync(ledger) ? `${Math.round(since / 3600000)}h since the last receipt` : 'no receipt yet — start a session and rerun');
   check(`the plugin costs ~${Math.round(inventory().contextChars / 4)} tok of context`, true,
     'card plus skill and agent descriptions, always in context');
 

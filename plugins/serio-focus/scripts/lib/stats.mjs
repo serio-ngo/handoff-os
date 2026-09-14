@@ -1,9 +1,7 @@
-import { GREP_HEAD_LIMIT } from './limits.mjs';
-import { BYTE_COUNTERS, allTime, fold } from './ledger.mjs';
+import { BYTE_COUNTERS, fold } from './ledger.mjs';
 
 const tok = (bytes) => Math.round(Number(bytes || 0) / 4);
 const num = (value) => Number(value || 0).toLocaleString('en-US');
-const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
 const compact = (value) => (value >= 1e6 ? `${(value / 1e6).toFixed(1)}M`
   : value >= 10000 ? `${(value / 1000).toFixed(1)}k` : num(value));
 
@@ -20,22 +18,17 @@ function volumeParts(t) {
   return [`~${compact(tok(kept(t)))} of ~${compact(tok(volume(t)))} tok kept out (${keptPct(t)}%)`];
 }
 
-export function sessionLine(state, root, session) {
+// One count for every guard action; blocked already covers the refusals the others do not.
+const HELD = ['rewrites', 'rereads', 'queries', 'slices', 'caps', 'agentsCapped', 'redirects'];
+const heldCount = (s) => HELD.reduce((sum, key) => sum + Number(s[key] || 0), 0)
+  + Math.max(0, s.blocked - s.redirects - s.waves);
+
+export function sessionLine(state) {
   const s = fold(state.session, state.saved);
-  const life = allTime(state, root, session);
+  const held = heldCount(s);
   const parts = [];
-  if (s.rewrites) parts.push(`${num(s.rewrites)} trimmed`);
-  if (s.rereads + s.queries) parts.push(`${num(s.rereads + s.queries)} re-reads stopped`);
-  if (s.slices) parts.push(plural(s.slices, 'read deferred', 'reads deferred'));
-  if (s.caps) parts.push(`${num(s.caps)} capped at ${GREP_HEAD_LIMIT}`);
-  if (s.agentsCapped) parts.push(`${num(s.agentsCapped)} held`);
-  if (s.redirects) parts.push(`${num(s.redirects)} redirected`);
-  const other = s.blocked - s.redirects - s.waves;
-  if (other > 0) parts.push(`${num(other)} blocked`);
+  if (held) parts.push(`${num(held)} held`);
   if (s.agents) parts.push(`${num(s.agents)} dispatched`);
-  if (s.scouts) parts.push(plural(s.scouts, 'scout', 'scouts'));
-  if (s.runners) parts.push(plural(s.runners, 'runner', 'runners'));
   parts.push(...volumeParts(s));
-  if (kept(life) > kept(s)) parts.push(`all-time ~${compact(tok(kept(life)))} tok`);
   return line(parts);
 }

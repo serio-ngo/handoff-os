@@ -10,7 +10,7 @@
     {
       "name": "serio-focus",
       "source": "./plugins/serio-focus",
-      "description": "An egress lock, a verification gate, an audit trail and budget caps for Claude Code. Sends, payments, publishes, merges, deletes and credential writes stop before they run. No model call, no API key, no telemetry, no dependencies.",
+      "description": "Budget caps, a git and delete lock, an audit trail and a focus output style for Claude Code. Subagent floods, oversized reads and repeat queries are capped; commit, push and recursive deletes stop before they run. No model call, no API key, no telemetry, no dependencies.",
       "category": "workflow",
       "keywords": ["governance", "guardrails", "human-in-the-loop", "audit", "solo-founder", "nonprofit"]
     }

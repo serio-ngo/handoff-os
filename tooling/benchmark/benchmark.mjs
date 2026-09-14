@@ -378,7 +378,7 @@ function runArm(task, arm, opts) {
     spawnSync('git', cmd, { cwd: dir, encoding: 'utf8' });
   }
   if (task.setup) sh(task.setup, dir);
-  const env = { ...process.env, HANDOFF_OS_DIR: dir, HANDOFF_STATS: '1' };
+  const env = { ...process.env };
   for (const key of AB_STRIP) delete env[key];
   env.HANDOFF_OS_DIR = dir;
   const args = ['-p', task.prompt, '--output-format', 'stream-json', '--verbose', '--max-turns', String(opts.maxTurns),

@@ -65,5 +65,5 @@ compatibility: No external dependencies. The cap is enforced by scripts/guard.mj
 
 - Waves are sequential: launch → read → decide if another wave earns its cost. Scopes are disjoint: name each agent's sources and what the others own.
 - Verifier only when the recommendation changes if the claim is wrong.
-- Every dispatch receipts to the audit ledger; denied models (`HANDOFF_DENY_SUBAGENT_MODELS`, default `opus,fable`) never review, review is sonnet.
+- Every block lands in the audit ledger; denied models (`HANDOFF_DENY_SUBAGENT_MODELS`, default `opus,fable`) never review, review is sonnet.
 - Levers, in order: delegate reading, keep deciding · demand a line count back · fewer sub-questions · slices (`sed -n`, `grep -n`), never whole files · delete skills that never fire.

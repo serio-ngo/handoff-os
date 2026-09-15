@@ -4,6 +4,7 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.12.4 | 2026-09-15 | Blocked-only audit log, Wilson eval intervals, full-only guard |
 | 1.12.3 | 2026-09-15 | final-state flow, card memory trim, bridge to opencode, nonprofit hero |
 | 1.12.2 | 2026-09-14 | demo blocks render red again (deny read from stdout), svg loop resets clean; readme carries the serio logo and ADHD quality-of-life framing |
 | 1.12.1 | 2026-09-14 | rename handoff-os to serio-focus: plugin id, paths, agent references, docs and URLs; HANDOFF_* env and generic handoff wording unchanged |

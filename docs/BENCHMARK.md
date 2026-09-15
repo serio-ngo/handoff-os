@@ -102,14 +102,14 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 ## Live ledger — what the guard did on this machine
 
 <!-- handoff-stats -->
-| Measured over 16 turns | Tokens | Share |
+| Measured over 23 turns | Tokens | Share |
 |---|---|---|
-| Read volume the session asked for | ~185.4k | 100% |
-| **Kept out** | **~23.6k** | **13%** |
-| — re-read dedup | ~3,339 | 2% |
+| Read volume the session asked for | ~233.4k | 100% |
+| **Kept out** | **~25.0k** | **11%** |
+| — re-read dedup | ~4,700 | 2% |
 | — whole-file cap | ~0 | 0% |
 | — moved to a subagent | ~0 | 0% |
-| Admitted to the main thread | ~161.7k | 87% |
+| Admitted to the main thread | ~208.5k | 89% |
 
 | Context tax — the plugin's own footprint | Tokens |
 |---|---|
@@ -118,7 +118,7 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 | Agent descriptions, always in context | ~43 |
 | **Total footprint** | **~146** |
 | Per turn, on top of that | **0** (since 1.6.0) |
-| **Net kept out minus footprint** | **~23.5k** |
+| **Net kept out minus footprint** | **~24.8k** |
 
 | Measured billing | Tokens |
 |---|---|
@@ -127,7 +127,7 @@ Every `Read`, `Grep`, `Glob` and `Bash` call from this machine's Claude Code tra
 | **Context re-send ratio** | **54.6×** |
 | Re-sends removed, kept × turns that followed | ~4.6M |
 
-Guard actions: 19. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
+Guard actions: 21. Token counts are file bytes / 4 from this repo's own local ledger, an estimate; the billing figures are measured. Method: [Billing](#billing--measured-not-estimated).
 <!-- /handoff-stats -->
 
 ## Track A
@@ -191,6 +191,9 @@ Run 2026-09-15 · 33 cases · guard `plugins/serio-focus/scripts/guard.mjs` · a
 | Precision | 16/16 (100%) |
 | False-positive rate | 0/17 (0%) |
 | F1 | 1.00 |
+| Recall 95% CI (Wilson) | 80–100% — n=16 |
+| FP-rate 95% CI (Wilson) | 0–19% — n=17 |
+| Recall by origin | spec 14/14 (100%) · probe 1/1 (100%) · regression 1/1 (100%) |
 | Known bypasses caught | n/a |
 
 Confusion: TP 16 · FN 0 · FP 0 · TN 17. Bypasses scored apart.

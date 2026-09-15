@@ -6,9 +6,6 @@ export default async ({ directory }) => {
       const reason = bridge.verdictFor(input.tool, output.args ?? {}, input.sessionID, cwd);
       if (reason) throw new Error(reason);
     },
-    "tool.execute.after": async (input, output) => {
-      bridge.receiptFor(input.tool, input.args ?? {}, input.sessionID, cwd);
-    },
     event: async ({ event }) => {
       const id = event?.type === "session.idle" ? event.properties?.sessionID : null;
       if (id) bridge.flush(id, cwd);

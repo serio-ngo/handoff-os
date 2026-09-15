@@ -2,8 +2,9 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Blocked } from './lib/blocked.mjs';
+import { append, entry } from './audit.mjs';
 import { bump } from './lib/ledger.mjs';
-import { agentsRequested, bookRedirect, costBudget, dispatchBudget, receipt } from './lib/dispatch.mjs';
+import { agentsRequested, bookRedirect, costBudget, dispatchBudget } from './lib/dispatch.mjs';
 import { fanOutCap } from './lib/fan-out.mjs';
 import { judgeShell, shellWriteTargets } from './lib/shell-danger.mjs';
 import { kb, noteWrite, readBudget, shellReadBudget } from './lib/read-budget.mjs';
@@ -41,7 +42,6 @@ function judgeSpawn(payload, input, tool) {
   const kind = String(input.subagent_type || '');
   if (/scout/i.test(kind)) bump(payload, 'scouts', count);
   else if (/runner/i.test(kind)) bump(payload, 'runners', count);
-  receipt(payload, input, tool);
   return null;
 }
 
@@ -78,6 +78,15 @@ export function judge(raw = {}) {
 const refuse = (error) => {
   if (!(error instanceof Blocked)) throw error;
   const reason = error.message.trim();
+  try {
+    const root = process.env.HANDOFF_OS_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+    const project = process.env.CLAUDE_PROJECT_DIR || current.cwd || process.cwd();
+    const values = entry(current, project);
+    if (values) {
+      values.result = `blocked: ${reason}`;
+      append(root, values);
+    }
+  } catch { }
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',

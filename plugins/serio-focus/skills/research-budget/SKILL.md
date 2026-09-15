@@ -1,6 +1,6 @@
 ---
 name: research-budget
-description: "Use before dispatching any subagent or research — picks the cheapest sufficient actor and its budget."
+description: "Use before dispatching a subagent or research — picks the cheapest actor and budget."
 license: Apache-2.0
 compatibility: No external dependencies. The cap is enforced by scripts/guard.mjs on the Agent tool.
 ---

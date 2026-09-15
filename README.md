@@ -12,6 +12,8 @@
 Every reply starts with the action and ends with one next step. Subagent floods are capped,
 big reads trimmed, destructive commands held to the final state; the card lists the exact command.
 
+Open source ([Apache-2.0](LICENSE)) from [Serio NGO](https://serio.org.pl), a nonprofit.
+
 [![version](https://img.shields.io/github/package-json/v/serio-ngo/serio-focus?label=version&color=1f6feb)](plugins/serio-focus/.claude-plugin/plugin.json)
 [![verify](https://github.com/serio-ngo/serio-focus/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/serio-focus/actions/workflows/verify.yml)
 [![license](https://img.shields.io/github/license/serio-ngo/serio-focus?color=1f6feb)](LICENSE)
@@ -53,7 +55,7 @@ Without a checkout: `/plugin marketplace add serio-ngo/serio-focus`, then `/plug
 
 ## What it does
 
-<img src="docs/tiles-stops.svg" width="720" alt="Stops: 3 subagents per wave; 24 KB whole-file read cap; commit · push git writes need a human; one line session receipt">
+<img src="docs/tiles-stops.svg" width="720" alt="Stops: 3 subagents per wave; 24 KB whole-file read cap; commit · push git writes held to final state; one line session receipt">
 
 | Guard | Notes |
 |---|---|

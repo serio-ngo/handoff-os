@@ -7,8 +7,8 @@
 | Skill | Description chars, always in context | Body lines, on use |
 |---|---|---|
 | `plan-session` | 85 | 87 |
-| `research-budget` | 101 | 70 |
-| `task-loop` | 75 | 48 |
+| `research-budget` | 84 | 70 |
+| `task-loop` | 75 | 47 |
 
 ## Agents
 
@@ -32,7 +32,7 @@
 |---|---|
 | Guard logic, agent-affecting only | **830** lines across 11 flow files |
 | Stats, receipts, adapters (`audit`, `card`, `bridge`, `ledger`, `transcript`) | excluded from the count |
-| Pattern rules | **35** |
+| Pattern rules | **36** |
 | Hooks | **4** handlers on 4 events |
 | Skills | **3** |
 | Subagents | **2** |

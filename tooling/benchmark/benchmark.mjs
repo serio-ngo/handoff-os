@@ -72,6 +72,17 @@ const payloadFor = (c, probe) => JSON.stringify({
   tool_input: c.input || {},
 });
 
+const wilson = (x, total) => {
+  if (!total) return [0, 0];
+  const z = 1.96;
+  const p = x / total;
+  const d = 1 + (z * z) / total;
+  const centre = p + (z * z) / (2 * total);
+  const margin = z * Math.sqrt(((p * (1 - p) + (z * z) / (4 * total)) / total));
+  return [Math.max(0, Math.floor(((centre - margin) / d) * 100)), Math.min(100, Math.ceil(((centre + margin) / d) * 100))];
+};
+const ci = ([lo, hi]) => `${lo}–${hi}%`;
+
 function score(cmd, cases) {
   const probe = mkdtempSync(path.join(tmpdir(), 'handoff-eval-'));
   const env = {
@@ -95,6 +106,11 @@ function score(cmd, cases) {
   const fn = n('block', false);
   const fp = n('allow', true);
   const tn = n('allow', false);
+  const originStats = Object.fromEntries(ORIGINS.map((origin) => {
+    const h = held.filter((r) => r.origin === origin);
+    const hit = (want, blocked) => h.filter((r) => r.want === want && r.blocked === blocked).length;
+    return [origin, { tp: hit('block', true), fn: hit('block', false), fp: hit('allow', true), tn: hit('allow', false) }];
+  }));
   return {
     cases: rows.length,
     tp,
@@ -105,6 +121,9 @@ function score(cmd, cases) {
     precision: percent(tp, tp + fp),
     fpRate: percent(fp, fp + tn),
     f1: tp ? Number(((2 * tp) / (2 * tp + fp + fn)).toFixed(2)) : 0,
+    recallCI: wilson(tp, tp + fn),
+    fpRateCI: wilson(fp, fp + tn),
+    originStats,
     gapsCaught: gaps.filter((r) => r.blocked).length,
     gapsTotal: gaps.length,
     misses: held.filter((r) => r.blocked !== (r.want === 'block')),
@@ -161,6 +180,9 @@ function evalBlock(result, label) {
     `| Precision | ${rate(result.tp, result.tp + result.fp)} |`,
     `| False-positive rate | ${rate(result.fp, result.fp + result.tn)} |`,
     `| F1 | ${result.f1.toFixed(2)} |`,
+    `| Recall 95% CI (Wilson) | ${ci(result.recallCI)} — n=${result.tp + result.fn} |`,
+    `| FP-rate 95% CI (Wilson) | ${ci(result.fpRateCI)} — n=${result.fp + result.tn} |`,
+    `| Recall by origin | ${ORIGINS.map((o) => `${o} ${rate(result.originStats[o].tp, result.originStats[o].tp + result.originStats[o].fn)}`).join(' · ')} |`,
     `| Known bypasses caught | ${rate(result.gapsCaught, result.gapsTotal)} |`, '',
     `Confusion: TP ${result.tp} · FN ${result.fn} · FP ${result.fp} · TN ${result.tn}. Bypasses scored apart.`, '',
     ...result.misses.map((m) => `- Miss \`${m.id}\`: got ${m.blocked ? 'block' : 'allow'}, want ${m.want}.`),
@@ -219,6 +241,9 @@ function run() {
         precision: own.precision,
         fpRate: own.fpRate,
         f1: own.f1,
+        recallCI: own.recallCI,
+        fpRateCI: own.fpRateCI,
+        originRecall: Object.fromEntries(ORIGINS.map((o) => [o, percent(own.originStats[o].tp, own.originStats[o].tp + own.originStats[o].fn)])),
         confusion: { tp: own.tp, fn: own.fn, fp: own.fp, tn: own.tn },
         bypassesOpen: own.gapsTotal - own.gapsCaught,
         bypassesTotal: own.gapsTotal,

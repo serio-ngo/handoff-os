@@ -52,5 +52,18 @@
     "spec": 25,
     "probe": 3,
     "regression": 5
+  },
+  "recallCI": [
+    80,
+    100
+  ],
+  "fpRateCI": [
+    0,
+    19
+  ],
+  "originRecall": {
+    "spec": 100,
+    "probe": 100,
+    "regression": 100
   }
 }

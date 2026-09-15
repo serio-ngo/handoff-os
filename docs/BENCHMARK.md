@@ -191,6 +191,9 @@ Run 2026-09-15 · 33 cases · guard `plugins/serio-focus/scripts/guard.mjs` · a
 | Precision | 16/16 (100%) |
 | False-positive rate | 0/17 (0%) |
 | F1 | 1.00 |
+| Recall 95% CI (Wilson) | 80–100% — n=16 |
+| FP-rate 95% CI (Wilson) | 0–19% — n=17 |
+| Recall by origin | spec 14/14 (100%) · probe 1/1 (100%) · regression 1/1 (100%) |
 | Known bypasses caught | n/a |
 
 Confusion: TP 16 · FN 0 · FP 0 · TN 17. Bypasses scored apart.

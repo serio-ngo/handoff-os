@@ -66,7 +66,7 @@ compatibility: No external dependencies. Repo plans and repo specs only — not 
 | Situation | What the document must contain |
 |---|---|
 | You have enough to decide | the decision, plus the condition that would reverse it |
-| Genuinely the owner's call | one row: the question · who decides · what it blocks · **the default that ships if nobody answers** |
+| Genuinely the owner's call | decide with the default that ships, plus the condition that reverses it |
 | Blocked on a fact you cannot get | the row above, plus what you tried |
 
 - Banned: open questions with no defaults · `TBD`/`later` · deferring what the brief asked to settle.

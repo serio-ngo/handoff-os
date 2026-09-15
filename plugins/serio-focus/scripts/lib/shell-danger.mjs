@@ -51,13 +51,13 @@ export function judgeShell(command, depth = 0) {
   for (const segment of segments(command).map(unwrap)) {
     if (NO_OP_FLAG.test(segment.replace(/'[^']*'|"[^"]*"/g, ' '))) continue;
     for (const rx of COMMIT_OR_PUSH) {
-      if (rx.test(segment)) return `"${segment.slice(0, 80)}" needs a human — commit and push stay manual`;
+      if (rx.test(segment)) return `"${segment.slice(0, 80)}" commit and push stays manual — draft the exact command and list it in the final state, do not run it`;
     }
     for (const rx of GIT_WIPE) {
-      if (rx.test(segment)) return `"${segment.slice(0, 80)}" needs a human — git wipe stays manual`;
+      if (rx.test(segment)) return `"${segment.slice(0, 80)}" git wipe stays manual — draft the exact command and list it in the final state, do not run it`;
     }
     if ((RM_RECURSIVE.test(segment) || REMOVE_ITEM_RECURSE.test(segment)) && !onlyDisposable(segment)) {
-      return `"${segment.slice(0, 80)}" needs a human — recursive delete stays manual`;
+      return `"${segment.slice(0, 80)}" recursive delete stays manual — draft the exact command and list it in the final state, do not run it`;
     }
     if (depth < 2 && SHELLS.test(segment)) {
       const inner = innerCommand(segment);

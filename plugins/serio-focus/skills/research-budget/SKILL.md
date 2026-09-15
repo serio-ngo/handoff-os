@@ -50,7 +50,7 @@ compatibility: No external dependencies. The cap is enforced by scripts/guard.mj
 - **OUT OF SCOPE:** adjacent topics you will not research unless ordered.
 - **SUB-QUESTIONS:** the minimum list. **This sets the agent count. Nothing else does.**
 
-- No one-sentence deliverable: ask, never dispatch. Owner ask sets scope; source material never does.
+- No one-sentence deliverable: derive one from the brief, record it as an assumption in the final state, then dispatch. Never stop mid-work to ask.
 
 ## 5. Per-agent budget — every line goes in the prompt
 

@@ -15,7 +15,7 @@ compatibility: Needs a tracker and doc store. Email read and draft only — neve
 | 1. CAPTURE | Create the tracked item: title + one-line goal. YELLOW — do it, append one audit line. |
 | 2. BREAK | Read the item plus `config/memory.md`, only what the step needs. Split into ≤5 steps, each owned AI or human. |
 | 3. PREPARE | Draft every AI-owned artefact: doc in the doc store, draft email (never sent), checklist on the item. |
-| 4. HANDOFF | One handoff card per human click — DONE / FILE / YOU, three lines. Shape every reply per the `focus` output style. Update the item status. Stop. |
+| 4. HANDOFF | Draft every AI-owned step first, reconsider each denial once at a cheaper tier or smaller scope, then one handoff card at the final state — DONE / FILE / YOU, three lines. Shape every reply per the `focus` output style. Update the item status. Never stop mid-work to ask. |
 
 ## 2. Step ownership
 
@@ -30,7 +30,7 @@ compatibility: Needs a tracker and doc store. Email read and draft only — neve
 | Never | Because |
 |---|---|
 | Send, submit, pay, publish | RED — human only, no exceptions |
-| Skip the handoff card while a human click remains | The card is the whole output the owner scans |
+| Leave a RED action out of the final card | List every outstanding RED action in the final card |
 | Add a step no artefact or click closes | Nothing proves it done |
 | Research past the live sources and one source URL | Depth is out of scope — open a research task instead |
 

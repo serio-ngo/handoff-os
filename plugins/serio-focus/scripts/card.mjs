@@ -35,7 +35,7 @@ export function card(text = memory()) {
   const lines = text.trim() === '' ? 0 : text.trim().split('\n').length;
   const status = lines
     ? `set (${lines} lines) — read memory.md when owner context is needed`
-    : 'empty — ask the owner for every org fact';
+    : 'empty — proceed without org facts; tag unconfirmed UNVERIFIED';
   return `Serio Focus — session card
 CAPS  3 subagents per wave · files over 24KB arrive trimmed · git commit and push stay manual
 SHAPE the focus output style shapes every reply

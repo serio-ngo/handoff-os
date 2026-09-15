@@ -1,6 +1,6 @@
 {
   "name": "serio-focus",
-  "version": "1.12.3",
+  "version": "1.12.4",
   "description": "A focus-first companion for ADHD/AuDHD workflows in Claude Code: short scannable answers, subagent flood caps, read budgets and a git commit/push lock. No model call, no API key, no telemetry, no dependencies.",
   "license": "Apache-2.0",
   "private": true,

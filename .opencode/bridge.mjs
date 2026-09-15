@@ -1,4 +1,4 @@
-import { append, entry } from '../plugins/serio-focus/scripts/audit.mjs';
+import { append } from '../plugins/serio-focus/scripts/audit.mjs';
 import { Blocked, judge } from '../plugins/serio-focus/scripts/guard.mjs';
 import { rootOf } from '../plugins/serio-focus/scripts/lib/ledger.mjs';
 import { report } from '../plugins/serio-focus/scripts/verify.mjs';
@@ -47,12 +47,6 @@ export function verdictFor(tool, args, sessionID, cwd) {
     });
     return reason;
   }
-}
-
-export function receiptFor(tool, args, sessionID, cwd) {
-  const payload = toPayload(tool, args, sessionID, cwd);
-  const values = entry(payload, rootOf(payload));
-  if (values) append(rootOf(payload), values);
 }
 
 export function flush(sessionID, cwd = process.cwd()) {

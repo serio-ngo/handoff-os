@@ -12,12 +12,6 @@
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard.mjs\"", "timeout": 10, "statusMessage": "Fan-out cap, read budget, git lock" }]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "^(Bash|PowerShell|Edit|Write|NotebookEdit|MultiEdit|mcp__(?!.*[_-](search|list|read|get|help|resolve)(_|-|$)))",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/audit.mjs\"", "timeout": 10, "statusMessage": "Audit receipt" }]
-      }
-    ],
     "Stop": [
       {
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs\"", "timeout": 15, "statusMessage": "Session receipt" }]

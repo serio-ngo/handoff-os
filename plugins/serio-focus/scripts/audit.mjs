@@ -1,7 +1,5 @@
-#!/usr/bin/env node
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const FIELDS = ['ts', 'actor', 'tier', 'action', 'target', 'result'];
 
@@ -39,14 +37,4 @@ export function append(root, values) {
     mkdirSync(`${root}/audit`, { recursive: true });
     appendFileSync(`${root}/audit/${month}.jsonl`, `${JSON.stringify(record)}\n`, 'utf8');
   } catch { }
-}
-
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  let payload = {};
-  try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { payload = {}; }
-  const root = process.env.HANDOFF_OS_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
-  const project = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
-  const values = entry(payload, project);
-  if (values) append(root, values);
-  process.exit(0);
 }

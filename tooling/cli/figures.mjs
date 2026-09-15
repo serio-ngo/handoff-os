@@ -8,8 +8,10 @@ import { BIG_FILE_BYTES, MAX_PER_WAVE } from '../../plugins/serio-focus/scripts/
 import { num, secs } from './format.mjs';
 import { PLUGIN, REPO, readJson, writeBlock } from './generate.mjs';
 
-const INK = '#7d8590';
-const HUE = { without: '#d95926', with: '#2a78d6' };
+const INK = '#24292f';
+const MUTED = '#57606a';
+const HUE = { without: '#cf222e', with: '#0969da' };
+const WASH = { without: '#ffebe9', with: '#ddf4ff' };
 const DEMO_AGENTS = 100;
 const DEMO_FILE_BYTES = 35 * 1024;
 const DEMO_LINE_BYTES = 64;
@@ -44,7 +46,7 @@ function glyphs(x0, y0, count, filled, fill) {
     const y = y0 + Math.floor(i / cols) * (h + gap);
     return i < filled
       ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="${fill}"/>`
-      : `<rect x="${x + 0.75}" y="${y + 0.75}" width="${w - 1.5}" height="${h - 1.5}" rx="7" fill="none" stroke="${INK}" stroke-opacity=".7" stroke-width="1.5"/>`;
+      : `<rect x="${x + 0.75}" y="${y + 0.75}" width="${w - 1.5}" height="${h - 1.5}" rx="7" fill="none" stroke="${MUTED}" stroke-opacity=".7" stroke-width="1.5"/>`;
   });
 }
 
@@ -146,7 +148,7 @@ function tileRow(items) {
     ...items.flatMap(([value, label], i) => {
       const x = i * (w + gap);
       return [
-        `<rect x="${x + 0.5}" y="0.5" width="${w - 1}" height="${H - 1}" rx="8" fill="none" stroke="${INK}" stroke-opacity=".35"/>`,
+        `<rect x="${x + 0.5}" y="0.5" width="${w - 1}" height="${H - 1}" rx="8" fill="#ffffff" stroke="#d0d7de"/>`,
         `<rect x="${x + 16}" y="22" width="3" height="48" rx="1.5" fill="${HUE.with}"/>`,
         text(x + 30, 50, value, { size: 26, weight: 700 }),
         text(x + 30, 71, label, { size: 12 }),
@@ -193,33 +195,48 @@ function probe() {
   };
 
   const steps = [
-    ['Read src/big.js · 35 KB', 'Read', { file_path: big }],
     [`Workflow · ${DEMO_AGENTS} agents`, 'Workflow', { script: `// AGENTS: ${DEMO_AGENTS}\nawait parallel(mods.map((m) => () => agent(m)))` }],
+    ['Read src/big.js · 35 KB', 'Read', { file_path: big }],
     ['Bash · `git commit -m "wip"`', 'Bash', { command: 'git commit -m "wip"' }],
-    ['Bash · `git push origin main`', 'Bash', { command: 'git push origin main' }],
-    ['Bash · `rm -rf docs`', 'Bash', { command: 'rm -rf docs' }],
   ].map(([label, tool, input]) => ({ label, ...fire(tool, input) }));
-  steps.push({ label: 'Answer · focus style', blocked: false, verdict: 'Action first · Done ≤5 · one Next + command · Step N of M' });
+  const answer = [
+    'Ran docs audit — fixed 3 links',
+    '- fixed 3 anchors · docs/BENCHMARK.md:12',
+    '- held git commit to final state · listed exact command',
+    'Next: run npm run upkeep',
+    'You should see: wrote docs/demo.svg',
+    'If not: check HANDOFF_GIT_WRITE=0 and rerun',
+    'Step 2 of 5',
+  ];
 
   const receipt = sessionLine(load(root, 'demo'));
   rmSync(root, { recursive: true, force: true });
-  return { steps, receipt };
+  return { steps, answer, receipt };
 }
 
-function demoSvg({ steps, receipt } = probe()) {
-  const WRAP = 110; const CH = 8.2;
-  const FADE_IN = 0.3; const HOLD = 4; const FADE_OUT = 1; const BLANK = 0.5;
+function demoSvg({ steps, answer, receipt } = probe()) {
+  const WRAP = 100; const CH = 8.2;
+  const FADE_IN = 0.3; const HOLD = 5; const FADE_OUT = 1; const BLANK = 0.5;
   const TYPE_AT = 0.8; const TYPE_LEN = 1.4;
-  const prompt = '> review whole app and send results to me.';
-  const rows = [{ text: '$ claude' }, { text: prompt, typed: true, weight: 600 }];
+  const prompt = '> audit docs and hold the commit.';
+  const rows = [{ text: '$ claude', fill: MUTED }, { text: prompt, typed: true, weight: 600, fill: INK }];
   for (const step of steps) {
-    rows.push({ text: `⏺  ${step.label}`, fill: step.blocked ? undefined : HUE.with, weight: 600 });
+    rows.push({ text: `⏺  ${step.label}`, fill: INK, weight: 600 });
     if (!step.verdict) continue;
     const hue = step.blocked ? HUE.without : HUE.with;
+    const wash = step.blocked ? WASH.without : WASH.with;
     wrap(`${step.blocked ? '⨯' : '↻'}  ${step.verdict}`, WRAP)
-      .forEach((line, i) => rows.push({ text: i ? `   ${line}` : line, fill: hue, bar: i === 0 }));
+      .forEach((line, i) => rows.push({ text: i ? `   ${line}` : line, fill: hue, wash: i === 0 ? wash : null, bar: i === 0 }));
   }
-  receipt.split('\n').forEach((line, i) => rows.push({ text: line, weight: i ? undefined : 600, box: i === 0 }));
+  rows.push({ text: '⏺  Answer · focus style', fill: INK, weight: 600 });
+  answer.forEach((line, i) => rows.push({
+    text: line.startsWith('-') || line.startsWith('You ') || line.startsWith('If ') ? `   ${line}` : line,
+    fill: /^Next:/.test(line) ? HUE.with : INK,
+    weight: i === 0 || /^Next:|^Step /.test(line) ? 600 : undefined,
+    wash: i === 0 ? null : null,
+    bar: false,
+  }));
+  receipt.split('\n').forEach((line, i) => rows.push({ text: line, fill: MUTED, weight: i ? undefined : 600, box: i === 0 }));
 
   const y0 = 60; const step = 24;
   const H = y0 + rows.length * step + 30;
@@ -231,10 +248,11 @@ function demoSvg({ steps, receipt } = probe()) {
     at += row.typed ? 1.8 : row.bar === undefined ? 0.5 : 0.35;
     const y = y0 + i * step;
     const cls = `row d${i}`;
-    if (row.box) body.push(`<rect class="${cls}" x="14" y="${y - 17}" width="${W - 28}" height="${(rows.length - i) * step + 6}" rx="4" fill="${INK}" fill-opacity=".08" stroke="${INK}" stroke-opacity=".35"/>`);
+    if (row.box) body.push(`<rect class="${cls}" x="14" y="${y - 17}" width="${W - 28}" height="${(rows.length - i) * step + 6}" rx="4" fill="none" stroke="#d0d7de"/>`);
     if (row.bar) {
       const span = rows.slice(i).findIndex((next, n) => n > 0 && next.bar !== false);
-      body.push(`<rect class="${cls}" x="14" y="${y - 16}" width="${W - 28}" height="${(span < 0 ? rows.length - i : span) * step - 2}" rx="4" fill="${row.fill}" fill-opacity=".1"/>`);
+      const wash = row.wash ?? row.fill;
+      body.push(`<rect class="${cls}" x="14" y="${y - 16}" width="${W - 28}" height="${(span < 0 ? rows.length - i : span) * step - 2}" rx="4" fill="${wash}" stroke="${row.fill}" stroke-opacity=".45"/>`);
     }
     if (row.typed) {
       body.push(`<clipPath id="t"><rect class="typed" x="22" y="${y - 14}" height="18"/></clipPath>`);
@@ -268,9 +286,9 @@ function demoSvg({ steps, receipt } = probe()) {
     '.cursor{animation:blink 1s steps(1) infinite}',
     cues,
     '</style>',
-    `<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="10" fill="${INK}" fill-opacity=".07" stroke="${INK}" stroke-opacity=".35"/>`,
-    `<path d="M0 34 H${W}" stroke="${INK}" stroke-opacity=".35"/>`,
-    text(22, 22, '— serio-focus session', { size: 11.5 }),
+    `<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="10" fill="#ffffff" stroke="#d0d7de"/>`,
+    `<path d="M0 34 H${W}" stroke="#d0d7de"/>`,
+    text(22, 22, '— serio-focus session', { size: 11.5, fill: MUTED }),
     ...body,
     `<g class="row d${last}"><rect class="cursor" x="${22 + Math.ceil(rows[last].text.length * CH) + 6}" y="${y0 + last * step - 11}" width="7" height="13" fill="${HUE.with}"/></g>`,
     '</svg>',

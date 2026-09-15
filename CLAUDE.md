@@ -11,7 +11,7 @@ Two trees: `plugins/serio-focus/` ships, `tooling/` never does.
 
 | Path | Contents |
 |---|---|
-| `plugins/serio-focus/` | The plugin, the only shipped tree: 3 skills, 2 agents, 4 hook events, 5 scripts, 12 `scripts/lib/` helpers, 1 output style. |
+| `plugins/serio-focus/` | The plugin, the only shipped tree: 3 skills, 2 agents, 3 hook events, 4 scripts, 13 `scripts/lib/` helpers, 1 output style. |
 | `tooling/cli/` | `handoff.mjs`, the maintainer CLI. Generators `generate.mjs`, `figures.mjs`. |
 | `tooling/benchmark/` | `benchmark.mjs`, the harness. `baselines.mjs`, the four comparators. |
 | `tooling/corpus/` | `guard-corpus.jsonl`, the labelled corpus. |

@@ -1,7 +1,6 @@
 import { DENY_SUBAGENT_DEFAULT } from './limits.mjs';
 import { declaredModel } from './agent-model.mjs';
 import { load, rootOf, save, sessionOf } from './ledger.mjs';
-import { append } from '../audit.mjs';
 
 const MODEL_TIERS = /\b(?:haiku|sonnet|opus|fable)\b/i;
 const MODEL_OPTION = /\bmodel\s*[:=]\s*['"`]?\s*(haiku|sonnet|opus|fable)\b/gi;
@@ -85,14 +84,4 @@ export function bookRedirect(payload, tier) {
   state.saved.redirects += 1;
   state.tiers = { ...(state.tiers || {}), [tier]: ((state.tiers || {})[tier] || 0) + 1 };
   save(root, session, state);
-}
-
-export function receipt(payload, input, tool) {
-  const model = String(input.model || '').trim().toLowerCase()
-    || declaredModel(input.subagent_type, payload.cwd) || 'inherit';
-  const kind = String(input.subagent_type || input.description || input.subject || input.name || '').slice(0, 80);
-  append(rootOf(payload), {
-    actor: payload.agent_type || 'main', tier: 'GREEN', action: tool,
-    target: `${model}:${kind}`, result: 'ok',
-  });
 }

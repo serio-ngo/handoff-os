@@ -9,23 +9,19 @@
 
 **An ADHD quality-of-life tool for Claude Code: less noise, more done.**
 
-Every reply starts with the action and ends with one next step. Subagent floods are capped,
-big reads trimmed, destructive commands held to the final state; the card lists the exact command.
-
-Open source ([Apache-2.0](LICENSE)) from [Serio NGO](https://serio.org.pl), a nonprofit.
+Every reply starts with the action and ends with one next step.<br>
+Subagent floods capped · big reads trimmed · destructive commands held to the final state.
 
 [![version](https://img.shields.io/github/package-json/v/serio-ngo/serio-focus?label=version&color=1f6feb)](plugins/serio-focus/.claude-plugin/plugin.json)
 [![verify](https://github.com/serio-ngo/serio-focus/actions/workflows/verify.yml/badge.svg)](https://github.com/serio-ngo/serio-focus/actions/workflows/verify.yml)
 [![license](https://img.shields.io/github/license/serio-ngo/serio-focus?color=1f6feb)](LICENSE)
-[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-1f6feb)](#start-here)
 
 [![guard caught](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fserio-focus%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.recall&suffix=%25&label=guard%20caught&color=2da44e)](docs/BENCHMARK.md)
 [![wrongly blocked](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fserio-focus%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.fpRate&suffix=%25&label=wrongly%20blocked&color=2da44e)](docs/BENCHMARK.md)
-[![plugin logic](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fserio-focus%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.logicLines&suffix=%20lines&label=plugin%20logic&color=57606a)](plugins/serio-focus/scripts)
-[![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fserio-focus%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.dependencies&label=dependencies&color=2da44e)](package.json)
+[![dependencies](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fserio-ngo%2Fserio-focus%2Fmain%2Ftooling%2Fresults%2Fscores.json&query=%24.dependencies&label=dependencies&color=57606a)](package.json)
 
 <!-- handoff-demo -->
-<img src="docs/demo.svg" width="954" alt="serio-focus session: Read src/big.js · 35 KB → READ CAP: big.js 35KB. Kept first 384 lines · Workflow · 100 agents → FAN-OUT CAP: 100 asked, 3 run. Next: wait one wave · Bash · `git commit -m &quot;wip&quot;` → GIT WRITE: &quot;git commit -m &quot;wip&quot;&quot; commit and push stays manual — draft the exact command and list it in the final state, do not run it · Bash · `git push origin main` → GIT WRITE: &quot;git push origin main&quot; commit and push stays manual — draft the exact command and list it in the final state, do not run it · Bash · `rm -rf docs` → DELETE LOCK: &quot;rm -rf docs&quot; recursive delete stays manual — draft the exact command and list it in the final state, do not run it · Answer · focus style → Action first · Done ≤5 · one Next + command · Step N of M · SERIO FOCUS · 104 held · ~2,816 of ~8,960 tok kept out (31%)">
+<img src="docs/demo.svg" width="864" alt="serio-focus session: Workflow · 100 agents → FAN-OUT CAP: 100 asked, 3 run. Next: wait one wave · Read src/big.js · 35 KB → READ CAP: big.js 35KB. Kept first 384 lines · Bash · `git commit -m &quot;wip&quot;` → GIT WRITE: &quot;git commit -m &quot;wip&quot;&quot; commit and push stays manual — draft the exact command and list it in the final state, do not run it · SERIO FOCUS · 102 held · ~2,816 of ~8,960 tok kept out (31%)">
 <!-- /handoff-demo -->
 
 <sub>[Start here](#start-here) · [What it does](#what-it-does) · [Proof](#proof) · [Method](docs/BENCHMARK.md) · [Contributing](CONTRIBUTING.md)</sub>
@@ -79,7 +75,7 @@ comparators. Cost, limits and full method: [docs/BENCHMARK.md](docs/BENCHMARK.md
 <div align="center">
 <sub>
 
-[CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [docs/BENCHMARK.md](docs/BENCHMARK.md) · [docs/MANIFEST.md](docs/MANIFEST.md) · [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md) · [Apache-2.0](LICENSE)
+[CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [docs/BENCHMARK.md](docs/BENCHMARK.md) · [docs/MANIFEST.md](docs/MANIFEST.md) · [docs/CLAUDE_CODE_FACTS.md](docs/CLAUDE_CODE_FACTS.md) · [Apache-2.0](LICENSE) · Built by [Serio NGO](https://serio.org.pl)
 
 </sub>
 </div>

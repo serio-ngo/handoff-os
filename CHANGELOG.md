@@ -4,6 +4,7 @@
 
 | Version | Date | Change |
 |---|---|---|
+| 1.12.3 | 2026-09-15 | final-state flow, card memory trim, bridge to opencode, nonprofit hero |
 | 1.12.2 | 2026-09-14 | demo blocks render red again (deny read from stdout), svg loop resets clean; readme carries the serio logo and ADHD quality-of-life framing |
 | 1.12.1 | 2026-09-14 | rename handoff-os to serio-focus: plugin id, paths, agent references, docs and URLs; HANDOFF_* env and generic handoff wording unchanged |
 | 1.12.0 | 2026-09-14 | action-first guard verdicts, OpenCode reply sync, suite cut 39 to 28 |

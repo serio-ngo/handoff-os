@@ -18,8 +18,8 @@ function descriptionChars(dir, pick) {
   } catch { return 0; }
 }
 
-function footprint(text) {
-  const cardChars = card(text).length;
+function footprint() {
+  const cardChars = card().length;
   const skillChars = descriptionChars(path.join(PLUGIN, 'skills'), (name) => [path.join(PLUGIN, 'skills', name, 'SKILL.md')]);
   const agentChars = descriptionChars(path.join(PLUGIN, 'agents'), (name) => (name.endsWith('.md') ? [path.join(PLUGIN, 'agents', name)] : []));
   return { cardChars, skillChars, agentChars, contextChars: cardChars + skillChars + agentChars };
@@ -163,7 +163,7 @@ export function inventory(root = REPO) {
   const patterns = FLOW.reduce((n, file) => n
     + (readFileSync(path.join(plugin, 'scripts', file), 'utf8').match(/^const [A-Z_]+ = \/|^const [A-Z_]+ = \[/gm) || []).length, 0);
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const { cardChars, skillChars, agentChars, contextChars } = footprint('');
+  const { cardChars, skillChars, agentChars, contextChars } = footprint();
 
   return {
     skills: skills.length,

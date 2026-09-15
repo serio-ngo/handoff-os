@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { load, rootOf, save, sessionOf, sweep } from './lib/ledger.mjs';
+import { BIG_FILE_BYTES, MAX_PER_WAVE } from './lib/limits.mjs';
 
 const FREEING = new Set(['compact', 'clear']);
 function forgetReads(payload) {
@@ -16,30 +16,10 @@ function forgetReads(payload) {
   return true;
 }
 
-function memory() {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const candidates = [
-    process.env.HANDOFF_OS_DIR && path.join(process.env.HANDOFF_OS_DIR, 'config', 'memory.md'),
-    path.join(here, '..', 'memory.md'),
-    path.join(here, '..', '..', '..', 'config', 'memory.md'),
-  ].filter(Boolean);
-  for (const file of candidates) {
-    try {
-      if (existsSync(file)) return readFileSync(file, 'utf8');
-    } catch { }
-  }
-  return '';
-}
-
-export function card(text = memory()) {
-  const lines = text.trim() === '' ? 0 : text.trim().split('\n').length;
-  const status = lines
-    ? `set (${lines} lines) — read memory.md when owner context is needed`
-    : 'empty — ask the owner for every org fact';
+export function card() {
   return `Serio Focus — session card
-CAPS  3 subagents per wave · files over 24KB arrive trimmed · git commit and push stay manual
-SHAPE the focus output style shapes every reply
-MEMORY ${status}`;
+CAPS  ${MAX_PER_WAVE} subagents per wave · files over ${BIG_FILE_BYTES / 1024}KB arrive trimmed · git commit and push stay manual
+SHAPE the focus output style shapes every reply`;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

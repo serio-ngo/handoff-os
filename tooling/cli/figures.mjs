@@ -121,7 +121,7 @@ function tiles(r, scores = readJson('tooling', 'results', 'scores.json')) {
     stops: [
       [String(MAX_PER_WAVE), 'subagents per wave'],
       [`${Math.round(BIG_FILE_BYTES / 1024)} KB`, 'whole-file read cap'],
-      ['commit · push', 'git writes need a human'],
+      ['commit · push', 'git writes held to final state'],
       ['one line', 'session receipt'],
     ],
     wins: [

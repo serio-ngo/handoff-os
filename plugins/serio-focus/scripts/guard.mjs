@@ -10,7 +10,7 @@ import { kb, noteWrite, readBudget, shellReadBudget } from './lib/read-budget.mj
 import { queryBudget } from './lib/query-budget.mjs';
 
 export const SPAWN_TOOLS = ['Agent', 'Task', 'TaskCreate', 'Workflow'];
-export const WRITE_TOOLS = ['Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
+const WRITE_TOOLS = ['Edit', 'Write', 'NotebookEdit', 'MultiEdit'];
 export { Blocked };
 
 let current = {};

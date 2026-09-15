@@ -1,7 +1,7 @@
-import { append, entry } from './audit.mjs';
-import { Blocked, judge } from './guard.mjs';
-import { rootOf } from './lib/ledger.mjs';
-import { report } from './verify.mjs';
+import { append, entry } from '../plugins/serio-focus/scripts/audit.mjs';
+import { Blocked, judge } from '../plugins/serio-focus/scripts/guard.mjs';
+import { rootOf } from '../plugins/serio-focus/scripts/lib/ledger.mjs';
+import { report } from '../plugins/serio-focus/scripts/verify.mjs';
 
 const TOOLS = { read: 'Read', edit: 'Edit', write: 'Write', bash: 'Bash', grep: 'Grep', glob: 'Glob', task: 'TaskCreate' };
 const ALIAS = { filePath: 'file_path', oldString: 'old_string', newString: 'new_string' };

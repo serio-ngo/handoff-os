@@ -1,6 +1,6 @@
 ---
 name: runner
-description: Use proactively to run a repo command — test, build, lint, typecheck, benchmark — for the verdict, not the log.
+description: Use proactively to run a repo command — test, build, lint, typecheck, benchmark — verdict, not log.
 tools: Bash, Read, Grep, Glob
 model: haiku
 ---
